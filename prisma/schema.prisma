@@ -2487,7 +2487,7 @@ model DisclosureRequirement {
   name         String
   description  String?
   category     String?
-  isManadatory Boolean  @default(false)
+  isMandatory  Boolean  @default(false)
   dataType     String?
   guidance     String?
   createdAt    DateTime @default(now())
