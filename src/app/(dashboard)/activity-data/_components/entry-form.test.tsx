@@ -67,7 +67,7 @@ describe("EntryForm", () => {
 
   it("submits a valid entry with coerced types", async () => {
     const user = userEvent.setup();
-    const createEntry = vi.fn(async (_input: unknown) =>
+    const createEntry = vi.fn<(input: unknown) => Promise<ActionState<CreateEntryResult>>>(async () =>
       actionSuccess(
         { id: "entry-1", ruleFlags: [] },
         "Entry saved.",
@@ -90,7 +90,7 @@ describe("EntryForm", () => {
 
   it("surfaces non-blocking rule flags inline after a successful save", async () => {
     const user = userEvent.setup();
-    const createEntry = vi.fn(async (_input: unknown) =>
+    const createEntry = vi.fn<(input: unknown) => Promise<ActionState<CreateEntryResult>>>(async () =>
       actionSuccess(
         {
           id: "entry-1",
@@ -112,7 +112,7 @@ describe("EntryForm", () => {
 
   it("renders a blocking rule rejection as a banner, not a field error", async () => {
     const user = userEvent.setup();
-    const createEntry = vi.fn(async (_input: unknown) =>
+    const createEntry = vi.fn<(input: unknown) => Promise<ActionState<CreateEntryResult>>>(async () =>
       actionError(
         "VALIDATION_ERROR",
         "Quantity exceeds the plausible range for this meter.",
@@ -131,7 +131,7 @@ describe("EntryForm", () => {
 
   it("maps server field errors back onto their inputs", async () => {
     const user = userEvent.setup();
-    const createEntry = vi.fn(async (_input: unknown) =>
+    const createEntry = vi.fn<(input: unknown) => Promise<ActionState<CreateEntryResult>>>(async () =>
       actionError("VALIDATION_ERROR", "Invalid", "action.error.validation", {
         fieldErrors: { unit: ["Unit gal is not in the registry"] },
       }),
@@ -148,7 +148,7 @@ describe("EntryForm", () => {
 
   it("explains demo mode instead of reporting a failure", async () => {
     const user = userEvent.setup();
-    const createEntry = vi.fn(async (_input: unknown) =>
+    const createEntry = vi.fn<(input: unknown) => Promise<ActionState<CreateEntryResult>>>(async () =>
       actionError(
         "DEMO_MODE",
         "No database is configured, so this change was not saved.",

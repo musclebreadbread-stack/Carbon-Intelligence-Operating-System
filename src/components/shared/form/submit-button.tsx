@@ -14,6 +14,13 @@ export type SubmitButtonProps = {
   readonly variant?: "default" | "outline" | "secondary" | "ghost" | "destructive";
   readonly size?: "default" | "sm" | "lg";
   readonly className?: string;
+  /**
+   * Submitter name/value. A submit button's own name and value are included in the
+   * `FormData`, which is how one form offers two actions (preview vs persist)
+   * without a hidden field and a click handler racing the submission.
+   */
+  readonly name?: string;
+  readonly value?: string;
 };
 
 /**
@@ -31,6 +38,8 @@ export function SubmitButton({
   variant = "default",
   size = "sm",
   className,
+  name,
+  value,
 }: SubmitButtonProps) {
   const status = useFormStatus();
   const busy = pending ?? status.pending;
@@ -42,6 +51,8 @@ export function SubmitButton({
       size={size}
       disabled={busy || disabled}
       className={className}
+      name={name}
+      value={value}
     >
       {busy && <Loader2 className="size-3.5 animate-spin" />}
       {busy ? (pendingLabel ?? children) : children}
