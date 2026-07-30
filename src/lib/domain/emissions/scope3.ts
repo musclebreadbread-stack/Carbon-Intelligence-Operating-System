@@ -199,6 +199,21 @@ function calculateFromActivity(
   };
 }
 
+/**
+ * Generic Scope 3 calculation for any category, from a single quantity + unit.
+ *
+ * This is the path the orchestrator takes: a persisted `ActivityDataEntry` has
+ * already been reduced to one quantity in one unit (tkm, pkm, kWh, USD, …), so
+ * the structured category helpers above are only needed by the data-capture
+ * flows that perform that reduction.
+ */
+export function calculateScope3Generic(
+  category: Scope3Category,
+  input: Scope3ActivityInput,
+): Scope3Computation {
+  return calculateFromActivity(category, input);
+}
+
 // ---------------------------------------------------------------------------
 // Category 1 — Purchased goods and services
 // ---------------------------------------------------------------------------
