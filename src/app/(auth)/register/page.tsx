@@ -25,6 +25,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [confirmationSent, setConfirmationSent] = useState(false);
 
   async function handleRegister(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -32,7 +33,7 @@ export default function RegisterPage() {
     setLoading(true);
 
     const supabase = createClient();
-    const { error: authError } = await supabase.auth.signUp({
+    const { data, error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -47,6 +48,12 @@ export default function RegisterPage() {
 
     if (authError) {
       setError(authError.message);
+      setLoading(false);
+      return;
+    }
+
+    if (!data.session) {
+      setConfirmationSent(true);
       setLoading(false);
       return;
     }
@@ -84,6 +91,28 @@ export default function RegisterPage() {
             {error}
           </div>
         )}
+
+        {confirmationSent ? (
+          <div className="space-y-4 text-center">
+            <div className="rounded-md bg-primary/10 p-4 text-sm text-primary">
+              <p className="font-medium">Check your email for verification</p>
+              <p className="mt-1 text-muted-foreground">
+                We sent a confirmation link to <strong>{email}</strong>. Please
+                check your inbox and click the link to activate your account.
+              </p>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Already verified?{" "}
+              <Link
+                href="/login"
+                className="font-medium text-foreground hover:underline"
+              >
+                Sign in
+              </Link>
+            </p>
+          </div>
+        ) : (
+          <>
 
         {/* SSO Buttons */}
         <div className="grid gap-2">
@@ -217,6 +246,8 @@ export default function RegisterPage() {
             Sign in
           </Link>
         </p>
+        </>
+        )}
       </CardContent>
     </Card>
   );
