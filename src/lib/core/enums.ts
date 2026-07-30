@@ -225,6 +225,78 @@ export const VERIFICATION_STATUSES = [
 ] as const;
 export type VerificationStatus = (typeof VERIFICATION_STATUSES)[number];
 
+export const FUEL_CATEGORIES = [
+  "SOLID",
+  "LIQUID",
+  "GASEOUS",
+  "BIOMASS",
+  "WASTE",
+] as const;
+export type FuelCategory = (typeof FUEL_CATEGORIES)[number];
+
+export const VEHICLE_TYPES = [
+  "CAR",
+  "VAN",
+  "TRUCK",
+  "BUS",
+  "RAIL",
+  "SHIP",
+  "AIRCRAFT",
+  "MOTORCYCLE",
+] as const;
+export type VehicleType = (typeof VEHICLE_TYPES)[number];
+
+export const ENERGY_TYPES = [
+  "ELECTRICITY",
+  "NATURAL_GAS",
+  "STEAM",
+  "HEATING",
+  "COOLING",
+  "SOLAR",
+  "WIND",
+  "HYDRO",
+  "NUCLEAR",
+  "BIOMASS_ENERGY",
+] as const;
+export type EnergyType = (typeof ENERGY_TYPES)[number];
+
+export const IMPORT_STATUSES = [
+  "PENDING",
+  "VALIDATING",
+  "PROCESSING",
+  "COMPLETED",
+  "FAILED",
+  "PARTIALLY_COMPLETED",
+] as const;
+export type ImportStatus = (typeof IMPORT_STATUSES)[number];
+
+export const WORKFLOW_STATUSES = [
+  "DRAFT",
+  "ACTIVE",
+  "PAUSED",
+  "COMPLETED",
+  "FAILED",
+  "CANCELLED",
+] as const;
+export type WorkflowStatus = (typeof WORKFLOW_STATUSES)[number];
+
+export const APPROVAL_STATUSES = [
+  "PENDING",
+  "APPROVED",
+  "REJECTED",
+  "ESCALATED",
+] as const;
+export type ApprovalStatus = (typeof APPROVAL_STATUSES)[number];
+
+export const NOTIFICATION_TYPES = [
+  "INFO",
+  "WARNING",
+  "ERROR",
+  "SUCCESS",
+  "ACTION_REQUIRED",
+] as const;
+export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
+
 /**
  * GWP vintage. Not a Prisma enum — the schema stores the chosen vintage as part
  * of the calculation methodology — but the engines need it as a first-class
