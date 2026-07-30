@@ -1,12 +1,3452 @@
-// This is the Prisma schema file for the Carbon Intelligence Operating System.
-// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+// Carbon Intelligence Operating System (CIOS) - Comprehensive Prisma Schema
+// Covers: Carbon Accounting, Decarbonization, Digital MRV, ESG Disclosure,
+// Climate Decision Intelligence, AI Agents, and MCP Platform
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
+  extensions = [vector]
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum GHGScope {
+  SCOPE_1
+  SCOPE_2_LOCATION
+  SCOPE_2_MARKET
+  SCOPE_3
+}
+
+enum Scope3Category {
+  CAT_1_PURCHASED_GOODS
+  CAT_2_CAPITAL_GOODS
+  CAT_3_FUEL_ENERGY
+  CAT_4_UPSTREAM_TRANSPORT
+  CAT_5_WASTE
+  CAT_6_BUSINESS_TRAVEL
+  CAT_7_EMPLOYEE_COMMUTING
+  CAT_8_UPSTREAM_LEASED
+  CAT_9_DOWNSTREAM_TRANSPORT
+  CAT_10_PROCESSING
+  CAT_11_USE_OF_SOLD
+  CAT_12_END_OF_LIFE
+  CAT_13_DOWNSTREAM_LEASED
+  CAT_14_FRANCHISES
+  CAT_15_INVESTMENTS
+}
+
+enum OrganizationTier {
+  ENTERPRISE
+  BUSINESS_UNIT
+  FACILITY
+  BUILDING
+  PRODUCTION_LINE
+  EQUIPMENT
+  SOURCE
+}
+
+enum DataQualityLevel {
+  HIGH
+  MEDIUM
+  LOW
+  ESTIMATED
+  DEFAULT
+}
+
+enum CalculationApproach {
+  SPEND_BASED
+  ACTIVITY_BASED
+  HYBRID
+  DIRECT_MEASUREMENT
+  SUPPLIER_SPECIFIC
+  AVERAGE_DATA
+}
+
+enum VerificationStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  UNDER_REVIEW
+  VERIFIED
+  REJECTED
+  EXPIRED
+}
+
+enum ReportingFramework {
+  GHG_PROTOCOL
+  ISO_14064
+  ISSB_S1
+  ISSB_S2
+  CDP
+  CSRD
+  ESRS
+  TCFD
+  GRI
+  SASB
+  TNFD
+}
+
+enum EmissionFactorUnit {
+  KG_CO2E_PER_KWH
+  KG_CO2E_PER_LITER
+  KG_CO2E_PER_KG
+  KG_CO2E_PER_TONNE
+  KG_CO2E_PER_M3
+  KG_CO2E_PER_TKM
+  KG_CO2E_PER_PKM
+  KG_CO2E_PER_UNIT
+  KG_CO2E_PER_USD
+  KG_CO2E_PER_MJ
+}
+
+enum TargetStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  COMMITTED
+  ON_TRACK
+  OFF_TRACK
+  ACHIEVED
+  EXPIRED
+}
+
+enum AgentStatus {
+  IDLE
+  RUNNING
+  PAUSED
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum WorkflowStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ESCALATED
+}
+
+enum NotificationType {
+  INFO
+  WARNING
+  ERROR
+  SUCCESS
+  ACTION_REQUIRED
+}
+
+enum CreditStatus {
+  ISSUED
+  ACTIVE
+  RETIRED
+  CANCELLED
+  PENDING_VERIFICATION
+  EXPIRED
+}
+
+enum RuleOperator {
+  EQUALS
+  NOT_EQUALS
+  GREATER_THAN
+  LESS_THAN
+  GREATER_THAN_OR_EQUAL
+  LESS_THAN_OR_EQUAL
+  CONTAINS
+  NOT_CONTAINS
+  IN
+  NOT_IN
+  BETWEEN
+  IS_NULL
+  IS_NOT_NULL
+}
+
+enum DataSourceType {
+  MANUAL_ENTRY
+  IOT_SENSOR
+  API_INTEGRATION
+  FILE_IMPORT
+  ERP_SYSTEM
+  METER_READING
+  INVOICE
+  CALCULATED
+  ESTIMATED
+}
+
+enum FuelCategory {
+  SOLID
+  LIQUID
+  GASEOUS
+  BIOMASS
+  WASTE
+}
+
+enum VehicleType {
+  CAR
+  VAN
+  TRUCK
+  BUS
+  RAIL
+  SHIP
+  AIRCRAFT
+  MOTORCYCLE
+}
+
+enum EnergyType {
+  ELECTRICITY
+  NATURAL_GAS
+  STEAM
+  HEATING
+  COOLING
+  SOLAR
+  WIND
+  HYDRO
+  NUCLEAR
+  BIOMASS_ENERGY
+}
+
+enum ScenarioType {
+  BASELINE
+  BAU
+  OPTIMISTIC
+  PESSIMISTIC
+  NET_ZERO
+  CUSTOM
+  IEA_NZE
+  IEA_APS
+  IEA_STEPS
+}
+
+enum DisclosureStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  DRAFT
+  REVIEW
+  SUBMITTED
+  PUBLISHED
+}
+
+enum ImportStatus {
+  PENDING
+  VALIDATING
+  PROCESSING
+  COMPLETED
+  FAILED
+  PARTIALLY_COMPLETED
+}
+
+enum MeasurementFrequency {
+  REAL_TIME
+  HOURLY
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  ANNUALLY
+}
+
+enum AIModelType {
+  REGRESSION
+  CLASSIFICATION
+  CLUSTERING
+  TIME_SERIES
+  NLP
+  COMPUTER_VISION
+  RECOMMENDATION
+  ANOMALY_DETECTION
+  LLM
+  EMBEDDING
+}
+
+enum TargetBoundary {
+  SCOPE_1_2
+  SCOPE_1_2_3
+  SCOPE_3_ONLY
+  FLAG
+  FULL_VALUE_CHAIN
+}
+
+// ============================================================================
+// SECURITY & AUTH
+// ============================================================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  avatarUrl     String?
+  passwordHash  String?
+  isActive      Boolean   @default(true)
+  emailVerified Boolean   @default(false)
+  lastLoginAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  userRoles            UserRole[]
+  teams                TeamMember[]
+  sessions             Session[]
+  apiKeys              APIKey[]
+  auditLogs            AuditLog[]
+  notifications        Notification[]
+  notificationPrefs    NotificationPreference[]
+  approvals            Approval[]
+  agentConversations   AgentConversation[]
+  createdReports       DisclosureReport[]
+  verificationFindings VerificationFinding[]
+
+  @@index([organizationId])
+  @@index([email])
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  permissions RolePermission[]
+  userRoles   UserRole[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  resource    String
+  action      String
+  description String?
+  createdAt   DateTime @default(now())
+
+  rolePermissions RolePermission[]
+
+  @@unique([resource, action])
+}
+
+model RolePermission {
+  id           String   @id @default(cuid())
+  roleId       String
+  permissionId String
+  createdAt    DateTime @default(now())
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+}
+
+model UserRole {
+  id        String   @id @default(cuid())
+  userId    String
+  roleId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+}
+
+model Team {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  members TeamMember[]
+
+  @@index([organizationId])
+}
+
+model TeamMember {
+  id        String   @id @default(cuid())
+  teamId    String
+  userId    String
+  role      String   @default("member")
+  createdAt DateTime @default(now())
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  action     String
+  resource   String
+  resourceId String?
+  oldValue   Json?
+  newValue   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  userId         String
+  organizationId String
+  user           User         @relation(fields: [userId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([resource, resourceId])
+  @@index([createdAt])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  token        String   @unique
+  ipAddress    String?
+  userAgent    String?
+  expiresAt    DateTime
+  lastActiveAt DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model APIKey {
+  id         String    @id @default(cuid())
+  name       String
+  keyHash    String    @unique
+  prefix     String
+  scopes     String[]
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  userId         String
+  organizationId String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([userId])
+  @@index([organizationId])
+}
+
+model AccessPolicy {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  resource    String
+  conditions  Json
+  effect      String   @default("allow")
+  priority    Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId])
+  @@index([resource])
+}
+
+model EncryptionKey {
+  id          String    @id @default(cuid())
+  alias       String
+  algorithm   String
+  keyMaterial String
+  purpose     String
+  isActive    Boolean   @default(true)
+  rotatedAt   DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, alias])
+}
+
+// ============================================================================
+// ORGANIZATION HIERARCHY (7 Levels)
+// ============================================================================
+
+model Organization {
+  id              String   @id @default(cuid())
+  name            String
+  legalName       String?
+  industry        String?
+  sector          String?
+  country         String?
+  region          String?
+  address         String?
+  website         String?
+  logoUrl         String?
+  registrationNum String?
+  fiscalYearStart Int      @default(1)
+  baseCurrency    String   @default("USD")
+  reportingYear   Int?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Hierarchy children
+  businessUnits BusinessUnit[]
+  facilities    Facility[]
+
+  // Related entities
+  users                User[]
+  roles                Role[]
+  teams                Team[]
+  auditLogs            AuditLog[]
+  apiKeys              APIKey[]
+  accessPolicies       AccessPolicy[]
+  encryptionKeys       EncryptionKey[]
+  emissionFactors      EmissionFactor[]
+  emissionInventories  EmissionInventory[]
+  products             Product[]
+  suppliers            Supplier[]
+  activityData         ActivityData[]
+  calculations         EmissionCalculation[]
+  roadmaps             DecarbonizationRoadmap[]
+  scenarios            Scenario[]
+  targets              ScienceBasedTarget[]
+  disclosureReports    DisclosureReport[]
+  verifications        VerificationEngagement[]
+  carbonCredits        CarbonCredit[]
+  rules                RuleSet[]
+  agents               Agent[]
+  workflows            Workflow[]
+  notifications        Notification[]
+  dataImportJobs       DataImportJob[]
+  mrvPlans             MRVPlan[]
+  reports              Report[]
+  aiAnalyses           AIAnalysis[]
+  aiModels             AIModel[]
+  carbonBudgets        CarbonBudget[]
+  internalCarbonPrices InternalCarbonPrice[]
+
+  @@index([industry])
+  @@index([country])
+}
+
+model BusinessUnit {
+  id          String           @id @default(cuid())
+  name        String
+  code        String?
+  description String?
+  tier        OrganizationTier @default(BUSINESS_UNIT)
+  isActive    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  facilities      Facility[]
+  activityData    ActivityData[]
+  emissionResults EmissionResult[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+}
+
+model Facility {
+  id                 String   @id @default(cuid())
+  name               String
+  code               String?
+  type               String?
+  address            String?
+  city               String?
+  state              String?
+  country            String?
+  latitude           Float?
+  longitude          Float?
+  area               Float?
+  areaUnit           String?  @default("sqm")
+  operationalControl Boolean  @default(true)
+  equityShare        Float?   @default(100)
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id])
+  businessUnitId String?
+  businessUnit   BusinessUnit? @relation(fields: [businessUnitId], references: [id])
+
+  buildings       Building[]
+  emissionSources EmissionSource[]
+  activityData    ActivityData[]
+  iotDevices      IoTDevice[]
+  meterReadings   MeterReading[]
+  emissionResults EmissionResult[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@index([businessUnitId])
+  @@index([country])
+}
+
+model Building {
+  id           String   @id @default(cuid())
+  name         String
+  code         String?
+  type         String?
+  floors       Int?
+  area         Float?
+  areaUnit     String?  @default("sqm")
+  yearBuilt    Int?
+  energyRating String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  facilityId String
+  facility   Facility @relation(fields: [facilityId], references: [id])
+
+  productionLines ProductionLine[]
+  emissionSources EmissionSource[]
+
+  @@index([facilityId])
+}
+
+model ProductionLine {
+  id           String   @id @default(cuid())
+  name         String
+  code         String?
+  type         String?
+  capacity     Float?
+  capacityUnit String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  buildingId String
+  building   Building @relation(fields: [buildingId], references: [id])
+
+  equipment       Equipment[]
+  emissionSources EmissionSource[]
+
+  @@index([buildingId])
+}
+
+model Equipment {
+  id            String    @id @default(cuid())
+  name          String
+  code          String?
+  type          String?
+  manufacturer  String?
+  model         String?
+  serialNumber  String?
+  installDate   DateTime?
+  efficiency    Float?
+  fuelTypeId    String?
+  refrigerantId String?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  productionLineId String
+  productionLine   ProductionLine @relation(fields: [productionLineId], references: [id])
+  fuelType         FuelType?      @relation(fields: [fuelTypeId], references: [id])
+  refrigerant      Refrigerant?   @relation(fields: [refrigerantId], references: [id])
+
+  emissionSources EmissionSource[]
+
+  @@index([productionLineId])
+  @@index([fuelTypeId])
+}
+
+model EmissionSource {
+  id                  String              @id @default(cuid())
+  name                String
+  code                String?
+  scope               GHGScope
+  scope3Category      Scope3Category?
+  sourceType          String?
+  description         String?
+  calculationApproach CalculationApproach @default(ACTIVITY_BASED)
+  isActive            Boolean             @default(true)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  facilityId       String?
+  facility         Facility?       @relation(fields: [facilityId], references: [id])
+  buildingId       String?
+  building         Building?       @relation(fields: [buildingId], references: [id])
+  productionLineId String?
+  productionLine   ProductionLine? @relation(fields: [productionLineId], references: [id])
+  equipmentId      String?
+  equipment        Equipment?      @relation(fields: [equipmentId], references: [id])
+
+  activityDataEntries ActivityDataEntry[]
+  emissionResults     EmissionResult[]
+
+  @@index([facilityId])
+  @@index([scope])
+  @@index([scope3Category])
+}
+
+// ============================================================================
+// MASTER DATA
+// ============================================================================
+
+model Product {
+  id             String   @id @default(cuid())
+  name           String
+  sku            String?
+  category       String?
+  description    String?
+  unit           String?
+  weight         Float?
+  weightUnit     String?
+  lifecycleStage String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  activityDataEntries ActivityDataEntry[]
+
+  @@index([organizationId])
+  @@index([category])
+}
+
+model RawMaterial {
+  id                String   @id @default(cuid())
+  name              String
+  category          String?
+  unit              String?
+  emissionIntensity Float?
+  sourceRegion      String?
+  isRecycled        Boolean  @default(false)
+  recycledContent   Float?   @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  activityDataEntries ActivityDataEntry[]
+
+  @@index([category])
+}
+
+model Fuel {
+  id             String   @id @default(cuid())
+  name           String
+  fuelTypeId     String
+  fuelType       FuelType @relation(fields: [fuelTypeId], references: [id])
+  unit           String
+  netCalorific   Float?
+  grossCalorific Float?
+  density        Float?
+  carbonContent  Float?
+  isRenewable    Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  activityDataEntries ActivityDataEntry[]
+
+  @@index([fuelTypeId])
+}
+
+model FuelType {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  category    FuelCategory
+  description String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  fuels     Fuel[]
+  equipment Equipment[]
+}
+
+model Vehicle {
+  id             String      @id @default(cuid())
+  name           String
+  type           VehicleType
+  fuelType       String?
+  make           String?
+  model          String?
+  year           Int?
+  efficiency     Float?
+  efficiencyUnit String?
+  isOwned        Boolean     @default(true)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  activityDataEntries ActivityDataEntry[]
+
+  @@index([type])
+}
+
+model Refrigerant {
+  id                      String   @id @default(cuid())
+  name                    String   @unique
+  chemicalFormula         String?
+  gwp100                  Float
+  gwp20                   Float?
+  ozoneDepletionPotential Float?
+  category                String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  equipment           Equipment[]
+  activityDataEntries ActivityDataEntry[]
+}
+
+model Supplier {
+  id                   String   @id @default(cuid())
+  name                 String
+  code                 String?
+  category             String?
+  country              String?
+  contactEmail         String?
+  tier                 Int      @default(1)
+  sustainabilityRating String?
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  activityDataEntries ActivityDataEntry[]
+
+  @@index([organizationId])
+  @@index([category])
+}
+
+model LogisticsRoute {
+  id            String   @id @default(cuid())
+  name          String
+  origin        String
+  destination   String
+  distance      Float
+  distanceUnit  String   @default("km")
+  transportMode String
+  isReturn      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  activityDataEntries ActivityDataEntry[]
+
+  @@index([transportMode])
+}
+
+model EnergySource {
+  id               String     @id @default(cuid())
+  name             String
+  type             EnergyType
+  provider         String?
+  gridRegion       String?
+  renewablePercent Float?     @default(0)
+  contractType     String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  activityDataEntries ActivityDataEntry[]
+
+  @@index([type])
+}
+
+model WasteType {
+  id             String   @id @default(cuid())
+  name           String
+  category       String?
+  disposalMethod String?
+  isHazardous    Boolean  @default(false)
+  recyclingRate  Float?   @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  activityDataEntries ActivityDataEntry[]
+}
+
+model WaterSource {
+  id         String   @id @default(cuid())
+  name       String
+  type       String?
+  source     String?
+  treatment  String?
+  isRecycled Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  activityDataEntries ActivityDataEntry[]
+}
+
+// ============================================================================
+// ACTIVITY DATA
+// ============================================================================
+
+model ActivityData {
+  id             String           @id @default(cuid())
+  name           String
+  description    String?
+  scope          GHGScope
+  scope3Category Scope3Category?
+  reportingYear  Int
+  reportingMonth Int?
+  dataSource     DataSourceType   @default(MANUAL_ENTRY)
+  dataQuality    DataQualityLevel @default(MEDIUM)
+  isVerified     Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id])
+  facilityId     String?
+  facility       Facility?     @relation(fields: [facilityId], references: [id])
+  businessUnitId String?
+  businessUnit   BusinessUnit? @relation(fields: [businessUnitId], references: [id])
+
+  entries ActivityDataEntry[]
+
+  @@index([organizationId])
+  @@index([scope])
+  @@index([reportingYear])
+  @@index([facilityId])
+}
+
+model ActivityDataEntry {
+  id          String   @id @default(cuid())
+  quantity    Float
+  unit        String
+  startDate   DateTime
+  endDate     DateTime
+  notes       String?
+  evidenceUrl String?
+  isEstimated Boolean  @default(false)
+  uncertainty Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  activityDataId   String
+  activityData     ActivityData    @relation(fields: [activityDataId], references: [id])
+  emissionSourceId String?
+  emissionSource   EmissionSource? @relation(fields: [emissionSourceId], references: [id])
+  productId        String?
+  product          Product?        @relation(fields: [productId], references: [id])
+  supplierId       String?
+  supplier         Supplier?       @relation(fields: [supplierId], references: [id])
+  vehicleId        String?
+  vehicle          Vehicle?        @relation(fields: [vehicleId], references: [id])
+  fuelId           String?
+  fuel             Fuel?           @relation(fields: [fuelId], references: [id])
+  refrigerantId    String?
+  refrigerant      Refrigerant?    @relation(fields: [refrigerantId], references: [id])
+  rawMaterialId    String?
+  rawMaterial      RawMaterial?    @relation(fields: [rawMaterialId], references: [id])
+  logisticsRouteId String?
+  logisticsRoute   LogisticsRoute? @relation(fields: [logisticsRouteId], references: [id])
+  energySourceId   String?
+  energySource     EnergySource?   @relation(fields: [energySourceId], references: [id])
+  wasteTypeId      String?
+  wasteType        WasteType?      @relation(fields: [wasteTypeId], references: [id])
+  waterSourceId    String?
+  waterSource      WaterSource?    @relation(fields: [waterSourceId], references: [id])
+
+  emissionResults  EmissionResult[]
+  dataQualityScore DataQualityScore?
+
+  @@index([activityDataId])
+  @@index([emissionSourceId])
+  @@index([startDate, endDate])
+}
+
+model DataImportJob {
+  id            String       @id @default(cuid())
+  name          String
+  fileName      String?
+  fileUrl       String?
+  fileType      String?
+  status        ImportStatus @default(PENDING)
+  totalRows     Int?
+  processedRows Int?         @default(0)
+  errorRows     Int?         @default(0)
+  errorLog      Json?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  mappings DataImportMapping[]
+
+  @@index([organizationId])
+  @@index([status])
+}
+
+model DataImportMapping {
+  id             String   @id @default(cuid())
+  sourceColumn   String
+  targetField    String
+  transformation String?
+  defaultValue   String?
+  isRequired     Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  importJobId String
+  importJob   DataImportJob @relation(fields: [importJobId], references: [id], onDelete: Cascade)
+
+  @@index([importJobId])
+}
+
+model DataValidationRule {
+  id           String   @id @default(cuid())
+  name         String
+  field        String
+  ruleType     String
+  condition    String
+  errorMessage String
+  severity     String   @default("error")
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([field])
+}
+
+model DataQualityScore {
+  id           String   @id @default(cuid())
+  overallScore Float
+  completeness Float?
+  accuracy     Float?
+  timeliness   Float?
+  consistency  Float?
+  reliability  Float?
+  methodology  String?
+  notes        String?
+  assessedAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  activityDataEntryId String            @unique
+  activityDataEntry   ActivityDataEntry @relation(fields: [activityDataEntryId], references: [id])
+}
+
+model IoTDevice {
+  id            String               @id @default(cuid())
+  name          String
+  deviceId      String               @unique
+  type          String
+  manufacturer  String?
+  model         String?
+  protocol      String?
+  frequency     MeasurementFrequency @default(HOURLY)
+  unit          String?
+  isActive      Boolean              @default(true)
+  lastReadingAt DateTime?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  facilityId String
+  facility   Facility @relation(fields: [facilityId], references: [id])
+
+  readings IoTReading[]
+
+  @@index([facilityId])
+  @@index([type])
+}
+
+model IoTReading {
+  id        String   @id @default(cuid())
+  value     Float
+  unit      String
+  quality   Float?   @default(1)
+  timestamp DateTime
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  deviceId String
+  device   IoTDevice @relation(fields: [deviceId], references: [id])
+
+  @@index([deviceId])
+  @@index([timestamp])
+}
+
+model MeterReading {
+  id            String   @id @default(cuid())
+  meterNumber   String
+  readingValue  Float
+  previousValue Float?
+  consumption   Float?
+  unit          String
+  readingDate   DateTime
+  readingType   String?
+  isEstimated   Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  facilityId String
+  facility   Facility @relation(fields: [facilityId], references: [id])
+
+  @@index([facilityId])
+  @@index([meterNumber])
+  @@index([readingDate])
+}
+
+// ============================================================================
+// EMISSION ENGINE
+// ============================================================================
+
+model EmissionCalculation {
+  id                   String              @id @default(cuid())
+  name                 String
+  reportingYear        Int
+  reportingPeriodStart DateTime
+  reportingPeriodEnd   DateTime
+  scope                GHGScope
+  scope3Category       Scope3Category?
+  approach             CalculationApproach
+  status               String              @default("draft")
+  totalEmissions       Float?
+  unit                 String              @default("tCO2e")
+  calculatedAt         DateTime?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  organizationId String
+  organization   Organization            @relation(fields: [organizationId], references: [id])
+  methodologyId  String?
+  methodology    CalculationMethodology? @relation(fields: [methodologyId], references: [id])
+
+  results             EmissionResult[]
+  allocations         EmissionAllocation[]
+  uncertaintyAnalysis UncertaintyAnalysis?
+
+  @@index([organizationId])
+  @@index([reportingYear])
+  @@index([scope])
+}
+
+model EmissionResult {
+  id             String            @id @default(cuid())
+  co2Emissions   Float             @default(0)
+  ch4Emissions   Float             @default(0)
+  n2oEmissions   Float             @default(0)
+  hfcEmissions   Float             @default(0)
+  pfcEmissions   Float             @default(0)
+  sf6Emissions   Float             @default(0)
+  nf3Emissions   Float             @default(0)
+  totalCO2e      Float
+  unit           String            @default("tCO2e")
+  biogenicCO2    Float?            @default(0)
+  scope          GHGScope
+  scope3Category Scope3Category?
+  dataQuality    DataQualityLevel?
+  calculatedAt   DateTime          @default(now())
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  calculationId       String
+  calculation         EmissionCalculation @relation(fields: [calculationId], references: [id])
+  emissionSourceId    String?
+  emissionSource      EmissionSource?     @relation(fields: [emissionSourceId], references: [id])
+  facilityId          String?
+  facility            Facility?           @relation(fields: [facilityId], references: [id])
+  businessUnitId      String?
+  businessUnit        BusinessUnit?       @relation(fields: [businessUnitId], references: [id])
+  emissionFactorId    String?
+  emissionFactor      EmissionFactor?     @relation(fields: [emissionFactorId], references: [id])
+  activityDataEntryId String?
+  activityDataEntry   ActivityDataEntry?  @relation(fields: [activityDataEntryId], references: [id])
+
+  allocations EmissionAllocation[]
+
+  @@index([calculationId])
+  @@index([scope])
+  @@index([facilityId])
+  @@index([calculatedAt])
+}
+
+model EmissionAllocation {
+  id               String   @id @default(cuid())
+  allocationMethod String
+  allocationFactor Float
+  allocatedAmount  Float
+  unit             String   @default("tCO2e")
+  targetEntity     String
+  targetEntityId   String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  calculationId String
+  calculation   EmissionCalculation @relation(fields: [calculationId], references: [id])
+  resultId      String?
+  result        EmissionResult?     @relation(fields: [resultId], references: [id])
+
+  @@index([calculationId])
+  @@index([targetEntity, targetEntityId])
+}
+
+model CalculationMethodology {
+  id          String   @id @default(cuid())
+  name        String
+  version     String
+  framework   String
+  description String?
+  formula     String?
+  parameters  Json?
+  sourceUrl   String?
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  calculations EmissionCalculation[]
+  formulas     CalculationFormula[]
+
+  @@unique([name, version])
+}
+
+model CalculationFormula {
+  id              String    @id @default(cuid())
+  name            String
+  expression      String
+  variables       Json
+  description     String?
+  applicableScope GHGScope?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  methodologyId String
+  methodology   CalculationMethodology @relation(fields: [methodologyId], references: [id])
+
+  @@index([methodologyId])
+}
+
+model UncertaintyAnalysis {
+  id                        String   @id @default(cuid())
+  overallUncertainty        Float
+  activityDataUncertainty   Float?
+  emissionFactorUncertainty Float?
+  methodologyUncertainty    Float?
+  confidenceLevel           Float?   @default(95)
+  monteCarloIterations      Int?
+  lowerBound                Float?
+  upperBound                Float?
+  methodology               String?
+  notes                     String?
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  calculationId String              @unique
+  calculation   EmissionCalculation @relation(fields: [calculationId], references: [id])
+}
+
+model Scope3CategoryConfig {
+  id          String         @id @default(cuid())
+  category    Scope3Category
+  name        String
+  description String?
+  isRelevant  Boolean        @default(true)
+  methodology String?
+  dataSource  String?
+  notes       String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@unique([category])
+}
+
+model EmissionInventory {
+  id             String    @id @default(cuid())
+  name           String
+  reportingYear  Int
+  baselineYear   Int?
+  scope1Total    Float?    @default(0)
+  scope2Location Float?    @default(0)
+  scope2Market   Float?    @default(0)
+  scope3Total    Float?    @default(0)
+  totalEmissions Float?    @default(0)
+  unit           String    @default("tCO2e")
+  status         String    @default("draft")
+  verifiedAt     DateTime?
+  publishedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, reportingYear])
+  @@index([organizationId])
+  @@index([reportingYear])
+}
+
+// ============================================================================
+// EMISSION FACTOR LIBRARY
+// ============================================================================
+
+model EmissionFactor {
+  id             String             @id @default(cuid())
+  name           String
+  value          Float
+  unit           EmissionFactorUnit
+  gasType        String             @default("CO2e")
+  scope          GHGScope?
+  scope3Category Scope3Category?
+  region         String?
+  country        String?
+  sector         String?
+  validFrom      DateTime?
+  validTo        DateTime?
+  isActive       Boolean            @default(true)
+  uncertainty    Float?
+  dataQuality    DataQualityLevel?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  organizationId String?
+  organization   Organization?           @relation(fields: [organizationId], references: [id])
+  sourceId       String?
+  source         EmissionFactorSource?   @relation(fields: [sourceId], references: [id])
+  categoryId     String?
+  category       EmissionFactorCategory? @relation(fields: [categoryId], references: [id])
+  versionId      String?
+  version        EmissionFactorVersion?  @relation(fields: [versionId], references: [id])
+
+  emissionResults EmissionResult[]
+
+  @@index([organizationId])
+  @@index([scope])
+  @@index([region])
+  @@index([sector])
+  @@index([categoryId])
+}
+
+model EmissionFactorSource {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String?
+  publisher   String?
+  url         String?
+  methodology String?
+  lastUpdated DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  factors  EmissionFactor[]
+  versions EmissionFactorVersion[]
+}
+
+model EmissionFactorVersion {
+  id          String    @id @default(cuid())
+  version     String
+  releaseDate DateTime?
+  description String?
+  isLatest    Boolean   @default(false)
+  changelog   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  sourceId String
+  source   EmissionFactorSource @relation(fields: [sourceId], references: [id])
+
+  factors EmissionFactor[]
+
+  @@unique([sourceId, version])
+  @@index([sourceId])
+}
+
+model EmissionFactorCategory {
+  id          String                   @id @default(cuid())
+  name        String
+  parentId    String?
+  parent      EmissionFactorCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    EmissionFactorCategory[] @relation("CategoryHierarchy")
+  description String?
+  level       Int                      @default(0)
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+
+  factors EmissionFactor[]
+
+  @@index([parentId])
+}
+
+model UnitConversion {
+  id          String   @id @default(cuid())
+  fromUnit    String
+  toUnit      String
+  factor      Float
+  description String?
+  category    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([fromUnit, toUnit])
+  @@index([category])
+}
+
+model EmissionFactorUpdate {
+  id            String    @id @default(cuid())
+  factorName    String
+  oldValue      Float
+  newValue      Float
+  changeReason  String?
+  effectiveDate DateTime
+  notifiedAt    DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([effectiveDate])
+}
+
+// ============================================================================
+// AI ENGINE
+// ============================================================================
+
+model AIAnalysis {
+  id           String      @id @default(cuid())
+  name         String
+  type         String
+  status       AgentStatus @default(IDLE)
+  inputData    Json?
+  outputData   Json?
+  summary      String?
+  confidence   Float?
+  startedAt    DateTime?
+  completedAt  DateTime?
+  errorMessage String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  modelId        String?
+  model          AIModel?     @relation(fields: [modelId], references: [id])
+
+  recommendations  AIRecommendation[]
+  predictions      AIPrediction[]
+  anomalies        AnomalyDetection[]
+  dataGaps         DataGapAnalysis[]
+  confidenceScores AIConfidenceScore[]
+  explanations     AIExplanation[]
+
+  @@index([organizationId])
+  @@index([type])
+  @@index([status])
+}
+
+model AIRecommendation {
+  id            String    @id @default(cuid())
+  title         String
+  description   String
+  category      String?
+  priority      Int       @default(0)
+  impact        String?
+  impactValue   Float?
+  effort        String?
+  confidence    Float?
+  status        String    @default("pending")
+  implementedAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  analysisId String
+  analysis   AIAnalysis @relation(fields: [analysisId], references: [id])
+
+  @@index([analysisId])
+  @@index([category])
+  @@index([priority])
+}
+
+model AIPrediction {
+  id             String    @id @default(cuid())
+  metric         String
+  predictedValue Float
+  actualValue    Float?
+  confidence     Float?
+  lowerBound     Float?
+  upperBound     Float?
+  horizon        String?
+  targetDate     DateTime?
+  methodology    String?
+  features       Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  analysisId String
+  analysis   AIAnalysis @relation(fields: [analysisId], references: [id])
+
+  @@index([analysisId])
+  @@index([metric])
+  @@index([targetDate])
+}
+
+model AIModel {
+  id          String      @id @default(cuid())
+  name        String
+  type        AIModelType
+  version     String
+  description String?
+  provider    String?
+  endpoint    String?
+  parameters  Json?
+  metrics     Json?
+  accuracy    Float?
+  isActive    Boolean     @default(true)
+  trainedAt   DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  analyses     AIAnalysis[]
+  trainingData AITrainingData[]
+
+  @@index([organizationId])
+  @@index([type])
+}
+
+model AITrainingData {
+  id          String   @id @default(cuid())
+  dataType    String
+  dataSource  String?
+  features    Json?
+  labels      Json?
+  sampleCount Int?
+  quality     Float?
+  version     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  modelId String
+  model   AIModel @relation(fields: [modelId], references: [id])
+
+  @@index([modelId])
+}
+
+model AnomalyDetection {
+  id            String    @id @default(cuid())
+  metric        String
+  detectedValue Float
+  expectedValue Float
+  deviation     Float
+  severity      String
+  description   String?
+  isResolved    Boolean   @default(false)
+  resolvedAt    DateTime?
+  resolvedBy    String?
+  resolution    String?
+  detectedAt    DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  analysisId String
+  analysis   AIAnalysis @relation(fields: [analysisId], references: [id])
+
+  @@index([analysisId])
+  @@index([metric])
+  @@index([severity])
+  @@index([detectedAt])
+}
+
+model DataGapAnalysis {
+  id                  String    @id @default(cuid())
+  dataCategory        String
+  gapType             String
+  description         String?
+  severity            String
+  affectedPeriodStart DateTime?
+  affectedPeriodEnd   DateTime?
+  estimationMethod    String?
+  estimatedValue      Float?
+  confidenceLevel     Float?
+  recommendation      String?
+  isResolved          Boolean   @default(false)
+  resolvedAt          DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  analysisId String
+  analysis   AIAnalysis @relation(fields: [analysisId], references: [id])
+
+  @@index([analysisId])
+  @@index([dataCategory])
+  @@index([severity])
+}
+
+model AIConfidenceScore {
+  id          String   @id @default(cuid())
+  metric      String
+  score       Float
+  methodology String?
+  factors     Json?
+  explanation String?
+  createdAt   DateTime @default(now())
+
+  analysisId String
+  analysis   AIAnalysis @relation(fields: [analysisId], references: [id])
+
+  @@index([analysisId])
+  @@index([metric])
+}
+
+// ============================================================================
+// AI ROADMAP (Decarbonization)
+// ============================================================================
+
+model DecarbonizationRoadmap {
+  id                String    @id @default(cuid())
+  name              String
+  description       String?
+  baselineYear      Int
+  targetYear        Int
+  baselineEmissions Float?
+  targetEmissions   Float?
+  reductionTarget   Float?
+  targetType        String?
+  status            String    @default("draft")
+  publishedAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  milestones  RoadmapMilestone[]
+  actions     RoadmapAction[]
+  investments InvestmentAnalysis[]
+
+  @@index([organizationId])
+  @@index([status])
+}
+
+model RoadmapMilestone {
+  id              String    @id @default(cuid())
+  name            String
+  description     String?
+  targetYear      Int
+  targetReduction Float?
+  currentProgress Float?    @default(0)
+  status          String    @default("pending")
+  dueDate         DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  roadmapId String
+  roadmap   DecarbonizationRoadmap @relation(fields: [roadmapId], references: [id])
+
+  actions RoadmapAction[]
+
+  @@index([roadmapId])
+  @@index([targetYear])
+}
+
+model RoadmapAction {
+  id                String    @id @default(cuid())
+  name              String
+  description       String?
+  category          String?
+  scope             GHGScope?
+  priority          Int       @default(0)
+  expectedReduction Float?
+  actualReduction   Float?
+  unit              String    @default("tCO2e")
+  startDate         DateTime?
+  endDate           DateTime?
+  status            String    @default("planned")
+  owner             String?
+  costEstimate      Float?
+  currency          String    @default("USD")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  roadmapId    String
+  roadmap      DecarbonizationRoadmap @relation(fields: [roadmapId], references: [id])
+  milestoneId  String?
+  milestone    RoadmapMilestone?      @relation(fields: [milestoneId], references: [id])
+  technologyId String?
+  technology   AbatementTechnology?   @relation(fields: [technologyId], references: [id])
+
+  @@index([roadmapId])
+  @@index([milestoneId])
+  @@index([category])
+  @@index([status])
+}
+
+model AbatementTechnology {
+  id                  String   @id @default(cuid())
+  name                String
+  category            String?
+  description         String?
+  technologyReadiness Int?
+  abatementPotential  Float?
+  costPerTonne        Float?
+  implementationTime  String?
+  scalability         String?
+  applicableSectors   String[]
+  cobenefits          String[]
+  risks               String[]
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  roadmapActions RoadmapAction[]
+  maccCurves     MACCCurve[]
+
+  @@index([category])
+}
+
+model MACCCurve {
+  id                  String   @id @default(cuid())
+  name                String
+  abatementPotential  Float
+  marginalCost        Float
+  cumulativeAbatement Float?
+  year                Int
+  region              String?
+  sector              String?
+  currency            String   @default("USD")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  technologyId String
+  technology   AbatementTechnology @relation(fields: [technologyId], references: [id])
+
+  @@index([technologyId])
+  @@index([year])
+}
+
+model InvestmentAnalysis {
+  id               String   @id @default(cuid())
+  name             String
+  description      String?
+  capex            Float?
+  opex             Float?
+  annualSavings    Float?
+  roi              Float?
+  irr              Float?
+  npv              Float?
+  paybackPeriod    Float?
+  currency         String   @default("USD")
+  discountRate     Float?   @default(0.08)
+  projectLifeYears Int?
+  riskLevel        String?
+  assumptions      Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  roadmapId String
+  roadmap   DecarbonizationRoadmap @relation(fields: [roadmapId], references: [id])
+
+  @@index([roadmapId])
+}
+
+// ============================================================================
+// AI SCENARIO SIMULATOR
+// ============================================================================
+
+model Scenario {
+  id           String       @id @default(cuid())
+  name         String
+  description  String?
+  type         ScenarioType @default(CUSTOM)
+  baselineYear Int
+  targetYear   Int
+  status       String       @default("draft")
+  isPublished  Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  assumptions ScenarioAssumption[]
+  results     ScenarioResult[]
+  comparisons ScenarioComparison[] @relation("ScenarioA")
+  comparedTo  ScenarioComparison[] @relation("ScenarioB")
+  pathways    TargetPathway[]
+
+  @@index([organizationId])
+  @@index([type])
+}
+
+model ScenarioAssumption {
+  id          String   @id @default(cuid())
+  parameter   String
+  value       Float
+  unit        String?
+  category    String?
+  description String?
+  source      String?
+  confidence  Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  scenarioId String
+  scenario   Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+
+  @@index([scenarioId])
+  @@index([parameter])
+}
+
+model ScenarioResult {
+  id                    String   @id @default(cuid())
+  year                  Int
+  scope1Emissions       Float?
+  scope2Emissions       Float?
+  scope3Emissions       Float?
+  totalEmissions        Float?
+  reductionFromBaseline Float?
+  energyConsumption     Float?
+  renewableShare        Float?
+  costImplication       Float?
+  unit                  String   @default("tCO2e")
+  metadata              Json?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  scenarioId String
+  scenario   Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+
+  @@index([scenarioId])
+  @@index([year])
+}
+
+model ScenarioComparison {
+  id             String   @id @default(cuid())
+  name           String?
+  metric         String
+  scenarioAValue Float?
+  scenarioBValue Float?
+  difference     Float?
+  percentChange  Float?
+  notes          String?
+  createdAt      DateTime @default(now())
+
+  scenarioAId String
+  scenarioA   Scenario @relation("ScenarioA", fields: [scenarioAId], references: [id])
+  scenarioBId String
+  scenarioB   Scenario @relation("ScenarioB", fields: [scenarioBId], references: [id])
+
+  @@index([scenarioAId])
+  @@index([scenarioBId])
+}
+
+model CarbonBudget {
+  id              String   @id @default(cuid())
+  name            String
+  totalBudget     Float
+  usedBudget      Float    @default(0)
+  remainingBudget Float?
+  unit            String   @default("tCO2e")
+  startYear       Int
+  endYear         Int
+  temperature     Float?   @default(1.5)
+  methodology     String?
+  status          String   @default("active")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId])
+}
+
+model TargetPathway {
+  id              String   @id @default(cuid())
+  name            String
+  year            Int
+  targetEmissions Float
+  actualEmissions Float?
+  unit            String   @default("tCO2e")
+  isInterim       Boolean  @default(false)
+  methodology     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  scenarioId String
+  scenario   Scenario @relation(fields: [scenarioId], references: [id])
+
+  @@index([scenarioId])
+  @@index([year])
+}
+
+// ============================================================================
+// DIGITAL MRV (Measurement, Reporting, Verification)
+// ============================================================================
+
+model MRVPlan {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  framework   String?
+  version     String?
+  status      String    @default("draft")
+  startDate   DateTime?
+  endDate     DateTime?
+  approvedAt  DateTime?
+  approvedBy  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  measurements    Measurement[]
+  monitoringPlans MonitoringPlan[]
+
+  @@index([organizationId])
+  @@index([status])
+}
+
+model Measurement {
+  id          String                @id @default(cuid())
+  parameter   String
+  value       Float
+  unit        String
+  uncertainty Float?
+  methodology String?
+  frequency   MeasurementFrequency?
+  measuredAt  DateTime
+  verifiedAt  DateTime?
+  dataSource  DataSourceType?
+  evidenceUrl String?
+  notes       String?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  mrvPlanId String
+  mrvPlan   MRVPlan @relation(fields: [mrvPlanId], references: [id])
+
+  @@index([mrvPlanId])
+  @@index([parameter])
+  @@index([measuredAt])
+}
+
+model Report {
+  id            String              @id @default(cuid())
+  name          String
+  type          String
+  framework     ReportingFramework?
+  reportingYear Int
+  periodStart   DateTime
+  periodEnd     DateTime
+  status        DisclosureStatus    @default(NOT_STARTED)
+  content       Json?
+  generatedAt   DateTime?
+  submittedAt   DateTime?
+  publishedAt   DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  templateId     String?
+  template       ReportTemplate? @relation(fields: [templateId], references: [id])
+
+  sections   ReportSection[]
+  dataPoints ReportDataPoint[]
+
+  @@index([organizationId])
+  @@index([reportingYear])
+  @@index([framework])
+}
+
+model ReportTemplate {
+  id          String              @id @default(cuid())
+  name        String
+  framework   ReportingFramework?
+  version     String?
+  description String?
+  structure   Json?
+  isDefault   Boolean             @default(false)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  reports  Report[]
+  sections ReportSection[]
+
+  @@index([framework])
+}
+
+model ReportSection {
+  id          String           @id @default(cuid())
+  title       String
+  code        String?
+  description String?
+  content     String?
+  orderIndex  Int              @default(0)
+  isRequired  Boolean          @default(true)
+  status      DisclosureStatus @default(NOT_STARTED)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  reportId   String?
+  report     Report?         @relation(fields: [reportId], references: [id])
+  templateId String?
+  template   ReportTemplate? @relation(fields: [templateId], references: [id])
+
+  dataPoints ReportDataPoint[]
+
+  @@index([reportId])
+  @@index([templateId])
+}
+
+model ReportDataPoint {
+  id           String   @id @default(cuid())
+  metric       String
+  value        String?
+  numericValue Float?
+  unit         String?
+  year         Int?
+  source       String?
+  isVerified   Boolean  @default(false)
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  reportId  String?
+  report    Report?        @relation(fields: [reportId], references: [id])
+  sectionId String?
+  section   ReportSection? @relation(fields: [sectionId], references: [id])
+
+  @@index([reportId])
+  @@index([sectionId])
+  @@index([metric])
+}
+
+model MonitoringPlan {
+  id            String               @id @default(cuid())
+  name          String
+  description   String?
+  frequency     MeasurementFrequency
+  startDate     DateTime
+  endDate       DateTime?
+  status        String               @default("active")
+  lastExecuted  DateTime?
+  nextExecution DateTime?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  mrvPlanId String
+  mrvPlan   MRVPlan @relation(fields: [mrvPlanId], references: [id])
+
+  parameters MonitoringParameter[]
+
+  @@index([mrvPlanId])
+  @@index([status])
+}
+
+model MonitoringParameter {
+  id            String                @id @default(cuid())
+  name          String
+  description   String?
+  unit          String
+  frequency     MeasurementFrequency?
+  methodology   String?
+  threshold     Float?
+  alertOnBreach Boolean               @default(true)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  monitoringPlanId String
+  monitoringPlan   MonitoringPlan @relation(fields: [monitoringPlanId], references: [id])
+
+  @@index([monitoringPlanId])
+}
+
+// ============================================================================
+// VERIFICATION CENTER
+// ============================================================================
+
+model VerificationEngagement {
+  id           String              @id @default(cuid())
+  name         String
+  verifierName String?
+  verifierOrg  String?
+  framework    ReportingFramework?
+  scope        String?
+  level        String?
+  status       VerificationStatus  @default(NOT_STARTED)
+  startDate    DateTime?
+  endDate      DateTime?
+  completedAt  DateTime?
+  opinionType  String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  verificationScopes VerificationScope[]
+  findings           VerificationFinding[]
+  statements         VerificationStatement[]
+  evidencePackages   EvidencePackage[]
+
+  @@index([organizationId])
+  @@index([status])
+}
+
+model VerificationScope {
+  id                   String             @id @default(cuid())
+  category             String
+  description          String?
+  boundaries           String?
+  materialityThreshold Float?
+  status               VerificationStatus @default(NOT_STARTED)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  engagementId String
+  engagement   VerificationEngagement @relation(fields: [engagementId], references: [id])
+
+  @@index([engagementId])
+}
+
+model AuditTrail {
+  id          String   @id @default(cuid())
+  entityType  String
+  entityId    String
+  action      String
+  changes     Json?
+  reason      String?
+  performedBy String?
+  ipAddress   String?
+  timestamp   DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  evidence AuditEvidence[]
+
+  @@index([entityType, entityId])
+  @@index([timestamp])
+  @@index([performedBy])
+}
+
+model AuditEvidence {
+  id          String    @id @default(cuid())
+  type        String
+  title       String
+  description String?
+  fileUrl     String?
+  fileType    String?
+  fileSize    Int?
+  hash        String?
+  isVerified  Boolean   @default(false)
+  verifiedAt  DateTime?
+  verifiedBy  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  auditTrailId String?
+  auditTrail   AuditTrail? @relation(fields: [auditTrailId], references: [id])
+
+  @@index([auditTrailId])
+  @@index([type])
+}
+
+model VerificationFinding {
+  id             String    @id @default(cuid())
+  type           String
+  severity       String
+  title          String
+  description    String?
+  recommendation String?
+  response       String?
+  status         String    @default("open")
+  dueDate        DateTime?
+  resolvedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  engagementId String
+  engagement   VerificationEngagement @relation(fields: [engagementId], references: [id])
+  assignedToId String?
+  assignedTo   User?                  @relation(fields: [assignedToId], references: [id])
+
+  @@index([engagementId])
+  @@index([severity])
+  @@index([status])
+}
+
+model VerificationStatement {
+  id          String    @id @default(cuid())
+  title       String
+  type        String
+  opinionType String?
+  statement   String?
+  scope       String?
+  limitations String?
+  conclusion  String?
+  issuedAt    DateTime?
+  expiresAt   DateTime?
+  signedBy    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  engagementId String
+  engagement   VerificationEngagement @relation(fields: [engagementId], references: [id])
+
+  signatures DigitalSignature[]
+
+  @@index([engagementId])
+}
+
+model DigitalSignature {
+  id            String   @id @default(cuid())
+  signerName    String
+  signerEmail   String?
+  signerOrg     String?
+  signatureHash String
+  algorithm     String?
+  certificate   String?
+  signedAt      DateTime @default(now())
+  isValid       Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  statementId String
+  statement   VerificationStatement @relation(fields: [statementId], references: [id])
+
+  @@index([statementId])
+}
+
+model EvidencePackage {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  type        String?
+  fileCount   Int       @default(0)
+  totalSize   Int?
+  hash        String?
+  status      String    @default("pending")
+  submittedAt DateTime?
+  reviewedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  engagementId String
+  engagement   VerificationEngagement @relation(fields: [engagementId], references: [id])
+
+  @@index([engagementId])
+}
+
+model VersionHistory {
+  id           String   @id @default(cuid())
+  entityType   String
+  entityId     String
+  version      Int
+  changes      Json?
+  changeReason String?
+  changedBy    String?
+  snapshot     Json?
+  createdAt    DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([version])
+}
+
+// ============================================================================
+// CARBON FINANCE
+// ============================================================================
+
+model CarbonCredit {
+  id                   String       @id @default(cuid())
+  serialNumber         String?      @unique
+  registry             String?
+  projectName          String?
+  projectType          String?
+  vintage              Int?
+  quantity             Float
+  unit                 String       @default("tCO2e")
+  status               CreditStatus @default(ACTIVE)
+  verificationStandard String?
+  country              String?
+  methodology          String?
+  issuedAt             DateTime?
+  retiredAt            DateTime?
+  expiresAt            DateTime?
+  price                Float?
+  currency             String?      @default("USD")
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  offsets CarbonOffset[]
+  trades  CarbonTrade[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([vintage])
+  @@index([registry])
+}
+
+model CarbonOffset {
+  id            String   @id @default(cuid())
+  quantity      Float
+  unit          String   @default("tCO2e")
+  offsetDate    DateTime
+  purpose       String?
+  reportingYear Int?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  creditId String
+  credit   CarbonCredit @relation(fields: [creditId], references: [id])
+
+  @@index([creditId])
+  @@index([offsetDate])
+}
+
+model CarbonPrice {
+  id        String   @id @default(cuid())
+  market    String
+  region    String?
+  price     Float
+  currency  String   @default("USD")
+  unit      String   @default("per tCO2e")
+  priceDate DateTime
+  source    String?
+  createdAt DateTime @default(now())
+
+  @@index([market])
+  @@index([priceDate])
+}
+
+model InternalCarbonPrice {
+  id            String    @id @default(cuid())
+  price         Float
+  currency      String    @default("USD")
+  unit          String    @default("per tCO2e")
+  purpose       String?
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  methodology   String?
+  approvedBy    String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId])
+  @@index([effectiveFrom])
+}
+
+model ETSPosition {
+  id             String   @id @default(cuid())
+  scheme         String
+  allowances     Float
+  surrendered    Float    @default(0)
+  remaining      Float?
+  vintage        Int?
+  complianceYear Int
+  status         String   @default("active")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([scheme])
+  @@index([complianceYear])
+}
+
+model RECertificate {
+  id               String    @id @default(cuid())
+  certificateId    String?   @unique
+  registry         String?
+  energySource     String
+  quantity         Float
+  unit             String    @default("MWh")
+  generationStart  DateTime?
+  generationEnd    DateTime?
+  facilityName     String?
+  facilityLocation String?
+  isRetired        Boolean   @default(false)
+  retiredAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([registry])
+  @@index([energySource])
+}
+
+model PPA {
+  id           String    @id @default(cuid())
+  name         String
+  provider     String
+  energySource String
+  contractType String
+  capacity     Float?
+  capacityUnit String?   @default("MW")
+  pricePerUnit Float?
+  currency     String    @default("USD")
+  startDate    DateTime
+  endDate      DateTime?
+  annualVolume Float?
+  volumeUnit   String?   @default("MWh")
+  status       String    @default("active")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([status])
+  @@index([energySource])
+}
+
+model VoluntaryMarket {
+  id          String   @id @default(cuid())
+  programName String
+  standard    String
+  projectType String?
+  region      String?
+  priceRange  String?
+  volume      Float?
+  unit        String   @default("tCO2e")
+  vintage     Int?
+  rating      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([standard])
+  @@index([projectType])
+}
+
+model CarbonTrade {
+  id             String    @id @default(cuid())
+  tradeType      String
+  quantity       Float
+  unit           String    @default("tCO2e")
+  pricePerUnit   Float
+  totalValue     Float?
+  currency       String    @default("USD")
+  counterparty   String?
+  tradeDate      DateTime
+  settlementDate DateTime?
+  status         String    @default("pending")
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  creditId String?
+  credit   CarbonCredit? @relation(fields: [creditId], references: [id])
+
+  @@index([creditId])
+  @@index([tradeDate])
+  @@index([status])
+}
+
+// ============================================================================
+// ESG DISCLOSURE
+// ============================================================================
+
+model DisclosureFramework {
+  id          String             @id @default(cuid())
+  name        String
+  code        ReportingFramework
+  version     String?
+  description String?
+  publisher   String?
+  url         String?
+  isActive    Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  requirements DisclosureRequirement[]
+
+  @@unique([code, version])
+}
+
+model DisclosureRequirement {
+  id           String   @id @default(cuid())
+  code         String
+  name         String
+  description  String?
+  category     String?
+  isManadatory Boolean  @default(false)
+  dataType     String?
+  guidance     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  frameworkId String
+  framework   DisclosureFramework @relation(fields: [frameworkId], references: [id])
+
+  responses DisclosureResponse[]
+
+  @@index([frameworkId])
+  @@index([category])
+}
+
+model DisclosureResponse {
+  id           String           @id @default(cuid())
+  value        String?
+  numericValue Float?
+  status       DisclosureStatus @default(NOT_STARTED)
+  notes        String?
+  evidenceUrl  String?
+  reviewedBy   String?
+  reviewedAt   DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  requirementId String
+  requirement   DisclosureRequirement @relation(fields: [requirementId], references: [id])
+  reportId      String?
+  report        DisclosureReport?     @relation(fields: [reportId], references: [id])
+
+  @@index([requirementId])
+  @@index([reportId])
+  @@index([status])
+}
+
+model DisclosureReport {
+  id            String             @id @default(cuid())
+  name          String
+  framework     ReportingFramework
+  reportingYear Int
+  status        DisclosureStatus   @default(NOT_STARTED)
+  submittedAt   DateTime?
+  publishedAt   DateTime?
+  dueDate       DateTime?
+  notes         String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdById    String?
+  createdBy      User?        @relation(fields: [createdById], references: [id])
+
+  responses        DisclosureResponse[]
+  cdpResponses     CDPResponse[]
+  issbReport       ISSBReport?
+  csrdReport       CSRDReport?
+  tcfdReport       TCFDReport?
+  reportGeneration ReportGeneration?
+
+  @@index([organizationId])
+  @@index([framework])
+  @@index([reportingYear])
+}
+
+model CDPResponse {
+  id             String           @id @default(cuid())
+  questionNumber String
+  questionText   String?
+  responseText   String?
+  score          String?
+  category       String?
+  year           Int
+  status         DisclosureStatus @default(NOT_STARTED)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  reportId String
+  report   DisclosureReport @relation(fields: [reportId], references: [id])
+
+  @@index([reportId])
+  @@index([category])
+}
+
+model ISSBReport {
+  id                   String           @id @default(cuid())
+  standard             String           @default("IFRS S2")
+  governanceDisclosure String?
+  strategyDisclosure   String?
+  riskManagement       String?
+  metricsAndTargets    String?
+  transitionPlan       String?
+  scenarioAnalysis     String?
+  status               DisclosureStatus @default(NOT_STARTED)
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  reportId String           @unique
+  report   DisclosureReport @relation(fields: [reportId], references: [id])
+}
+
+model CSRDReport {
+  id                    String           @id @default(cuid())
+  standard              String           @default("ESRS")
+  materialityAssessment Json?
+  doubleMateriality     Json?
+  esrsE1Climate         String?
+  esrsE2Pollution       String?
+  esrsE3Water           String?
+  esrsE4Biodiversity    String?
+  esrsE5Resources       String?
+  esrsS1Workforce       String?
+  esrsG1Governance      String?
+  status                DisclosureStatus @default(NOT_STARTED)
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  reportId String           @unique
+  report   DisclosureReport @relation(fields: [reportId], references: [id])
+}
+
+model TCFDReport {
+  id               String           @id @default(cuid())
+  governance       String?
+  strategy         String?
+  riskManagement   String?
+  metricsTargets   String?
+  physicalRisks    Json?
+  transitionRisks  Json?
+  opportunities    Json?
+  scenarioAnalysis String?
+  status           DisclosureStatus @default(NOT_STARTED)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  reportId String           @unique
+  report   DisclosureReport @relation(fields: [reportId], references: [id])
+}
+
+model ReportGeneration {
+  id           String    @id @default(cuid())
+  status       String    @default("pending")
+  format       String    @default("pdf")
+  templateUsed String?
+  generatedUrl String?
+  generatedAt  DateTime?
+  fileSize     Int?
+  pageCount    Int?
+  errorMessage String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  reportId String           @unique
+  report   DisclosureReport @relation(fields: [reportId], references: [id])
+}
+
+// ============================================================================
+// RULES ENGINE
+// ============================================================================
+
+model RuleSet {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  category    String?
+  version     Int      @default(1)
+  isActive    Boolean  @default(true)
+  priority    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  rules Rule[]
+
+  @@index([organizationId])
+  @@index([category])
+}
+
+model Rule {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  type        String?
+  isActive    Boolean  @default(true)
+  priority    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  ruleSetId String
+  ruleSet   RuleSet @relation(fields: [ruleSetId], references: [id])
+
+  conditions RuleCondition[]
+  actions    RuleAction[]
+  executions RuleExecution[]
+  versions   RuleVersion[]
+
+  @@index([ruleSetId])
+  @@index([type])
+}
+
+model RuleCondition {
+  id         String       @id @default(cuid())
+  field      String
+  operator   RuleOperator
+  value      String
+  logicGroup String?      @default("AND")
+  orderIndex Int          @default(0)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  ruleId String
+  rule   Rule   @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@index([ruleId])
+}
+
+model RuleAction {
+  id         String   @id @default(cuid())
+  type       String
+  target     String?
+  value      String?
+  parameters Json?
+  orderIndex Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  ruleId String
+  rule   Rule   @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@index([ruleId])
+}
+
+model RuleExecution {
+  id           String   @id @default(cuid())
+  status       String
+  triggerType  String?
+  triggeredBy  String?
+  inputData    Json?
+  outputData   Json?
+  duration     Int?
+  errorMessage String?
+  executedAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  ruleId String
+  rule   Rule   @relation(fields: [ruleId], references: [id])
+
+  @@index([ruleId])
+  @@index([executedAt])
+  @@index([status])
+}
+
+model RuleVersion {
+  id          String   @id @default(cuid())
+  version     Int
+  conditions  Json
+  actions     Json
+  changeNotes String?
+  createdBy   String?
+  createdAt   DateTime @default(now())
+
+  ruleId String
+  rule   Rule   @relation(fields: [ruleId], references: [id])
+
+  @@index([ruleId])
+  @@index([version])
+}
+
+model CountryRegulation {
+  id                 String    @id @default(cuid())
+  country            String
+  countryCode        String
+  name               String
+  description        String?
+  type               String?
+  effectiveDate      DateTime?
+  complianceDeadline DateTime?
+  penalties          String?
+  url                String?
+  isActive           Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([countryCode])
+  @@index([type])
+}
+
+model IndustryStandard {
+  id          String   @id @default(cuid())
+  name        String
+  code        String?
+  version     String?
+  publisher   String?
+  description String?
+  sector      String?
+  url         String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([sector])
+  @@index([code])
+}
+
+// ============================================================================
+// DATA LINEAGE
+// ============================================================================
+
+model DataLineageNode {
+  id         String   @id @default(cuid())
+  name       String
+  type       String
+  entityType String?
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  graphId String?
+  graph   LineageGraph? @relation(fields: [graphId], references: [id])
+
+  outgoingEdges DataLineageEdge[] @relation("SourceNode")
+  incomingEdges DataLineageEdge[] @relation("TargetNode")
+
+  @@index([graphId])
+  @@index([type])
+  @@index([entityType, entityId])
+}
+
+model DataLineageEdge {
+  id                 String   @id @default(cuid())
+  relationship       String
+  transformationType String?
+  metadata           Json?
+  createdAt          DateTime @default(now())
+
+  sourceNodeId String
+  sourceNode   DataLineageNode @relation("SourceNode", fields: [sourceNodeId], references: [id])
+  targetNodeId String
+  targetNode   DataLineageNode @relation("TargetNode", fields: [targetNodeId], references: [id])
+
+  transformation DataTransformation?
+
+  @@index([sourceNodeId])
+  @@index([targetNodeId])
+}
+
+model DataTransformation {
+  id          String   @id @default(cuid())
+  name        String
+  type        String
+  description String?
+  logic       String?
+  parameters  Json?
+  version     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  edgeId String          @unique
+  edge   DataLineageEdge @relation(fields: [edgeId], references: [id])
+}
+
+model DataSource {
+  id               String         @id @default(cuid())
+  name             String
+  type             DataSourceType
+  description      String?
+  connectionString String?
+  credentials      Json?
+  schema           Json?
+  isActive         Boolean        @default(true)
+  lastSyncAt       DateTime?
+  syncFrequency    String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  versions DataVersion[]
+
+  @@index([type])
+}
+
+model DataVersion {
+  id          String   @id @default(cuid())
+  version     Int
+  hash        String?
+  size        Int?
+  recordCount Int?
+  changes     Json?
+  createdBy   String?
+  createdAt   DateTime @default(now())
+
+  dataSourceId String
+  dataSource   DataSource @relation(fields: [dataSourceId], references: [id])
+
+  @@index([dataSourceId])
+  @@index([version])
+}
+
+model LineageGraph {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  entityType  String?
+  entityId    String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  nodes DataLineageNode[]
+
+  @@index([entityType, entityId])
+}
+
+// ============================================================================
+// EXPLAINABLE AI
+// ============================================================================
+
+model AIExplanation {
+  id              String   @id @default(cuid())
+  title           String
+  entityType      String
+  entityId        String
+  summary         String?
+  methodology     String?
+  confidence      Float?
+  humanReadable   String?
+  technicalDetail String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  analysisId String?
+  analysis   AIAnalysis? @relation(fields: [analysisId], references: [id])
+
+  steps                ExplanationStep[]
+  assumptions          AssumptionLog[]
+  calculationTraces    CalculationTrace[]
+  confidenceBreakdowns ConfidenceBreakdown[]
+  evidenceLinks        EvidenceLink[]
+
+  @@index([analysisId])
+  @@index([entityType, entityId])
+}
+
+model ExplanationStep {
+  id          String   @id @default(cuid())
+  stepNumber  Int
+  title       String
+  description String?
+  inputData   Json?
+  outputData  Json?
+  methodology String?
+  confidence  Float?
+  createdAt   DateTime @default(now())
+
+  explanationId String
+  explanation   AIExplanation @relation(fields: [explanationId], references: [id], onDelete: Cascade)
+
+  @@index([explanationId])
+  @@index([stepNumber])
+}
+
+model AssumptionLog {
+  id            String   @id @default(cuid())
+  assumption    String
+  category      String?
+  justification String?
+  source        String?
+  impact        String?
+  sensitivity   Float?
+  isValidated   Boolean  @default(false)
+  validatedBy   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  explanationId String
+  explanation   AIExplanation @relation(fields: [explanationId], references: [id])
+
+  @@index([explanationId])
+  @@index([category])
+}
+
+model CalculationTrace {
+  id         String   @id @default(cuid())
+  stepName   String
+  formula    String?
+  inputs     Json?
+  output     Float?
+  unit       String?
+  notes      String?
+  orderIndex Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  explanationId String
+  explanation   AIExplanation @relation(fields: [explanationId], references: [id])
+
+  @@index([explanationId])
+}
+
+model ConfidenceBreakdown {
+  id          String   @id @default(cuid())
+  factor      String
+  score       Float
+  weight      Float?
+  description String?
+  methodology String?
+  createdAt   DateTime @default(now())
+
+  explanationId String
+  explanation   AIExplanation @relation(fields: [explanationId], references: [id])
+
+  @@index([explanationId])
+}
+
+model EvidenceLink {
+  id          String   @id @default(cuid())
+  title       String
+  type        String
+  url         String?
+  description String?
+  relevance   Float?
+  createdAt   DateTime @default(now())
+
+  explanationId String
+  explanation   AIExplanation @relation(fields: [explanationId], references: [id])
+
+  @@index([explanationId])
+  @@index([type])
+}
+
+// ============================================================================
+// AI AGENT & MCP PLATFORM
+// ============================================================================
+
+model Agent {
+  id           String      @id @default(cuid())
+  name         String
+  type         String
+  description  String?
+  version      String?
+  capabilities String[]
+  config       Json?
+  status       AgentStatus @default(IDLE)
+  isActive     Boolean     @default(true)
+  lastActiveAt DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  tasks          AgentTask[]
+  executions     AgentExecution[]
+  tools          AgentTool[]
+  conversations  AgentConversation[]
+  mcpConnections MCPConnection[]
+
+  @@index([organizationId])
+  @@index([type])
+  @@index([status])
+}
+
+model AgentTask {
+  id           String      @id @default(cuid())
+  name         String
+  description  String?
+  type         String?
+  priority     Int         @default(0)
+  status       AgentStatus @default(IDLE)
+  input        Json?
+  output       Json?
+  errorMessage String?
+  scheduledAt  DateTime?
+  startedAt    DateTime?
+  completedAt  DateTime?
+  timeout      Int?
+  retryCount   Int         @default(0)
+  maxRetries   Int         @default(3)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id])
+
+  executions AgentExecution[]
+
+  @@index([agentId])
+  @@index([status])
+  @@index([scheduledAt])
+}
+
+model AgentExecution {
+  id           String      @id @default(cuid())
+  status       AgentStatus @default(RUNNING)
+  input        Json?
+  output       Json?
+  logs         Json?
+  tokensUsed   Int?
+  costUsd      Float?
+  duration     Int?
+  errorMessage String?
+  startedAt    DateTime    @default(now())
+  completedAt  DateTime?
+  createdAt    DateTime    @default(now())
+
+  agentId String
+  agent   Agent      @relation(fields: [agentId], references: [id])
+  taskId  String?
+  task    AgentTask? @relation(fields: [taskId], references: [id])
+
+  @@index([agentId])
+  @@index([taskId])
+  @@index([status])
+  @@index([startedAt])
+}
+
+model AgentTool {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  type        String
+  schema      Json?
+  config      Json?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id])
+
+  @@index([agentId])
+  @@index([type])
+}
+
+model MCPServer {
+  id              String    @id @default(cuid())
+  name            String
+  url             String
+  description     String?
+  version         String?
+  protocol        String    @default("stdio")
+  capabilities    Json?
+  status          String    @default("active")
+  healthCheckUrl  String?
+  lastHealthCheck DateTime?
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  connections MCPConnection[]
+
+  @@index([status])
+}
+
+model MCPConnection {
+  id         String    @id @default(cuid())
+  status     String    @default("connected")
+  config     Json?
+  lastPingAt DateTime?
+  errorCount Int       @default(0)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  agentId  String
+  agent    Agent     @relation(fields: [agentId], references: [id])
+  serverId String
+  server   MCPServer @relation(fields: [serverId], references: [id])
+
+  @@unique([agentId, serverId])
+  @@index([agentId])
+  @@index([serverId])
+}
+
+model AgentConversation {
+  id        String   @id @default(cuid())
+  title     String?
+  context   Json?
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id])
+  userId  String
+  user    User   @relation(fields: [userId], references: [id])
+
+  messages AgentMessage[]
+
+  @@index([agentId])
+  @@index([userId])
+}
+
+model AgentMessage {
+  id         String   @id @default(cuid())
+  role       String
+  content    String
+  metadata   Json?
+  tokensUsed Int?
+  createdAt  DateTime @default(now())
+
+  conversationId String
+  conversation   AgentConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// SBTi & TARGETS
+// ============================================================================
+
+model ScienceBasedTarget {
+  id                String         @id @default(cuid())
+  name              String
+  boundary          TargetBoundary
+  baselineYear      Int
+  baselineEmissions Float?
+  targetYear        Int
+  targetReduction   Float
+  targetAbsolute    Float?
+  currentEmissions  Float?
+  currentProgress   Float?         @default(0)
+  methodology       String?
+  status            TargetStatus   @default(DRAFT)
+  submittedAt       DateTime?
+  approvedAt        DateTime?
+  validatedBy       String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  targetTypeId   String?
+  targetType     TargetType?  @relation(fields: [targetTypeId], references: [id])
+
+  progress          TargetProgress[]
+  netZeroCommitment NetZeroCommitment?
+  flagTarget        FLAGTarget?
+  baselineYearData  BaselineYear?
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([boundary])
+}
+
+model TargetType {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique
+  description String?
+  methodology String?
+  pathway     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  targets ScienceBasedTarget[]
+}
+
+model TargetProgress {
+  id                    String    @id @default(cuid())
+  year                  Int
+  emissions             Float
+  reductionFromBaseline Float?
+  reductionPercent      Float?
+  isOnTrack             Boolean?
+  notes                 String?
+  verifiedAt            DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  targetId String
+  target   ScienceBasedTarget @relation(fields: [targetId], references: [id])
+
+  @@unique([targetId, year])
+  @@index([targetId])
+  @@index([year])
+}
+
+model NetZeroCommitment {
+  id                     String       @id @default(cuid())
+  pledgeYear             Int
+  netZeroYear            Int
+  interimTarget          Float?
+  interimYear            Int?
+  residualEmissions      Float?
+  neutralizationStrategy String?
+  status                 TargetStatus @default(DRAFT)
+  declaredAt             DateTime?
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+
+  targetId String             @unique
+  target   ScienceBasedTarget @relation(fields: [targetId], references: [id])
+}
+
+model FLAGTarget {
+  id                String       @id @default(cuid())
+  sector            String
+  commodity         String?
+  baselineEmissions Float?
+  targetReduction   Float?
+  landUseChange     Float?
+  methodology       String?
+  status            TargetStatus @default(DRAFT)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  targetId String             @unique
+  target   ScienceBasedTarget @relation(fields: [targetId], references: [id])
+}
+
+model BaselineYear {
+  id                  String    @id @default(cuid())
+  year                Int
+  scope1Emissions     Float?
+  scope2Emissions     Float?
+  scope3Emissions     Float?
+  totalEmissions      Float?
+  methodology         String?
+  isRecalculated      Boolean   @default(false)
+  recalculationReason String?
+  verifiedAt          DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  targetId String             @unique
+  target   ScienceBasedTarget @relation(fields: [targetId], references: [id])
+}
+
+// ============================================================================
+// NOTIFICATIONS & WORKFLOW
+// ============================================================================
+
+model Notification {
+  id        String           @id @default(cuid())
+  type      NotificationType @default(INFO)
+  title     String
+  message   String
+  channel   String           @default("in_app")
+  isRead    Boolean          @default(false)
+  readAt    DateTime?
+  actionUrl String?
+  metadata  Json?
+  expiresAt DateTime?
+  createdAt DateTime         @default(now())
+
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+model NotificationPreference {
+  id        String   @id @default(cuid())
+  channel   String
+  eventType String
+  isEnabled Boolean  @default(true)
+  frequency String?  @default("immediate")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, channel, eventType])
+  @@index([userId])
+}
+
+model Workflow {
+  id            String         @id @default(cuid())
+  name          String
+  description   String?
+  type          String?
+  status        WorkflowStatus @default(DRAFT)
+  triggerType   String?
+  triggerConfig Json?
+  isActive      Boolean        @default(true)
+  version       Int            @default(1)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  steps      WorkflowStep[]
+  executions WorkflowExecution[]
+
+  @@index([organizationId])
+  @@index([type])
+  @@index([status])
+}
+
+model WorkflowStep {
+  id          String   @id @default(cuid())
+  name        String
+  type        String
+  config      Json?
+  orderIndex  Int      @default(0)
+  isRequired  Boolean  @default(true)
+  timeout     Int?
+  retryConfig Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workflowId String
+  workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  approvals Approval[]
+
+  @@index([workflowId])
+}
+
+model WorkflowExecution {
+  id           String         @id @default(cuid())
+  status       WorkflowStatus @default(ACTIVE)
+  currentStep  Int            @default(0)
+  input        Json?
+  output       Json?
+  errorMessage String?
+  startedAt    DateTime       @default(now())
+  completedAt  DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  workflowId String
+  workflow   Workflow @relation(fields: [workflowId], references: [id])
+
+  approvals Approval[]
+
+  @@index([workflowId])
+  @@index([status])
+}
+
+model Approval {
+  id           String         @id @default(cuid())
+  status       ApprovalStatus @default(PENDING)
+  comments     String?
+  decidedAt    DateTime?
+  dueDate      DateTime?
+  reminderSent Boolean        @default(false)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  approverId  String
+  approver    User               @relation(fields: [approverId], references: [id])
+  stepId      String?
+  step        WorkflowStep?      @relation(fields: [stepId], references: [id])
+  executionId String?
+  execution   WorkflowExecution? @relation(fields: [executionId], references: [id])
+
+  @@index([approverId])
+  @@index([stepId])
+  @@index([executionId])
+  @@index([status])
 }
