@@ -15,7 +15,7 @@ import { Bell, LogOut, Settings, ShieldAlert, Sparkles, User } from "lucide-reac
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +27,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { OrganizationSwitcher } from "@/components/layout/organization-switcher";
 import { useSession } from "@/components/providers/session-provider";
+import { cn } from "@/lib/utils";
 
 export type HeaderProps = {
   /** `signOutAction` from `src/lib/actions/auth.ts`. */
@@ -72,12 +73,13 @@ export function Header({ signOut, llmLabel, llmConfigured, openFindings }: Heade
           {llmConfigured ? "LLM: OpenAI" : "LLM: deterministic"}
         </Badge>
 
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className="relative"
+        <Link
+          href="/verification"
           aria-label={`Notifications (${openFindings} open findings)`}
-          render={<Link href="/verification" />}
+          className={cn(
+            buttonVariants({ variant: "ghost", size: "icon-sm" }),
+            "relative",
+          )}
         >
           <Bell className="size-4" />
           {openFindings > 0 && (
@@ -85,7 +87,7 @@ export function Header({ signOut, llmLabel, llmConfigured, openFindings }: Heade
               {openFindings > 9 ? "9+" : openFindings}
             </span>
           )}
-        </Button>
+        </Link>
 
         <Separator orientation="vertical" className="mx-1 h-6" />
 

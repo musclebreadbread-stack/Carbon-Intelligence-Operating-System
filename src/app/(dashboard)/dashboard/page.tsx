@@ -8,7 +8,6 @@
  */
 
 import { connection } from "next/server";
-import Link from "next/link";
 import {
   Activity,
   AlertTriangle,
@@ -20,7 +19,7 @@ import {
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { LinkButton } from "@/components/shared/link-button";
 import {
   Card,
   CardContent,
@@ -147,12 +146,12 @@ export default async function DashboardPage() {
         ]}
         actions={
           <>
-            <Button size="sm" variant="outline" render={<Link href="/emission-engine" />}>
+            <LinkButton size="sm" variant="outline" href="/emission-engine">
               Run a calculation
-            </Button>
-            <Button size="sm" render={<Link href="/esg-disclosure" />}>
+            </LinkButton>
+            <LinkButton size="sm" href="/esg-disclosure">
               Disclosure status
-            </Button>
+            </LinkButton>
           </>
         }
       />
@@ -384,9 +383,9 @@ export default async function DashboardPage() {
               ))
             )}
             {anomalies.length > 8 && (
-              <Button size="xs" variant="ghost" render={<Link href="/ai-engine" />}>
+              <LinkButton size="xs" variant="ghost" href="/ai-engine">
                 View all {anomalies.length} anomalies
-              </Button>
+              </LinkButton>
             )}
           </CardContent>
         </Card>
