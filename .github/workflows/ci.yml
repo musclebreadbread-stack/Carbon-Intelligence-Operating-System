@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    env:
+      # Placeholder values on purpose: every gate below must pass through the
+      # demo-mode path (decision 5), because no PostgreSQL, Supabase project,
+      # OpenAI key or Mapbox token exists in CI. `isDbConfigured()`,
+      # `isSupabaseConfigured()` and `isLlmConfigured()` all reject values
+      # containing "placeholder", so the build exercises the fallback dataset.
+      DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder?schema=public
+      DIRECT_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder?schema=public
+      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+      OPENAI_API_KEY: placeholder
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      # `npm ci` triggers the postinstall `prisma generate`; the explicit step
+      # below keeps the client generation failure separate from install failure.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test with coverage
+        run: npm test -- --coverage
+
+      - name: Build
+        run: npm run build
+
+      - name: Validate Prisma schema
+        run: npx prisma validate
+
+      # The baseline migration is generated offline with `migrate diff`
+      # (decision 4). Comparing digests catches a schema change that was not
+      # reflected in prisma/migrations/0_init/migration.sql. `diff` is avoided
+      # so the same check can run in minimal containers.
+      - name: Check migration drift
+        run: |
+          npx prisma migrate diff \
+            --from-empty \
+            --to-schema-datamodel prisma/schema.prisma \
+            --script > "$RUNNER_TEMP/schema-drift.sql"
+          expected="$(sha256sum prisma/migrations/0_init/migration.sql | cut -d ' ' -f 1)"
+          actual="$(sha256sum "$RUNNER_TEMP/schema-drift.sql" | cut -d ' ' -f 1)"
+          if [ "$expected" != "$actual" ]; then
+            echo "::error file=prisma/migrations/0_init/migration.sql::Baseline migration is out of sync with prisma/schema.prisma. Regenerate it with: npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > prisma/migrations/0_init/migration.sql"
+            exit 1
+          fi
+          echo "Baseline migration matches the schema (sha256 $expected)."
