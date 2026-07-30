@@ -176,7 +176,7 @@ describe("extractEnvReads", () => {
       "const d = env.local;",
       "const e = config.baseUrl;",
     ].join("\n");
-    expect(extractEnvReads(source).sort()).toEqual([
+    expect([...extractEnvReads(source)].sort()).toEqual([
       "DATABASE_URL",
       "OPENAI_MODEL",
       "REDIS_URL",
