@@ -73,3 +73,13 @@ jobs:
             exit 1
           fi
           echo "Baseline migration matches the schema (sha256 $expected)."
+
+      # The Korean hand-off document is generated from source (decision 14) and
+      # committed. Regenerating it here proves the generator still runs; the
+      # bytes are not compared because the OOXML container is not reproducible.
+      - name: Regenerate the Korean setup guide
+        run: npm run docs:setup-guide
+
+      - name: Check the setup guide is a real OOXML file
+        run: |
+          node -e "const z=require('fs').readFileSync('docs/CIOS-직접-설정-가이드.docx'); if (z[0] !== 0x50 || z[1] !== 0x4b) throw new Error('not a zip/docx'); if (z.length < 10240) throw new Error('suspiciously small: ' + z.length); console.log('ok', z.length, 'bytes');"
