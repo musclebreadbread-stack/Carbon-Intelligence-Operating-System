@@ -14,5 +14,11 @@ export default defineConfig({
       "scripts/**/*.test.ts",
       "prisma/**/*.test.ts",
     ],
+    coverage: {
+      provider: "v8",
+      reporter: ["text-summary", "lcov"],
+      include: ["src/**", "scripts/**", "prisma/seed.ts"],
+      exclude: ["**/*.test.{ts,tsx}", "src/lib/data/demo/**"],
+    },
   },
 });
