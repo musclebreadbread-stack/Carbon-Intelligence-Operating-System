@@ -1,3 +1,15 @@
+/**
+ * Organization module.
+ *
+ * Reads the seven-level hierarchy, the facility list and the consolidated inventory
+ * through the item-28 repositories, and mutates through the item-30 actions. Every
+ * number on the page — the facility emission column, the consolidation delta — is
+ * produced by `rollUp`/`applyConsolidation`, not stored on a row.
+ */
+
+import { connection } from "next/server";
+import { Building2, Factory, Globe2, Layers } from "lucide-react";
+
 import {
   Card,
   CardContent,
@@ -5,129 +17,285 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Plus, FolderTree, MapPin } from "lucide-react";
+import { EmptyState } from "@/components/shared/empty-state";
+import { KpiCard } from "@/components/shared/kpi-card";
+import { PageHeader } from "@/components/shared/page-header";
+import {
+  createBuildingAction,
+  createBusinessUnitAction,
+  createEmissionSourceAction,
+  createEquipmentAction,
+  createFacilityAction,
+  createProductionLineAction,
+  updateOrganizationAction,
+} from "@/lib/actions/organization";
+import { activeOrganizationId } from "@/lib/auth/active-organization";
+import { GHG_SCOPES, ORGANIZATION_TIERS } from "@/lib/core/enums";
+import { getInventory } from "@/lib/data/repositories/calculation";
+import { listReportingYears } from "@/lib/data/repositories/activity-data";
+import {
+  getHierarchyTree,
+  listEmissionSources,
+  listFacilities,
+  getOrganization,
+  type HierarchyNode,
+} from "@/lib/data/repositories/organization";
+import { formatEmissions, formatNumber, humaniseEnum, scopeLabel } from "@/lib/format";
+import { SCOPE3_CATEGORY_DEFINITIONS } from "@/lib/reference/scope3-categories";
 
-const orgTree = [
-  {
-    name: "Acme Corporation",
-    type: "Corporate",
-    children: [
-      {
-        name: "North America Division",
-        type: "Division",
-        children: [
-          { name: "Chicago Manufacturing Plant", type: "Facility", children: [] },
-          { name: "Dallas Distribution Center", type: "Facility", children: [] },
-        ],
-      },
-      {
-        name: "Europe Division",
-        type: "Division",
-        children: [
-          { name: "London Office", type: "Facility", children: [] },
-          { name: "Berlin Factory", type: "Facility", children: [] },
-        ],
-      },
-      {
-        name: "APAC Division",
-        type: "Division",
-        children: [
-          { name: "Tokyo Office", type: "Site", children: [] },
-          { name: "Shanghai Manufacturing", type: "Facility", children: [] },
-        ],
-      },
-    ],
-  },
-];
+import { EntityForms } from "./_components/entity-forms";
+import { FacilityMap } from "./_components/facility-map";
+import { HierarchyTree } from "./_components/hierarchy-tree";
+import { OrganizationProfileForm } from "./_components/organization-profile-form";
 
-function TreeNode({ node, depth = 0 }: { node: typeof orgTree[0]; depth?: number }) {
-  return (
-    <div className={depth > 0 ? "ml-6 border-l pl-4" : ""}>
-      <div className="flex items-center gap-2 rounded-md p-2 hover:bg-muted">
-        {node.type === "Corporate" && <Building2 className="size-4 text-blue-600" />}
-        {node.type === "Division" && <FolderTree className="size-4 text-purple-600" />}
-        {node.type === "Facility" && <MapPin className="size-4 text-emerald-600" />}
-        {node.type === "Site" && <MapPin className="size-4 text-orange-500" />}
-        <span className="text-sm font-medium">{node.name}</span>
-        <Badge variant="secondary" className="text-xs">
-          {node.type}
-        </Badge>
-      </div>
-      {node.children?.map((child) => (
-        <TreeNode key={child.name} node={child} depth={depth + 1} />
-      ))}
-    </div>
-  );
+/** Flattens the tree so the page can count nodes per tier without a second read. */
+function collectByTier(node: HierarchyNode, into: Map<string, HierarchyNode[]>): void {
+  const bucket = into.get(node.tier);
+  if (bucket) bucket.push(node);
+  else into.set(node.tier, [node]);
+  for (const child of node.children) collectByTier(child, into);
 }
 
-export default function OrganizationPage() {
+export default async function OrganizationPage() {
+  await connection();
+
+  const organizationId = await activeOrganizationId();
+  const years = await listReportingYears(organizationId);
+  const reportingYear = years[0] ?? new Date().getUTCFullYear();
+
+  const [organization, tree, facilities, sources, inventory] = await Promise.all([
+    getOrganization(organizationId),
+    getHierarchyTree(organizationId),
+    listFacilities(organizationId),
+    listEmissionSources(organizationId),
+    getInventory(organizationId, reportingYear),
+  ]);
+
+  const byTier = new Map<string, HierarchyNode[]>();
+  if (tree) collectByTier(tree, byTier);
+  const totalEntities = [...byTier.values()].reduce((total, nodes) => total + nodes.length, 0);
+  const regions = new Set(
+    facilities.map((facility) => facility.country ?? "unassigned").filter(Boolean),
+  );
+
+  const emissionsByFacility = new Map(
+    inventory.byFacility.map((node) => [node.key, node.totals.totalEmissions]),
+  );
+
+  const buildings = byTier.get("BUILDING") ?? [];
+  const lines = byTier.get("PRODUCTION_LINE") ?? [];
+  const equipment = byTier.get("EQUIPMENT") ?? [];
+  const businessUnits = [...(byTier.get("BUSINESS_UNIT") ?? []), ...(byTier.get("DIVISION") ?? [])];
+
+  const consolidationDelta =
+    inventory.totals.totalEmissions - inventory.consolidated.totalEmissions;
+
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Organization</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage your organizational hierarchy, facilities, and reporting boundaries.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm">
-            <Plus className="size-4" />
-            Add Facility
-          </Button>
-          <Button size="sm">
-            <Plus className="size-4" />
-            Add Organization
-          </Button>
-        </div>
+      <PageHeader
+        title="Organization"
+        description="Reporting boundary, seven-level hierarchy and consolidation approach."
+        meta={[
+          { label: "Reporting year", value: String(reportingYear) },
+          {
+            label: "Consolidation",
+            value: humaniseEnum(inventory.consolidationApproach),
+          },
+          { label: "GWP", value: inventory.gwpVersion },
+        ]}
+        actions={
+          <EntityForms
+            organizationId={organizationId}
+            businessUnits={businessUnits.map((node) => ({ value: node.id, label: node.name }))}
+            facilities={facilities.map((facility) => ({
+              value: facility.id,
+              label: facility.name,
+            }))}
+            buildings={buildings.map((node) => ({ value: node.id, label: node.name }))}
+            productionLines={lines.map((node) => ({ value: node.id, label: node.name }))}
+            equipment={equipment.map((node) => ({ value: node.id, label: node.name }))}
+            scopes={GHG_SCOPES.map((scope) => ({ value: scope, label: scopeLabel(scope) }))}
+            scope3Categories={SCOPE3_CATEGORY_DEFINITIONS.map((definition) => ({
+              value: definition.category,
+              label: `${definition.number}. ${definition.nameEn} / ${definition.nameKo}`,
+            }))}
+            tiers={ORGANIZATION_TIERS.map((tier) => ({
+              value: tier,
+              label: humaniseEnum(tier),
+            }))}
+            createBusinessUnit={createBusinessUnitAction}
+            createFacility={createFacilityAction}
+            createBuilding={createBuildingAction}
+            createProductionLine={createProductionLineAction}
+            createEquipment={createEquipmentAction}
+            createEmissionSource={createEmissionSourceAction}
+          />
+        }
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiCard
+          title="Hierarchy entities"
+          value={formatNumber(totalEntities)}
+          icon={Layers}
+          description={[...byTier.entries()]
+            .map(([tier, nodes]) => `${nodes.length} ${humaniseEnum(tier).toLowerCase()}`)
+            .join(", ")}
+          source="getHierarchyTree()"
+        />
+        <KpiCard
+          title="Facilities"
+          value={formatNumber(facilities.length)}
+          icon={Factory}
+          description={`${facilities.filter((facility) => facility.operationalControl).length} under operational control`}
+          source="listFacilities()"
+        />
+        <KpiCard
+          title="Emission sources"
+          value={formatNumber(sources.length)}
+          icon={Building2}
+          description={`${sources.filter((source) => source.isActive).length} active`}
+          source="listEmissionSources()"
+        />
+        <KpiCard
+          title="Countries covered"
+          value={formatNumber(regions.size)}
+          icon={Globe2}
+          description={[...regions].join(", ")}
+          source="listFacilities()"
+        />
       </div>
 
-      {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Total Entities</CardDescription>
-            <CardTitle className="text-2xl">8</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">1 corporate, 3 divisions, 4 facilities</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Active Reporting</CardDescription>
-            <CardTitle className="text-2xl">6</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">Entities with active data collection</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Regions Covered</CardDescription>
-            <CardTitle className="text-2xl">3</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">North America, Europe, APAC</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Organization Tree */}
       <Card>
         <CardHeader>
-          <CardTitle>Organization Hierarchy</CardTitle>
+          <CardTitle>Consolidated inventory</CardTitle>
           <CardDescription>
-            Corporate structure and reporting boundaries
+            {humaniseEnum(inventory.consolidationApproach)} applied by{" "}
+            <code>applyConsolidation()</code> over {inventory.results.length} emission results.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-3">
+          <div>
+            <p className="text-xs text-muted-foreground">Gross (100% of every facility)</p>
+            <p className="text-xl font-semibold">
+              {formatEmissions(inventory.totals.totalEmissions)}{" "}
+              <span className="text-sm font-normal text-muted-foreground">
+                {inventory.totals.unit}
+              </span>
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Consolidated</p>
+            <p className="text-xl font-semibold">
+              {formatEmissions(inventory.consolidated.totalEmissions)}{" "}
+              <span className="text-sm font-normal text-muted-foreground">
+                {inventory.consolidated.unit}
+              </span>
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Excluded by the approach</p>
+            <p className="text-xl font-semibold">
+              {formatEmissions(consolidationDelta)}{" "}
+              <span className="text-sm font-normal text-muted-foreground">
+                {inventory.totals.unit}
+              </span>
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Organization hierarchy</CardTitle>
+            <CardDescription>
+              Enterprise → business unit → facility → building → production line → equipment →
+              emission source.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {tree ? (
+              <HierarchyTree root={tree} />
+            ) : (
+              <EmptyState
+                title="No hierarchy yet"
+                description="Create a business unit and a facility to start the tree."
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Facilities</CardTitle>
+            <CardDescription>
+              Coordinates, control status and calculated emissions per site.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <FacilityMap
+              accessToken={process.env.MAPBOX_ACCESS_TOKEN ?? null}
+              unit={inventory.totals.unit}
+              facilities={facilities.map((facility) => ({
+                id: facility.id,
+                name: facility.name,
+                city: facility.city,
+                country: facility.country,
+                latitude: facility.latitude,
+                longitude: facility.longitude,
+                operationalControl: facility.operationalControl,
+                equityShare: facility.equityShare,
+                emissions: emissionsByFacility.get(facility.id) ?? 0,
+              }))}
+            />
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Emission sources by scope</CardTitle>
+          <CardDescription>
+            Every source the calculation engine can resolve a factor for.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {GHG_SCOPES.map((scope) => {
+            const inScope = sources.filter((source) => source.scope === scope);
+            if (inScope.length === 0) return null;
+            return (
+              <div key={scope} className="rounded-md border p-2.5">
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary">{scopeLabel(scope)}</Badge>
+                  <span className="text-xs text-muted-foreground">
+                    {inScope.length} source{inScope.length === 1 ? "" : "s"}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {inScope.map((source) => source.name).join(" · ")}
+                </p>
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Organization profile</CardTitle>
+          <CardDescription>
+            Fiscal year, base currency and reporting year drive period boundaries and
+            intensity denominators across every module.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {orgTree.map((node) => (
-            <TreeNode key={node.name} node={node} />
-          ))}
+          <OrganizationProfileForm
+            organizationId={organizationId}
+            organization={organization}
+            updateOrganization={updateOrganizationAction}
+          />
         </CardContent>
       </Card>
     </div>
