@@ -14,18 +14,40 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import { SupabaseNotice } from "../_components/supabase-notice";
+
+/**
+ * Supabase reports an unconfirmed address as `email_not_confirmed`. Matching on the
+ * code rather than the message is what lets the page offer a resend instead of
+ * repeating an error the user cannot act on.
+ */
+function isEmailNotConfirmed(error: { code?: string; message: string }): boolean {
+  return (
+    error.code === "email_not_confirmed" || /email not confirmed/i.test(error.message)
+  );
+}
 
 export default function LoginPage() {
+  const configured = isSupabaseConfigured();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [needsConfirmation, setNeedsConfirmation] = useState(false);
+  const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
   const [loading, setLoading] = useState(false);
 
   async function handleEmailLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    setNeedsConfirmation(false);
+
+    if (!configured) {
+      setError("Supabase가 구성되지 않아 로그인할 수 없습니다.");
+      return;
+    }
+
     setLoading(true);
 
     const supabase = createClient();
@@ -35,7 +57,11 @@ export default function LoginPage() {
     });
 
     if (authError) {
-      setError(authError.message);
+      if (isEmailNotConfirmed(authError)) {
+        setNeedsConfirmation(true);
+      } else {
+        setError(authError.message);
+      }
       setLoading(false);
       return;
     }
@@ -44,8 +70,30 @@ export default function LoginPage() {
     router.refresh();
   }
 
+  /** Re-sends the sign-up confirmation email for the address just entered. */
+  async function handleResendConfirmation() {
+    if (!configured || email.trim().length === 0) return;
+    setResendState("sending");
+    const supabase = createClient();
+    const { error: authError } = await supabase.auth.resend({
+      type: "signup",
+      email: email.trim(),
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+    });
+    if (authError) {
+      setError(authError.message);
+      setResendState("idle");
+      return;
+    }
+    setResendState("sent");
+  }
+
   async function handleOAuthLogin(provider: "google" | "azure") {
     setError(null);
+    if (!configured) {
+      setError("Supabase가 구성되지 않아 소셜 로그인을 사용할 수 없습니다.");
+      return;
+    }
     const supabase = createClient();
     const { error: authError } = await supabase.auth.signInWithOAuth({
       provider,
@@ -68,9 +116,39 @@ export default function LoginPage() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <SupabaseNotice configured={configured} />
+
         {error && (
-          <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+          <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive" role="alert">
             {error}
+          </div>
+        )}
+
+        {needsConfirmation && (
+          <div
+            className="space-y-2 rounded-md border border-amber-400/60 p-3 text-sm"
+            data-testid="email-not-confirmed"
+          >
+            <p className="font-medium">Confirm your email first</p>
+            <p className="text-xs text-muted-foreground">
+              The account exists but the address has not been verified, so sign-in is blocked.
+              {resendState === "sent"
+                ? " A new confirmation link is on its way."
+                : " Send yourself another confirmation link."}
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={handleResendConfirmation}
+              disabled={resendState !== "idle"}
+            >
+              {resendState === "sending"
+                ? "Sending…"
+                : resendState === "sent"
+                  ? "Confirmation link sent"
+                  : "Resend confirmation email"}
+            </Button>
           </div>
         )}
 
@@ -140,7 +218,7 @@ export default function LoginPage() {
             <div className="flex items-center justify-between">
               <Label htmlFor="password">Password</Label>
               <Link
-                href="#"
+                href="/forgot-password"
                 className="text-xs text-muted-foreground hover:text-foreground"
               >
                 Forgot password?

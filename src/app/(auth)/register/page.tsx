@@ -14,9 +14,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import { SupabaseNotice } from "../_components/supabase-notice";
 
 export default function RegisterPage() {
+  const configured = isSupabaseConfigured();
   const router = useRouter();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -30,6 +32,12 @@ export default function RegisterPage() {
   async function handleRegister(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+
+    if (!configured) {
+      setError("Supabase가 구성되지 않아 회원가입을 진행할 수 없습니다.");
+      return;
+    }
+
     setLoading(true);
 
     const supabase = createClient();
@@ -64,6 +72,10 @@ export default function RegisterPage() {
 
   async function handleOAuthSignUp(provider: "google" | "azure") {
     setError(null);
+    if (!configured) {
+      setError("Supabase가 구성되지 않아 소셜 회원가입을 사용할 수 없습니다.");
+      return;
+    }
     const supabase = createClient();
     const { error: authError } = await supabase.auth.signInWithOAuth({
       provider,
@@ -86,8 +98,10 @@ export default function RegisterPage() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <SupabaseNotice configured={configured} />
+
         {error && (
-          <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+          <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive" role="alert">
             {error}
           </div>
         )}
@@ -229,15 +243,9 @@ export default function RegisterPage() {
         </form>
 
         <p className="text-center text-xs text-muted-foreground">
-          By creating an account, you agree to our{" "}
-          <Link href="#" className="font-medium text-foreground hover:underline">
-            Terms of Service
-          </Link>{" "}
-          and{" "}
-          <Link href="#" className="font-medium text-foreground hover:underline">
-            Privacy Policy
-          </Link>
-          .
+          By creating an account you accept this deployment&apos;s terms of service and privacy
+          policy. Those documents are the operator&apos;s to publish — link them here once they
+          exist rather than pointing at a page that does not.
         </p>
 
         <p className="text-center text-xs text-muted-foreground">

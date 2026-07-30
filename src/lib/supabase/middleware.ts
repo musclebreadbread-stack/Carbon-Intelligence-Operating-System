@@ -1,10 +1,33 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { isSupabaseConfigured } from "./client";
+
+/** Paths reachable without a session. */
+const PUBLIC_PATHS = [
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+  "/auth/callback",
+  // Health is deliberately unauthenticated: "is this deployment misconfigured?"
+  // has to be answerable before any credential exists.
+  "/api/v1/health",
+];
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   });
+
+  // With no Supabase project configured there is no identity provider to
+  // authenticate against, and `getUser()` would report "no user" for everyone —
+  // redirecting every route to a sign-in page that cannot work. Demo mode is
+  // explicitly navigable (decision 5), and `getSession()` supplies the demo
+  // administrator, so route protection is skipped rather than made unsatisfiable.
+  if (!isSupabaseConfigured()) {
+    return supabaseResponse;
+  }
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
@@ -37,11 +60,9 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Define public paths that don't require authentication
-  const publicPaths = ["/login", "/register", "/auth/callback"];
   const isPublicPath =
     request.nextUrl.pathname === "/" ||
-    publicPaths.some((path) => request.nextUrl.pathname.startsWith(path));
+    PUBLIC_PATHS.some((path) => request.nextUrl.pathname.startsWith(path));
 
   if (!user && !isPublicPath) {
     // No user on a protected route, redirect to login page

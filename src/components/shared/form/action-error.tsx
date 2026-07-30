@@ -17,7 +17,6 @@
  * via `FormField`. Only errors whose path is unknown to the form are listed.
  */
 
-import Link from "next/link";
 import {
   CheckCircle2,
   Database,
@@ -28,7 +27,7 @@ import {
 } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { LinkButton } from "@/components/shared/link-button";
 import { SETUP_GUIDE_PATH, resolveMessage } from "@/lib/i18n/messages";
 import type { ActionState } from "@/lib/actions/types";
 import { cn } from "@/lib/utils";
@@ -89,9 +88,9 @@ export function ActionError({
           <AlertTitle>Your session has ended</AlertTitle>
           <AlertDescription className="space-y-2">
             <p>{message}</p>
-            <Button size="sm" variant="outline" render={<Link href="/login" />}>
+            <LinkButton size="sm" variant="outline" href="/login">
               Sign in again
-            </Button>
+            </LinkButton>
           </AlertDescription>
         </Alert>
       );
@@ -106,9 +105,9 @@ export function ActionError({
             <p className="text-xs">
               You are signed in — this is a missing permission, not a missing session.
             </p>
-            <Button size="sm" variant="outline" render={<Link href="/security" />}>
+            <LinkButton size="sm" variant="outline" href="/security">
               View roles and permissions
-            </Button>
+            </LinkButton>
           </AlertDescription>
         </Alert>
       );

@@ -1,7 +1,6 @@
-import Link from "next/link";
 import { Compass } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { LinkButton } from "@/components/shared/link-button";
 import {
   Card,
   CardContent,
@@ -30,18 +29,18 @@ export default function NotFound() {
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <Button size="sm" render={<Link href="/dashboard" />}>
+          <LinkButton size="sm" href="/dashboard">
             Dashboard
-          </Button>
-          <Button size="sm" variant="outline" render={<Link href="/emission-engine" />}>
+          </LinkButton>
+          <LinkButton size="sm" variant="outline" href="/emission-engine">
             Emission engine
-          </Button>
-          <Button size="sm" variant="outline" render={<Link href="/esg-disclosure" />}>
+          </LinkButton>
+          <LinkButton size="sm" variant="outline" href="/esg-disclosure">
             ESG disclosure
-          </Button>
-          <Button size="sm" variant="ghost" render={<Link href="/" />}>
+          </LinkButton>
+          <LinkButton size="sm" variant="ghost" href="/">
             Home
-          </Button>
+          </LinkButton>
         </CardContent>
       </Card>
     </div>

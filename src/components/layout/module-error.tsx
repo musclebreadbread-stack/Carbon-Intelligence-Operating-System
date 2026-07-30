@@ -10,10 +10,10 @@
  */
 
 import * as React from "react";
-import Link from "next/link";
 import { AlertOctagon, KeyRound, RefreshCw, ShieldAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { LinkButton } from "@/components/shared/link-button";
 import {
   Card,
   CardContent,
@@ -63,13 +63,13 @@ export function ModuleError({ error, retry, segment }: ModuleErrorProps) {
             </Button>
           )}
           {copy.actionHref && copy.actionLabel && (
-            <Button size="sm" variant="outline" render={<Link href={copy.actionHref} />}>
+            <LinkButton size="sm" variant="outline" href={copy.actionHref}>
               {copy.actionLabel}
-            </Button>
+            </LinkButton>
           )}
-          <Button size="sm" variant="ghost" render={<Link href="/dashboard" />}>
+          <LinkButton size="sm" variant="ghost" href="/dashboard">
             Back to dashboard
-          </Button>
+          </LinkButton>
         </div>
       </CardContent>
     </Card>
