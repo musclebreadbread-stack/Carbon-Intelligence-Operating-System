@@ -1,0 +1,46 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Create comprehensive Prisma schema with 88+ models covering all 18 CIOS modules. Includes 7-level org hierarchy, full GHG accounting (Scope 1/2/3 with all 15 Scope 3 categories), Rules Engine, Data Lineage, Explainable AI, Carbon Finance, ESG Disclosure, Digital MRV, Verification, Security, and AI Agent subsystems.",
+  "status": "pending",
+  "steps": [
+    "Create prisma/schema.prisma with PostgreSQL datasource and Prisma client generator with pgvector preview feature",
+    "Define Organization hierarchy models: Organization, BusinessUnit, Facility, Building, ProductionLine, Equipment, EmissionSource - with full parent-child relationships and 7-level hierarchy",
+    "Define Master Data models: Product, RawMaterial, Fuel, FuelType, Vehicle, Refrigerant, Supplier, LogisticsRoute, EnergySource, WasteType, WaterSource",
+    "Define Activity Data models: ActivityData, ActivityDataEntry, DataImportJob, DataImportMapping, DataValidationRule, DataQualityScore, IoTDevice, IoTReading, MeterReading",
+    "Define Emission Engine models: EmissionCalculation, EmissionResult, EmissionAllocation, CalculationMethodology, CalculationFormula, UncertaintyAnalysis, Scope3Category (all 15 categories), EmissionInventory",
+    "Define Emission Factor Library models: EmissionFactor, EmissionFactorSource, EmissionFactorVersion, EmissionFactorCategory, UnitConversion, EmissionFactorUpdate",
+    "Define AI Engine models: AIAnalysis, AIRecommendation, AIPrediction, AIModel, AITrainingData, AnomalyDetection, DataGapAnalysis, AIConfidenceScore",
+    "Define AI Roadmap models: DecarbonizationRoadmap, RoadmapMilestone, RoadmapAction, AbatementTechnology, MACCCurve, InvestmentAnalysis (CAPEX, OPEX, ROI, IRR, NPV, Payback)",
+    "Define AI Scenario Simulator models: Scenario, ScenarioAssumption, ScenarioResult, ScenarioComparison, CarbonBudget, TargetPathway",
+    "Define Digital MRV models: MRVPlan, Measurement, Report, ReportTemplate, ReportSection, ReportDataPoint, MonitoringPlan, MonitoringParameter",
+    "Define Verification Center models: VerificationEngagement, VerificationScope, AuditTrail, AuditEvidence, VerificationFinding, VerificationStatement, DigitalSignature, EvidencePackage, VersionHistory",
+    "Define Carbon Finance models: CarbonCredit, CarbonOffset, CarbonPrice, InternalCarbonPrice, ETSPosition, RECertificate, PPA, VoluntaryMarket, CarbonTrade",
+    "Define ESG Disclosure models: DisclosureFramework, DisclosureRequirement, DisclosureResponse, DisclosureReport, CDPResponse, ISSBReport, CSRDReport, TCFDReport, ReportGeneration",
+    "Define Rules Engine models: Rule, RuleSet, RuleCondition, RuleAction, RuleExecution, RuleVersion, CountryRegulation, IndustryStandard",
+    "Define Data Lineage models: DataLineageNode, DataLineageEdge, DataTransformation, DataSource, DataVersion, LineageGraph",
+    "Define Explainable AI models: AIExplanation, ExplanationStep, AssumptionLog, CalculationTrace, ConfidenceBreakdown, EvidenceLink",
+    "Define Security & Auth models: User, Role, Permission, RolePermission, UserRole, Team, AuditLog, Session, APIKey, AccessPolicy, EncryptionKey",
+    "Define AI Agent models: Agent, AgentTask, AgentExecution, AgentTool, MCPServer, MCPConnection, AgentConversation, AgentMessage",
+    "Define SBTi & Target models: ScienceBasedTarget, TargetType, TargetProgress, NetZeroCommitment, FLAGTarget, BaselineYear",
+    "Define Notification & Workflow models: Notification, NotificationPreference, Workflow, WorkflowStep, WorkflowExecution, Approval",
+    "Add proper indexes, unique constraints, and relations across all models",
+    "Verify: npx prisma validate passes successfully",
+    "Verify: npx prisma format to ensure schema is properly formatted"
+  ],
+  "acceptance_criteria": [
+    "Prisma schema contains 88+ models minimum",
+    "Schema covers all 18 CIOS modules",
+    "7-level organizational hierarchy is defined with proper relations",
+    "All 15 Scope 3 categories are represented",
+    "Rules Engine, Data Lineage, and Explainable AI models are included",
+    "npx prisma validate passes without errors",
+    "Schema is 2000+ lines"
+  ],
+  "verification": [
+    "npx prisma validate",
+    "npx prisma format"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

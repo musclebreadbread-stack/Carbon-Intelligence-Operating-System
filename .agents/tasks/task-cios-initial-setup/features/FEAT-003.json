@@ -1,0 +1,51 @@
+{
+  "id": "FEAT-003",
+  "type": "feat",
+  "description": "Create application layout with collapsible sidebar navigation (4 sections), placeholder pages for all 18 modules plus dashboard/analytics/settings/auth pages (22+ routes total), and Supabase auth middleware. Set up the main dashboard page with KPI card placeholders.",
+  "status": "pending",
+  "steps": [
+    "Create src/components/layout/sidebar.tsx - Collapsible sidebar with 4 navigation sections: (1) Core Operations: Organization, Master Data, Activity Data, Emission Engine, Emission Factors; (2) AI & Intelligence: AI Engine, AI Roadmap, AI Simulator, AI Agents; (3) Reporting & Compliance: Digital MRV, Verification, ESG Disclosure, Carbon Finance; (4) System: Dashboard, Analytics, API Gateway, Security, Settings. Use lucide-react icons, shadcn Sheet for mobile, collapsible state with localStorage persistence.",
+    "Create src/components/layout/header.tsx - Top header bar with org switcher placeholder, search command palette trigger, notifications bell, user avatar dropdown",
+    "Create src/components/layout/breadcrumb.tsx - Dynamic breadcrumb component",
+    "Create src/app/(dashboard)/layout.tsx - Dashboard layout with sidebar + header + main content area",
+    "Create src/app/(dashboard)/dashboard/page.tsx - Main dashboard with KPI cards (Total Emissions, Intensity, Scope 1/2/3 breakdown, Reduction Rate, Target Achievement, Net Zero Progress), placeholder charts area",
+    "Create src/app/(dashboard)/organization/page.tsx - Organization management page with hierarchy tree placeholder",
+    "Create src/app/(dashboard)/master-data/page.tsx - Master data management with tabs for different data types",
+    "Create src/app/(dashboard)/activity-data/page.tsx - Activity data engine with data import and validation UI placeholders",
+    "Create src/app/(dashboard)/emission-engine/page.tsx - Emission calculation engine with scope breakdown view",
+    "Create src/app/(dashboard)/emission-factors/page.tsx - Emission factor library with search and version management",
+    "Create src/app/(dashboard)/ai-engine/page.tsx - AI Carbon Engine with analysis cards (anomaly detection, gap analysis, quality assessment)",
+    "Create src/app/(dashboard)/ai-roadmap/page.tsx - AI Decarbonization Planner with timeline visualization placeholder",
+    "Create src/app/(dashboard)/ai-simulator/page.tsx - AI Scenario Simulator with comparison cards (BAU, Carbon Neutral, Net Zero, Aggressive, Conservative, Custom)",
+    "Create src/app/(dashboard)/digital-mrv/page.tsx - Digital MRV page with monitoring/reporting/verification tabs",
+    "Create src/app/(dashboard)/verification/page.tsx - Verification Center with audit trail and evidence management",
+    "Create src/app/(dashboard)/carbon-finance/page.tsx - Carbon Finance with credits, offsets, ETS, REC tabs",
+    "Create src/app/(dashboard)/esg-disclosure/page.tsx - ESG Disclosure with framework selection (ISSB, CDP, CSRD, ESRS, TCFD)",
+    "Create src/app/(dashboard)/api-gateway/page.tsx - API Gateway management with endpoints and keys",
+    "Create src/app/(dashboard)/ai-agents/page.tsx - AI Agent Platform with agent cards and MCP connections",
+    "Create src/app/(dashboard)/security/page.tsx - Security Center with RBAC, audit logs, encryption status",
+    "Create src/app/(dashboard)/analytics/page.tsx - Analytics page with chart placeholders",
+    "Create src/app/(dashboard)/settings/page.tsx - Settings page with general/team/integrations/billing tabs",
+    "Create src/app/(auth)/login/page.tsx - Login page with email/password and SSO options",
+    "Create src/app/(auth)/register/page.tsx - Registration page",
+    "Create src/app/(auth)/layout.tsx - Auth layout (centered card)",
+    "Create src/app/page.tsx - Landing/redirect to dashboard",
+    "Create src/types/index.ts - Core TypeScript type definitions for the platform",
+    "Verify: npm run build passes with all pages, npm run lint passes"
+  ],
+  "acceptance_criteria": [
+    "22+ page routes exist and render without errors",
+    "Sidebar navigation has 4 collapsible sections with all 18 module links",
+    "Dashboard layout properly wraps all dashboard pages",
+    "Auth pages have separate layout",
+    "All pages use consistent styling with Tailwind CSS and shadcn/ui components",
+    "npm run build passes successfully",
+    "npm run lint passes"
+  ],
+  "verification": [
+    "npm run build",
+    "npm run lint"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

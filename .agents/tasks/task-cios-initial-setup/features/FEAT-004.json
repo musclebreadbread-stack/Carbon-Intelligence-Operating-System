@@ -1,0 +1,27 @@
+{
+  "id": "FEAT-004",
+  "type": "chore",
+  "description": "Final verification, git commit all changes to main branch. Create initial commit with the complete CIOS project scaffold.",
+  "status": "pending",
+  "steps": [
+    "Ensure .gitignore properly excludes node_modules/, .next/, .env.local (but NOT .env.example)",
+    "Run npm run build to verify final build passes",
+    "Run npm run lint to verify lint passes",
+    "Run npx prisma validate to verify schema is valid",
+    "Stage all files with git add -A",
+    "Create initial commit: git commit -m 'feat: initialize Carbon Intelligence Operating System (CIOS) - Next.js 15 with App Router, TypeScript strict mode, Tailwind CSS - 88+ model Prisma schema covering all 18 CIOS modules - 7-level org hierarchy: Organization > BusinessUnit > Facility > Building > ProductionLine > Equipment > EmissionSource - Full GHG accounting: Scope 1/2/3 with all 15 Scope 3 categories - Rules Engine, Data Lineage, Explainable AI subsystems - 22+ page routes for all modules - Collapsible sidebar with 4 navigation sections - Supabase auth middleware - shadcn/ui component library'",
+    "Verify commit was created successfully with git log --oneline"
+  ],
+  "acceptance_criteria": [
+    "All files are committed to main branch",
+    "Commit message clearly describes the initial project scaffold",
+    "No uncommitted changes remain",
+    "Build, lint, and prisma validate all pass before commit"
+  ],
+  "verification": [
+    "git log --oneline -1",
+    "git status"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

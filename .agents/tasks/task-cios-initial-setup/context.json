@@ -1,0 +1,26 @@
+{
+  "project_type": "Next.js App Router full-stack application - Carbon Intelligence Operating System (CIOS)",
+  "language": "TypeScript",
+  "build_system": "npm with Next.js, Prisma ORM for database schema",
+  "test_framework": "Next.js built-in (will be configured later)",
+  "build_command": "npm run build",
+  "test_command": "npx prisma validate && npm run lint",
+  "verification_instructions": "1. Run npx prisma validate to confirm schema is valid. 2. Run npm run build to confirm Next.js builds successfully. 3. Run npm run lint to confirm no lint errors.",
+  "snapshot_or_generated_files": "Prisma client is generated but not checked in (in .gitignore). node_modules not checked in.",
+  "setup_instructions": "npm install, npx prisma generate",
+  "environment_constraints": "OPEN_INTERNET - full access to npm registries. Node.js v22 available. No database server running locally - Prisma validate only, no migrate.",
+  "contribution_requirements": "Initial project setup - no prior contributions exist.",
+  "key_patterns": "Next.js App Router with src/app directory structure. shadcn/ui components in src/components/ui. Prisma schema in prisma/schema.prisma. Modular architecture with 18 CIOS modules.",
+  "relevant_files": [
+    "package.json",
+    "next.config.ts",
+    "tailwind.config.ts",
+    "tsconfig.json",
+    "prisma/schema.prisma",
+    "src/app/layout.tsx",
+    "src/app/page.tsx",
+    "src/components/layout/sidebar.tsx",
+    "src/middleware.ts"
+  ],
+  "directory_structure": "src/app/ - Next.js App Router pages and layouts. src/components/ - React components (ui/, layout/, modules/). src/lib/ - Utility functions, Prisma client, Supabase client. prisma/ - Prisma schema and migrations. public/ - Static assets."
+}

@@ -1,0 +1,38 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Initialize Next.js project with all dependencies, configure TypeScript strict mode, Tailwind CSS, and install shadcn/ui components. Set up project structure for all 18 CIOS modules.",
+  "status": "in_progress",
+  "steps": [
+    "Create Next.js project with App Router in /projects/sandbox/Carbon-Intelligence-Operating-System using: npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias '@/*' --use-npm (use defaults for all prompts, non-interactive)",
+    "Install core dependencies: @supabase/supabase-js @supabase/ssr @prisma/client @tanstack/react-table react-hook-form @hookform/resolvers zod recharts mapbox-gl lucide-react next-themes class-variance-authority clsx tailwind-merge",
+    "Install dev dependencies: prisma @types/mapbox-gl",
+    "Initialize shadcn/ui with: npx shadcn@latest init -d (defaults). Then install components: npx shadcn@latest add button card input label select textarea checkbox radio-group switch tabs dialog sheet dropdown-menu popover command separator badge avatar tooltip scroll-area table accordion alert progress skeleton",
+    "Configure TypeScript strict mode in tsconfig.json",
+    "Create directory structure: src/app/(auth)/, src/app/(dashboard)/, src/app/(dashboard)/organization/, src/app/(dashboard)/master-data/, src/app/(dashboard)/activity-data/, src/app/(dashboard)/emission-engine/, src/app/(dashboard)/emission-factors/, src/app/(dashboard)/ai-engine/, src/app/(dashboard)/ai-roadmap/, src/app/(dashboard)/ai-simulator/, src/app/(dashboard)/digital-mrv/, src/app/(dashboard)/verification/, src/app/(dashboard)/carbon-finance/, src/app/(dashboard)/dashboard/, src/app/(dashboard)/esg-disclosure/, src/app/(dashboard)/api-gateway/, src/app/(dashboard)/ai-agents/, src/app/(dashboard)/security/, src/app/(dashboard)/analytics/, src/app/(dashboard)/settings/, src/components/ui/, src/components/layout/, src/components/modules/, src/lib/, src/lib/supabase/, src/types/",
+    "Create src/lib/utils.ts with cn() utility function (shadcn pattern)",
+    "Create src/lib/supabase/client.ts with Supabase browser client",
+    "Create src/lib/supabase/server.ts with Supabase server client",
+    "Create src/lib/supabase/middleware.ts with Supabase auth middleware helper",
+    "Create src/lib/prisma.ts with PrismaClient singleton",
+    "Create src/middleware.ts with Supabase auth session refresh middleware",
+    "Create .env.example with all required environment variables (NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, DATABASE_URL, DIRECT_URL, OPENAI_API_KEY, REDIS_URL, MAPBOX_ACCESS_TOKEN)",
+    "Create .env.local with placeholder values for development",
+    "Verify: npm run build passes, npm run lint passes"
+  ],
+  "acceptance_criteria": [
+    "Next.js project builds successfully with npm run build",
+    "TypeScript strict mode is enabled",
+    "All shadcn/ui components are installed and accessible",
+    "Directory structure for all 18 modules exists",
+    "Supabase client utilities are in place",
+    "Prisma client singleton is configured",
+    "ESLint passes with npm run lint"
+  ],
+  "verification": [
+    "npm run build",
+    "npm run lint"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

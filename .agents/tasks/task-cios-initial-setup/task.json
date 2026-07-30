@@ -1,0 +1,7 @@
+{
+  "task_id": "task-cios-initial-setup",
+  "task_description": "Initialize Carbon Intelligence Operating System (CIOS) - an enterprise-grade AI-native platform for Carbon Accounting, Decarbonization Roadmap, Digital MRV, ESG Disclosure and Climate Decision Intelligence. Create the full Next.js project scaffold with 88+ model Prisma schema, 22+ page routes, and modular architecture for all 18 CIOS modules.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004"],
+  "blocked_reason": null
+}
