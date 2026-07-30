@@ -1,5 +1,16 @@
-"use client";
+/**
+ * Digital MRV module.
+ *
+ * Monitoring plans, parameters, coverage gaps and measurement completeness — all
+ * from `monitoringPlanCoverage()` and `measurementCompleteness()`, which derive the
+ * expected reading count from each parameter's `MeasurementFrequency` rather than
+ * from a stored target.
+ */
 
+import { connection } from "next/server";
+import { Activity, Gauge, Radio, Ruler } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -8,181 +19,402 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Shield, Radio, FileText, CheckCircle } from "lucide-react";
+import { EmptyState } from "@/components/shared/empty-state";
+import { KpiCard } from "@/components/shared/kpi-card";
+import { PageHeader } from "@/components/shared/page-header";
+import { ActionForm } from "@/components/shared/form/action-form";
+import { recordMeterReadingAction } from "@/lib/actions/activity-data";
+import { activeOrganizationId } from "@/lib/auth/active-organization";
+import { listReportingYears } from "@/lib/data/repositories/activity-data";
+import { getMrvCoverage, listMeasurements } from "@/lib/data/repositories/mrv";
+import { listFacilities } from "@/lib/data/repositories/organization";
+import {
+  formatDate,
+  formatDateTime,
+  formatNumber,
+  formatPercent,
+  humaniseEnum,
+  scopeLabel,
+} from "@/lib/format";
+import { UNIT_REGISTRY } from "@/lib/reference/units";
 
-export default function DigitalMRVPage() {
+export default async function DigitalMrvPage() {
+  await connection();
+
+  const organizationId = await activeOrganizationId();
+  const years = await listReportingYears(organizationId);
+  const reportingYear = years[0] ?? new Date().getUTCFullYear();
+
+  const [mrv, facilities] = await Promise.all([
+    getMrvCoverage(organizationId, { reportingYear }),
+    listFacilities(organizationId),
+  ]);
+
+  const measurements = mrv.plan
+    ? await listMeasurements(mrv.plan.id, { reportingYear })
+    : [];
+
+  if (!mrv.plan || !mrv.coverage || !mrv.completeness || !mrv.monitoringPlan) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title="Digital MRV"
+          description="Monitoring, reporting and verification plans with their coverage and completeness."
+        />
+        <EmptyState
+          title="No MRV plan"
+          description="Create an MRVPlan and a MonitoringPlan to measure coverage against the emission-source inventory."
+        />
+      </div>
+    );
+  }
+
+  const { plan, monitoringPlan, parameters, coverage, completeness } = mrv;
+
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Digital MRV</h1>
-          <p className="text-sm text-muted-foreground">
-            Monitoring, Reporting, and Verification - digital infrastructure for transparent carbon accounting.
-          </p>
-        </div>
-        <Badge variant="secondary" className="bg-emerald-100 text-emerald-700">
-          <Shield className="mr-1 size-3" />
-          ISO 14064 Aligned
-        </Badge>
+      <PageHeader
+        title="Digital MRV"
+        description="Monitoring plan coverage, parameter completeness and the meter and sensor readings behind them."
+        meta={[
+          { label: "Plan", value: plan.name },
+          { label: "Framework", value: plan.framework || "—" },
+          { label: "Status", value: humaniseEnum(plan.status) },
+          { label: "Reporting year", value: String(reportingYear) },
+        ]}
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiCard
+          title="Source coverage"
+          value={formatPercent(coverage.coverage * 100)}
+          icon={Radio}
+          description={`${coverage.coveredSourceCount} of ${coverage.sourceCount} sources monitored`}
+          source="monitoringPlanCoverage()"
+          goodDirection="up"
+        />
+        <KpiCard
+          title="Measurement completeness"
+          value={formatPercent(completeness.completeness * 100)}
+          icon={Gauge}
+          description={`${formatNumber(completeness.totalRecorded)} of ${formatNumber(completeness.totalExpected)} expected readings`}
+          source="measurementCompleteness()"
+          goodDirection="up"
+        />
+        <KpiCard
+          title="Verified readings"
+          value={formatPercent(completeness.verifiedShare * 100)}
+          icon={Ruler}
+          description={`${formatNumber(completeness.totalVerified)} readings verified`}
+          source="Measurement.verifiedAt"
+          goodDirection="up"
+        />
+        <KpiCard
+          title="Monitored parameters"
+          value={formatNumber(parameters.length)}
+          icon={Activity}
+          description={`plan frequency ${humaniseEnum(monitoringPlan.frequency)}`}
+          source="listMonitoringParameters()"
+        />
       </div>
 
-      {/* Overview Stats */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-1">
-              <Radio className="size-3" />
-              Monitoring Points
-            </CardDescription>
-            <CardTitle className="text-2xl">142</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">Active data collection streams</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-1">
-              <FileText className="size-3" />
-              Reports Generated
-            </CardDescription>
-            <CardTitle className="text-2xl">24</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">This fiscal year</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-1">
-              <CheckCircle className="size-3" />
-              Verified Claims
-            </CardDescription>
-            <CardTitle className="text-2xl">18</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">Third-party verified</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Tabs: Monitoring, Reporting, Verification */}
-      <Tabs defaultValue="monitoring">
-        <TabsList>
-          <TabsTrigger value="monitoring">Monitoring</TabsTrigger>
-          <TabsTrigger value="reporting">Reporting</TabsTrigger>
-          <TabsTrigger value="verification">Verification</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="monitoring">
-          <Card>
-            <CardHeader>
-              <CardTitle>Data Monitoring</CardTitle>
-              <CardDescription>Real-time monitoring of emission sources and data streams</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {[
-                  { name: "Energy Meters", streams: 45, coverage: 98, status: "active" },
-                  { name: "Fleet Telematics", streams: 32, coverage: 94, status: "active" },
-                  { name: "Process Sensors", streams: 28, coverage: 87, status: "active" },
-                  { name: "Waste Management", streams: 12, coverage: 76, status: "partial" },
-                  { name: "Supply Chain APIs", streams: 25, coverage: 62, status: "partial" },
-                ].map((item) => (
-                  <div key={item.name} className="flex items-center gap-4 rounded-md border p-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium">{item.name}</p>
-                        <Badge variant={item.status === "active" ? "secondary" : "outline"} className="text-xs">
-                          {item.status}
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground">{item.streams} active streams</p>
-                    </div>
-                    <div className="w-32">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">Coverage</span>
-                        <span className="font-medium">{item.coverage}%</span>
-                      </div>
-                      <Progress value={item.coverage} className="mt-1 h-1.5" />
-                    </div>
-                  </div>
-                ))}
+      <Card>
+        <CardHeader>
+          <CardTitle>Coverage by scope</CardTitle>
+          <CardDescription>
+            Only *active* sources are required to be covered; a parameter that points at a
+            source outside the boundary is reported as an orphan, because measuring something
+            out of scope is as much a finding as missing something in scope.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-4">
+            {Object.entries(coverage.byScope).map(([scope, counts]) => (
+              <div key={scope} className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">{scopeLabel(scope)}</p>
+                <p className="text-lg font-semibold">
+                  {counts?.covered ?? 0} / {counts?.total ?? 0}
+                </p>
+                <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-muted">
+                  <span
+                    className="block h-full rounded-full bg-primary"
+                    style={{
+                      width: `${counts && counts.total > 0 ? (counts.covered / counts.total) * 100 : 0}%`,
+                    }}
+                  />
+                </span>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+            ))}
+          </div>
 
-        <TabsContent value="reporting">
-          <Card>
-            <CardHeader>
-              <CardTitle>Reporting Workflows</CardTitle>
-              <CardDescription>Automated report generation and submission tracking</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {[
-                  { name: "Annual GHG Inventory 2023", framework: "GHG Protocol", due: "2024-03-31", status: "submitted" },
-                  { name: "CDP Climate Change 2024", framework: "CDP", due: "2024-07-31", status: "in_progress" },
-                  { name: "CSRD Double Materiality", framework: "ESRS", due: "2024-12-31", status: "draft" },
-                  { name: "Q1 2024 Internal Report", framework: "Internal", due: "2024-04-15", status: "in_progress" },
-                ].map((report) => (
-                  <div key={report.name} className="flex items-center justify-between rounded-md border p-3">
-                    <div>
-                      <p className="text-sm font-medium">{report.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {report.framework} - Due: {report.due}
-                      </p>
-                    </div>
-                    <Badge
-                      variant={report.status === "submitted" ? "secondary" : "outline"}
-                      className="text-xs"
-                    >
-                      {report.status.replace("_", " ")}
-                    </Badge>
-                  </div>
+          {coverage.uncovered.length > 0 && (
+            <div>
+              <p className="mb-1 text-sm font-medium">
+                Coverage gaps ({coverage.uncovered.length})
+              </p>
+              <ul className="space-y-1">
+                {coverage.uncovered.map((gap) => (
+                  <li
+                    key={gap.sourceId}
+                    className="flex flex-wrap items-center gap-2 rounded-md border border-amber-500/40 p-2 text-xs"
+                  >
+                    <span className="font-medium">{gap.sourceName}</span>
+                    <Badge variant="secondary">{scopeLabel(gap.scope)}</Badge>
+                    <span className="text-muted-foreground">{gap.reason}</span>
+                  </li>
                 ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+              </ul>
+            </div>
+          )}
 
-        <TabsContent value="verification">
-          <Card>
-            <CardHeader>
-              <CardTitle>Verification Status</CardTitle>
-              <CardDescription>Third-party verification and assurance engagements</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {[
-                  { name: "FY2023 Scope 1 & 2", verifier: "Bureau Veritas", level: "Limited Assurance", status: "completed" },
-                  { name: "FY2023 Scope 3", verifier: "ERM CVS", level: "Limited Assurance", status: "in_progress" },
-                  { name: "Carbon Neutrality Claim", verifier: "SGS", level: "Reasonable Assurance", status: "planned" },
-                ].map((item) => (
-                  <div key={item.name} className="flex items-center justify-between rounded-md border p-3">
-                    <div>
-                      <p className="text-sm font-medium">{item.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {item.verifier} - {item.level}
-                      </p>
-                    </div>
-                    <Badge
-                      variant={item.status === "completed" ? "secondary" : "outline"}
-                      className="text-xs"
-                    >
-                      {item.status.replace("_", " ")}
-                    </Badge>
-                  </div>
-                ))}
+          {coverage.orphanParameterIds.length > 0 && (
+            <p className="text-xs text-amber-700 dark:text-amber-300">
+              {coverage.orphanParameterIds.length} parameter
+              {coverage.orphanParameterIds.length === 1 ? "" : "s"} reference no source in the
+              boundary: {coverage.orphanParameterIds.join(", ")}
+            </p>
+          )}
+
+          {coverage.isComplete && (
+            <p className="text-xs text-emerald-700 dark:text-emerald-300">
+              Every active emission source is covered by at least one monitoring parameter.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Parameters, readings and devices</CardTitle>
+          <CardDescription>
+            Expected reading counts come from each parameter&apos;s frequency over the reporting
+            period — HOURLY over 30 days expects 720 readings.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="completeness">
+            <TabsList className="flex-wrap" variant="line">
+              <TabsTrigger value="completeness">Completeness</TabsTrigger>
+              <TabsTrigger value="parameters">Parameters ({parameters.length})</TabsTrigger>
+              <TabsTrigger value="readings">Readings ({measurements.length})</TabsTrigger>
+              <TabsTrigger value="meter">Record a meter reading</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="completeness" className="space-y-3 pt-3">
+              <p className="text-xs text-muted-foreground">
+                Period {formatDate(completeness.period.start)} →{" "}
+                {formatDate(completeness.period.end)} ·{" "}
+                {completeness.isComplete ? "complete" : "incomplete"}
+                {completeness.unmatchedMeasurementCount > 0
+                  ? ` · ${completeness.unmatchedMeasurementCount} reading(s) match no parameter`
+                  : ""}
+              </p>
+              <div className="overflow-x-auto rounded-lg border">
+                <table className="w-full text-xs">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      <th className="px-2 py-1.5 text-left font-medium">Parameter</th>
+                      <th className="px-2 py-1.5 text-left font-medium">Frequency</th>
+                      <th className="px-2 py-1.5 text-right font-medium">Expected</th>
+                      <th className="px-2 py-1.5 text-right font-medium">Recorded</th>
+                      <th className="px-2 py-1.5 text-right font-medium">Verified</th>
+                      <th className="px-2 py-1.5 text-right font-medium">Missing</th>
+                      <th className="px-2 py-1.5 text-right font-medium">Completeness</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {completeness.parameters.map((row) => (
+                      <tr key={row.parameterId} className="border-t">
+                        <td className="px-2 py-1">{row.parameterName}</td>
+                        <td className="px-2 py-1">{humaniseEnum(row.frequency)}</td>
+                        <td className="px-2 py-1 text-right font-mono">
+                          {formatNumber(row.expected)}
+                        </td>
+                        <td className="px-2 py-1 text-right font-mono">
+                          {formatNumber(row.recorded)}
+                        </td>
+                        <td className="px-2 py-1 text-right font-mono">
+                          {formatNumber(row.verified)}
+                        </td>
+                        <td
+                          className={`px-2 py-1 text-right font-mono ${row.missing > 0 ? "text-amber-600" : ""}`}
+                        >
+                          {formatNumber(row.missing)}
+                        </td>
+                        <td className="px-2 py-1 text-right font-mono">
+                          {formatPercent(row.completeness * 100)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+              {completeness.unmeasuredParameterIds.length > 0 && (
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  No readings at all for: {completeness.unmeasuredParameterIds.join(", ")}
+                </p>
+              )}
+            </TabsContent>
+
+            <TabsContent value="parameters" className="space-y-1.5 pt-3">
+              {parameters.map((parameter) => (
+                <div
+                  key={parameter.id}
+                  className="flex flex-wrap items-center gap-2 rounded-md border p-2.5 text-sm"
+                >
+                  <span className="font-medium">{parameter.name}</span>
+                  <Badge variant="outline">{parameter.unit}</Badge>
+                  <Badge variant="secondary">
+                    {humaniseEnum(parameter.frequency ?? monitoringPlan.frequency)}
+                  </Badge>
+                  {parameter.alertOnBreach && <Badge variant="outline">alert on breach</Badge>}
+                  {parameter.threshold !== null && parameter.threshold !== undefined && (
+                    <span className="text-xs text-muted-foreground">
+                      threshold {formatNumber(parameter.threshold, 2)} {parameter.unit}
+                    </span>
+                  )}
+                  <span className="ml-auto text-xs text-muted-foreground">
+                    {parameter.methodology ?? "methodology not stated"}
+                  </span>
+                  <p className="w-full text-[11px] text-muted-foreground">
+                    {parameter.description} · source{" "}
+                    {parameter.emissionSourceId ?? "not associated"}
+                  </p>
+                </div>
+              ))}
+            </TabsContent>
+
+            <TabsContent value="readings" className="pt-3">
+              {measurements.length === 0 ? (
+                <EmptyState title="No readings for this period" />
+              ) : (
+                <div className="overflow-x-auto rounded-lg border">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="px-2 py-1.5 text-left font-medium">Measured at</th>
+                        <th className="px-2 py-1.5 text-left font-medium">Parameter</th>
+                        <th className="px-2 py-1.5 text-right font-medium">Value</th>
+                        <th className="px-2 py-1.5 text-right font-medium">Uncertainty</th>
+                        <th className="px-2 py-1.5 text-left font-medium">Verified</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {measurements.slice(0, 100).map((measurement, index) => (
+                        <tr key={measurement.id ?? index} className="border-t">
+                          <td className="px-2 py-1 font-mono">
+                            {formatDateTime(measurement.measuredAt)}
+                          </td>
+                          <td className="px-2 py-1">{measurement.parameter}</td>
+                          <td className="px-2 py-1 text-right font-mono">
+                            {formatNumber(measurement.value, 3)} {measurement.unit}
+                          </td>
+                          <td className="px-2 py-1 text-right font-mono">
+                            {measurement.uncertainty === null ||
+                            measurement.uncertainty === undefined
+                              ? "—"
+                              : `±${formatPercent(measurement.uncertainty * 100)}`}
+                          </td>
+                          <td className="px-2 py-1">
+                            {measurement.verifiedAt ? formatDate(measurement.verifiedAt) : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="meter" className="pt-3">
+              <ActionForm
+                action={recordMeterReadingAction}
+                submitLabel="Record reading"
+                fields={[
+                  {
+                    name: "facilityId",
+                    label: "Facility",
+                    type: "select",
+                    required: true,
+                    options: facilities.map((facility) => ({
+                      value: facility.id,
+                      label: facility.name,
+                    })),
+                  },
+                  { name: "meterId", label: "Meter number", required: true },
+                  {
+                    name: "meterType",
+                    label: "Reading type",
+                    required: true,
+                    placeholder: "electricity, gas, water…",
+                  },
+                  { name: "readingDate", label: "Reading date", type: "date", required: true },
+                  {
+                    name: "previousReading",
+                    label: "Previous reading",
+                    type: "number",
+                    step: "any",
+                  },
+                  {
+                    name: "currentReading",
+                    label: "Current reading",
+                    type: "number",
+                    step: "any",
+                    required: true,
+                    description: "Must be at least the previous reading.",
+                  },
+                  {
+                    name: "consumption",
+                    label: "Consumption",
+                    type: "number",
+                    step: "any",
+                    required: true,
+                  },
+                  {
+                    name: "unit",
+                    label: "Unit",
+                    type: "select",
+                    required: true,
+                    options: UNIT_REGISTRY.map((definition) => ({
+                      value: definition.unit,
+                      label: `${definition.unit} — ${definition.label}`,
+                    })),
+                  },
+                  { name: "isEstimated", label: "Estimated", type: "checkbox" },
+                ]}
+              />
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Monitored sources</CardTitle>
+          <CardDescription>
+            Which parameters cover which source, and at what frequency.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-1.5">
+          {coverage.covered.map((source) => (
+            <div
+              key={source.sourceId}
+              className="flex flex-wrap items-center gap-2 rounded-md border p-2.5 text-sm"
+            >
+              <span className="font-medium">{source.sourceName}</span>
+              <Badge variant="secondary">{scopeLabel(source.scope)}</Badge>
+              <span className="text-xs text-muted-foreground">
+                {source.parameterCount} parameter
+                {source.parameterCount === 1 ? "" : "s"} ·{" "}
+                {source.frequencies.map((frequency) => humaniseEnum(frequency)).join(", ")}
+              </span>
+              <span className="ml-auto font-mono text-[11px] text-muted-foreground">
+                {source.parameterIds.join(", ")}
+              </span>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
     </div>
   );
 }
