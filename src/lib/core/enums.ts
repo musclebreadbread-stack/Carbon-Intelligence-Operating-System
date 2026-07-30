@@ -124,6 +124,97 @@ export const MEASUREMENT_FREQUENCIES = [
 ] as const;
 export type MeasurementFrequency = (typeof MEASUREMENT_FREQUENCIES)[number];
 
+export const TARGET_STATUSES = [
+  "DRAFT",
+  "SUBMITTED",
+  "APPROVED",
+  "COMMITTED",
+  "ON_TRACK",
+  "OFF_TRACK",
+  "ACHIEVED",
+  "EXPIRED",
+] as const;
+export type TargetStatus = (typeof TARGET_STATUSES)[number];
+
+export const TARGET_BOUNDARIES = [
+  "SCOPE_1_2",
+  "SCOPE_1_2_3",
+  "SCOPE_3_ONLY",
+  "FLAG",
+  "FULL_VALUE_CHAIN",
+] as const;
+export type TargetBoundary = (typeof TARGET_BOUNDARIES)[number];
+
+export const SCENARIO_TYPES = [
+  "BASELINE",
+  "BAU",
+  "OPTIMISTIC",
+  "PESSIMISTIC",
+  "NET_ZERO",
+  "CUSTOM",
+  "IEA_NZE",
+  "IEA_APS",
+  "IEA_STEPS",
+] as const;
+export type ScenarioType = (typeof SCENARIO_TYPES)[number];
+
+export const CREDIT_STATUSES = [
+  "ISSUED",
+  "ACTIVE",
+  "RETIRED",
+  "CANCELLED",
+  "PENDING_VERIFICATION",
+  "EXPIRED",
+] as const;
+export type CreditStatus = (typeof CREDIT_STATUSES)[number];
+
+export const DISCLOSURE_STATUSES = [
+  "NOT_STARTED",
+  "IN_PROGRESS",
+  "DRAFT",
+  "REVIEW",
+  "SUBMITTED",
+  "PUBLISHED",
+] as const;
+export type DisclosureStatus = (typeof DISCLOSURE_STATUSES)[number];
+
+export const AGENT_STATUSES = [
+  "IDLE",
+  "RUNNING",
+  "PAUSED",
+  "COMPLETED",
+  "FAILED",
+  "CANCELLED",
+] as const;
+export type AgentStatus = (typeof AGENT_STATUSES)[number];
+
+export const AI_MODEL_TYPES = [
+  "REGRESSION",
+  "CLASSIFICATION",
+  "CLUSTERING",
+  "TIME_SERIES",
+  "NLP",
+  "COMPUTER_VISION",
+  "RECOMMENDATION",
+  "ANOMALY_DETECTION",
+  "LLM",
+  "EMBEDDING",
+] as const;
+export type AIModelType = (typeof AI_MODEL_TYPES)[number];
+
+export const DATA_SOURCE_TYPES = [
+  "MANUAL_ENTRY",
+  "IOT_SENSOR",
+  "API_INTEGRATION",
+  "FILE_IMPORT",
+  "ERP_SYSTEM",
+  "METER_READING",
+  "INVOICE",
+  "CALCULATED",
+  "ESTIMATED",
+] as const;
+export type DataSourceType = (typeof DATA_SOURCE_TYPES)[number];
+
 export const VERIFICATION_STATUSES = [
   "NOT_STARTED",
   "IN_PROGRESS",
