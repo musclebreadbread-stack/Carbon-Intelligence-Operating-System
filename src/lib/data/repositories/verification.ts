@@ -109,10 +109,11 @@ export async function listFindings(engagementId: string): Promise<readonly Findi
         dueDate: row.dueDate,
         resolvedAt: row.resolvedAt,
         assignedToId: row.assignedToId,
-        // Not a column: the verifier records the quantified amount in the
-        // description, so a persisted engagement reports null here until the
-        // reviewer enters it.
-        misstatementAmount: null,
+        // A real column since the misstatement workaround was removed. Reading it
+        // here is what makes the materiality opinion identical in database mode and
+        // demo mode; this previously returned a hardcoded `null`, so every
+        // persisted engagement reported "unqualified" regardless of its findings.
+        misstatementAmount: row.misstatementAmount,
       }));
     },
     () => DEMO_VERIFICATION_FINDINGS.filter((finding) => finding.engagementId === engagementId),

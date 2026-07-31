@@ -185,6 +185,7 @@ describe("sessionFromApiKey", () => {
     scopes: ["activity_data:read", "activity_data:create"],
     isActive: true,
     expiresAt: null,
+    rateLimit: null,
   };
 
   it("builds a session with the key owner's roles and the key's scopes", async () => {

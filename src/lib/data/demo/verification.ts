@@ -2,9 +2,10 @@
  * Demo tenant: MRV plan, monitoring parameters, measurements, the verification
  * engagement and its findings.
  *
- * `MonitoringParameter.emissionSourceId` is not a Prisma column — the association
- * lives in the fixture (and, on a real database, in the data layer's join) and is
- * passed to `monitoringPlanCoverage` denormalised. Two of the thirteen emission
+ * `MonitoringParameter.emissionSourceId` and `VerificationFinding.misstatementAmount`
+ * are both real Prisma columns, so these fixtures are field-for-field identical to a
+ * seeded database row — which is what keeps the coverage report and the assurance
+ * opinion the same in demo mode and database mode. Two of the thirteen emission
  * sources are deliberately left uncovered so the coverage gap report is non-empty.
  */
 

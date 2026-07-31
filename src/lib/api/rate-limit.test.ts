@@ -182,24 +182,63 @@ describe("RateLimiter", () => {
 
 describe("rateLimitForKey", () => {
   it("uses the documented default when nothing is configured", () => {
-    expect(rateLimitForKey([], {})).toBe(DEFAULT_RATE_LIMIT);
+    expect(rateLimitForKey([], { env: {} })).toBe(DEFAULT_RATE_LIMIT);
   });
 
   it("honours API_RATE_LIMIT_PER_MINUTE", () => {
-    expect(rateLimitForKey([], { API_RATE_LIMIT_PER_MINUTE: "600" })).toBe(600);
+    expect(rateLimitForKey([], { env: { API_RATE_LIMIT_PER_MINUTE: "600" } })).toBe(600);
   });
 
   it("ignores a non-numeric or non-positive override", () => {
-    expect(rateLimitForKey([], { API_RATE_LIMIT_PER_MINUTE: "abc" })).toBe(
+    expect(rateLimitForKey([], { env: { API_RATE_LIMIT_PER_MINUTE: "abc" } })).toBe(
       DEFAULT_RATE_LIMIT,
     );
-    expect(rateLimitForKey([], { API_RATE_LIMIT_PER_MINUTE: "-5" })).toBe(
+    expect(rateLimitForKey([], { env: { API_RATE_LIMIT_PER_MINUTE: "-5" } })).toBe(
       DEFAULT_RATE_LIMIT,
     );
   });
 
   it("exempts a key carrying the rate:unlimited scope", () => {
-    expect(rateLimitForKey(["rate:unlimited"], { API_RATE_LIMIT_PER_MINUTE: "1" })).toBe(
+    expect(
+      rateLimitForKey(["rate:unlimited"], { env: { API_RATE_LIMIT_PER_MINUTE: "1" } }),
+    ).toBe(Number.MAX_SAFE_INTEGER);
+  });
+
+  // `APIKey.rateLimit` (defect 4). The precedence is scope > column > env > default.
+  it("prefers the per-key APIKey.rateLimit over the deployment default", () => {
+    expect(
+      rateLimitForKey([], {
+        keyLimit: 600,
+        env: { API_RATE_LIMIT_PER_MINUTE: "60" },
+      }),
+    ).toBe(600);
+  });
+
+  it("falls back to the environment when the key declares no limit", () => {
+    expect(
+      rateLimitForKey([], { keyLimit: null, env: { API_RATE_LIMIT_PER_MINUTE: "120" } }),
+    ).toBe(120);
+    expect(
+      rateLimitForKey([], {
+        keyLimit: undefined,
+        env: { API_RATE_LIMIT_PER_MINUTE: "120" },
+      }),
+    ).toBe(120);
+  });
+
+  it("ignores a stored zero or negative per-key limit rather than locking the key out", () => {
+    // A stored 0 would refuse every request; deactivating a key is `isActive`.
+    expect(rateLimitForKey([], { keyLimit: 0, env: {} })).toBe(DEFAULT_RATE_LIMIT);
+    expect(rateLimitForKey([], { keyLimit: -10, env: {} })).toBe(DEFAULT_RATE_LIMIT);
+    expect(rateLimitForKey([], { keyLimit: Number.NaN, env: {} })).toBe(DEFAULT_RATE_LIMIT);
+  });
+
+  it("floors a fractional per-key limit", () => {
+    expect(rateLimitForKey([], { keyLimit: 90.7, env: {} })).toBe(90);
+  });
+
+  it("lets the rate:unlimited scope override even a low per-key limit", () => {
+    expect(rateLimitForKey(["rate:unlimited"], { keyLimit: 1, env: {} })).toBe(
       Number.MAX_SAFE_INTEGER,
     );
   });

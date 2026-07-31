@@ -32,31 +32,22 @@ import type { ActionState } from "./types";
 const PATHS = ["/third-party-verification", "/digital-mrv", "/dashboard"] as const;
 
 /**
- * A quantified misstatement has no column of its own on `VerificationFinding`, so
- * it is carried in `description` behind this marker. Not ideal, but changing the
- * schema would invalidate the baseline migration.
+ * `VerificationFinding.misstatementAmount` is a real column.
+ *
+ * It used to be smuggled into `description` behind a `[misstatement:N]` marker
+ * because the model lacked the field. That workaround was removed for two reasons,
+ * both of them correctness rather than taste:
+ *
+ *  1. The amount drives `aggregateMisstatements()` and therefore the assurance
+ *     `opinionType`. Keeping it inside free prose meant a verifier could change an
+ *     audit opinion by editing a sentence — the exact opposite of the discipline
+ *     this module's header claims to enforce.
+ *  2. The read path never decoded it. `listFindings()` returned
+ *     `misstatementAmount: null` for every persisted row, so the `/verification`
+ *     page computed an unqualified opinion on a real database while the same
+ *     engagement returned a qualified opinion in demo mode. Demo and database mode
+ *     disagreed on an audit-critical number.
  */
-const MISSTATEMENT_MARKER = "[misstatement:";
-
-function encodeMisstatement(
-  description: string | null,
-  amount: number | null | undefined,
-): string | null {
-  if (amount === null || amount === undefined) return description;
-  return `${description ?? ""}\n${MISSTATEMENT_MARKER}${amount}]`.trim();
-}
-
-function decodeMisstatement(description: string | null): number | null {
-  if (!description) return null;
-  const start = description.lastIndexOf(MISSTATEMENT_MARKER);
-  if (start === -1) return null;
-  const end = description.indexOf("]", start);
-  if (end === -1) return null;
-  const parsed = Number(
-    description.slice(start + MISSTATEMENT_MARKER.length, end),
-  );
-  return Number.isFinite(parsed) ? parsed : null;
-}
 
 /** Opens a verification engagement. */
 export async function createVerificationEngagementAction(
@@ -144,10 +135,8 @@ export async function recordFindingAction(
             type: input.type,
             severity: input.severity,
             title: input.title,
-            description: encodeMisstatement(
-              input.description ?? null,
-              input.misstatementAmount,
-            ),
+            description: input.description ?? null,
+            misstatementAmount: input.misstatementAmount ?? null,
             recommendation: input.recommendation ?? null,
             response: input.response ?? null,
             status: input.status,
@@ -250,13 +239,13 @@ export async function assessMaterialityAction(
             title: true,
             type: true,
             status: true,
-            description: true,
+            misstatementAmount: true,
           },
         });
 
         const misstatements: readonly MisstatementLike[] = findings.flatMap(
           (finding): MisstatementLike[] => {
-            const deviation = decodeMisstatement(finding.description);
+            const deviation = finding.misstatementAmount;
             if (deviation === null) return [];
             return [
               {

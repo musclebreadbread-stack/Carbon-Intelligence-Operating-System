@@ -93,11 +93,54 @@ describe("installing needs no environment variables", () => {
   });
 });
 
+/**
+ * Runs `body` with `DATABASE_URL` removed from the process environment, restoring
+ * whatever was there afterwards.
+ *
+ * This has to be explicit. `isDbConfigured()` defaults its argument to
+ * `process.env.DATABASE_URL`, so calling it with an explicit `undefined` consults
+ * the ambient environment instead of asserting the absent case — and the ambient
+ * environment is not empty just because nothing in this file set it: importing
+ * `@prisma/client` loads whatever `.env` the client was generated against, because
+ * `prisma generate` bakes the discovered path in as `schemaEnvPath`. A developer who
+ * followed the setup guide and created a `.env` therefore ran `npm ci`, got a client
+ * that loads it, and saw this suite go red — while CI, which has no `.env` at all,
+ * stayed green. The clean-clone contract has to be asserted against a clean
+ * environment, not against whichever one the machine happens to have.
+ */
+function withoutDatabaseUrl(body: () => void): void {
+  const original = process.env.DATABASE_URL;
+  delete process.env.DATABASE_URL;
+  try {
+    body();
+  } finally {
+    if (original === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = original;
+  }
+}
+
 describe("a clean clone lands in demo mode, not in a broken state", () => {
   it("treats an absent, empty or blank DATABASE_URL as unconfigured", () => {
-    for (const url of [undefined, "", "   "]) {
-      expect(isDbConfigured(url)).toBe(false);
-    }
+    withoutDatabaseUrl(() => {
+      for (const url of [undefined, "", "   "]) {
+        expect(isDbConfigured(url)).toBe(false);
+      }
+      // The no-argument form is the one the application actually calls.
+      expect(isDbConfigured()).toBe(false);
+    });
+  });
+
+  it("reads the ambient DATABASE_URL when no argument is supplied", () => {
+    // Pins the default-parameter semantics, so the test above cannot pass by
+    // accident again: with a real URL in the environment the predicate must say
+    // "configured", and with a placeholder it must still say "unconfigured".
+    withoutDatabaseUrl(() => {
+      process.env.DATABASE_URL = "postgresql://app:s3cret@db.internal:5432/cios";
+      expect(isDbConfigured()).toBe(true);
+      process.env.DATABASE_URL =
+        "postgresql://placeholder:placeholder@localhost:5432/placeholder";
+      expect(isDbConfigured()).toBe(false);
+    });
   });
 
   it("treats the empty values .env.example ships as unconfigured", () => {

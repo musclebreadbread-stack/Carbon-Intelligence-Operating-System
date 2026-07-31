@@ -1,9 +1,6 @@
 -- CreateSchema
 CREATE SCHEMA IF NOT EXISTS "public";
 
--- CreateExtension
-CREATE EXTENSION IF NOT EXISTS "vector";
-
 -- CreateEnum
 CREATE TYPE "GHGScope" AS ENUM ('SCOPE_1', 'SCOPE_2_LOCATION', 'SCOPE_2_MARKET', 'SCOPE_3');
 
@@ -201,6 +198,7 @@ CREATE TABLE "APIKey" (
     "keyHash" TEXT NOT NULL,
     "prefix" TEXT NOT NULL,
     "scopes" TEXT[],
+    "rateLimit" INTEGER,
     "lastUsedAt" TIMESTAMP(3),
     "expiresAt" TIMESTAMP(3),
     "isActive" BOOLEAN NOT NULL DEFAULT true,
@@ -1524,6 +1522,7 @@ CREATE TABLE "MonitoringParameter" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "monitoringPlanId" TEXT NOT NULL,
+    "emissionSourceId" TEXT,
 
     CONSTRAINT "MonitoringParameter_pkey" PRIMARY KEY ("id")
 );
@@ -1610,6 +1609,7 @@ CREATE TABLE "VerificationFinding" (
     "recommendation" TEXT,
     "response" TEXT,
     "status" TEXT NOT NULL DEFAULT 'open',
+    "misstatementAmount" DOUBLE PRECISION,
     "dueDate" TIMESTAMP(3),
     "resolvedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -3168,6 +3168,9 @@ CREATE INDEX "MonitoringPlan_status_idx" ON "MonitoringPlan"("status");
 CREATE INDEX "MonitoringParameter_monitoringPlanId_idx" ON "MonitoringParameter"("monitoringPlanId");
 
 -- CreateIndex
+CREATE INDEX "MonitoringParameter_emissionSourceId_idx" ON "MonitoringParameter"("emissionSourceId");
+
+-- CreateIndex
 CREATE INDEX "VerificationEngagement_organizationId_idx" ON "VerificationEngagement"("organizationId");
 
 -- CreateIndex
@@ -3883,6 +3886,9 @@ ALTER TABLE "MonitoringPlan" ADD CONSTRAINT "MonitoringPlan_mrvPlanId_fkey" FORE
 
 -- AddForeignKey
 ALTER TABLE "MonitoringParameter" ADD CONSTRAINT "MonitoringParameter_monitoringPlanId_fkey" FOREIGN KEY ("monitoringPlanId") REFERENCES "MonitoringPlan"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MonitoringParameter" ADD CONSTRAINT "MonitoringParameter_emissionSourceId_fkey" FOREIGN KEY ("emissionSourceId") REFERENCES "EmissionSource"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "VerificationEngagement" ADD CONSTRAINT "VerificationEngagement_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

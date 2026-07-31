@@ -1,10 +1,20 @@
 /**
  * Digital MRV repository.
  *
- * `MonitoringParameter.emissionSourceId` does not exist on the Prisma model — the
- * association is resolved here (from the parameter's plan and the source's unit and
- * name) and passed to `monitoringPlanCoverage` denormalised, the same precedent as
- * the hierarchy ids on `EmissionResultLike`.
+ * `MonitoringParameter.emissionSourceId` is a real, nullable foreign key, so this
+ * repository projects it straight through. It used to be *guessed*: the persisted
+ * model had no such column, so the association was recovered by testing whether the
+ * parameter name contained the first word of a source name, first unclaimed source
+ * winning. That could report a plan as monitoring a source it did not monitor, which
+ * in an assurance context is a false coverage claim — and it disagreed with demo
+ * mode, where the fixture carries the association explicitly. The column removes the
+ * guess: an unassigned parameter yields `null`, which `monitoringPlanCoverage()`
+ * correctly reports as a gap.
+ *
+ * The denormalisation itself (passing the id into the pure domain type rather than
+ * letting the engine traverse a relation) is retained and is sound: it is the same
+ * precedent as the hierarchy ids on `EmissionResultLike`, and it is what keeps
+ * `src/lib/domain/mrv` free of Prisma.
  */
 
 import type { MeasurementFrequency } from "@/lib/core/enums";
@@ -86,12 +96,14 @@ export type MonitoringParameterRow = MonitoringParameterLike & {
 };
 
 /**
- * Monitoring parameters with the emission-source association resolved.
+ * Monitoring parameters for a plan, with the emission-source association read from
+ * the `emissionSourceId` column rather than inferred.
  *
- * A persisted parameter has no source foreign key, so the association is
- * recovered by matching the parameter's declared `unit` against the sources
- * covered by the same facility, in a deterministic order. This is the documented
- * denormalisation the domain type expects.
+ * `organizationId` is still required: it scopes the association to the caller's
+ * tenant, so a parameter pointing at another organisation's source (which the
+ * database permits, since the FK is not tenant-aware) is projected as `null` and
+ * therefore reported as an uncovered source instead of silently crossing the tenant
+ * boundary.
  */
 export async function listMonitoringParameters(
   organizationId: string,
@@ -107,27 +119,23 @@ export async function listMonitoringParameters(
         listEmissionSources(organizationId),
       ]);
 
-      const claimed = new Set<string>();
-      return parameters.map((parameter) => {
-        const match = sources.find(
-          (source) =>
-            !claimed.has(source.id) &&
-            parameter.name.toLowerCase().includes(source.name.split(" ")[0].toLowerCase()),
-        );
-        if (match) claimed.add(match.id);
-        return {
-          id: parameter.id,
-          monitoringPlanId: parameter.monitoringPlanId,
-          name: parameter.name,
-          description: parameter.description ?? "",
-          unit: parameter.unit,
-          frequency: parameter.frequency,
-          methodology: parameter.methodology,
-          threshold: parameter.threshold,
-          alertOnBreach: parameter.alertOnBreach,
-          emissionSourceId: match?.id ?? null,
-        };
-      });
+      const tenantSourceIds = new Set(sources.map((source) => source.id));
+      return parameters.map((parameter) => ({
+        id: parameter.id,
+        monitoringPlanId: parameter.monitoringPlanId,
+        name: parameter.name,
+        description: parameter.description ?? "",
+        unit: parameter.unit,
+        frequency: parameter.frequency,
+        methodology: parameter.methodology,
+        threshold: parameter.threshold,
+        alertOnBreach: parameter.alertOnBreach,
+        emissionSourceId:
+          parameter.emissionSourceId !== null &&
+          tenantSourceIds.has(parameter.emissionSourceId)
+            ? parameter.emissionSourceId
+            : null,
+      }));
     },
     () =>
       DEMO_MONITORING_PARAMETERS.filter(

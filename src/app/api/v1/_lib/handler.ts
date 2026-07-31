@@ -225,7 +225,7 @@ export function withApiKey(handler: ApiHandler, options: WithApiKeyOptions = {})
       }
 
       const decision = apiRateLimiter.consume(principal.id, {
-        limit: rateLimitForKey(principal.scopes),
+        limit: rateLimitForKey(principal.scopes, { keyLimit: principal.rateLimit }),
         ...(options.cost !== undefined ? { cost: options.cost } : {}),
         ...(options.now !== undefined ? { now: options.now } : {}),
       });

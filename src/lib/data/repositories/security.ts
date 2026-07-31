@@ -176,6 +176,7 @@ export async function listApiKeys(
           lastUsedAt: true,
           expiresAt: true,
           isActive: true,
+          rateLimit: true,
         },
       });
       return rows;
@@ -191,6 +192,7 @@ export async function listApiKeys(
         lastUsedAt: key.lastUsedAt,
         expiresAt: key.expiresAt,
         isActive: key.isActive,
+        rateLimit: key.rateLimit,
       })),
   );
 }
@@ -203,6 +205,8 @@ export type ApiKeyPrincipal = {
   readonly scopes: readonly string[];
   readonly isActive: boolean;
   readonly expiresAt: Date | null;
+  /** Per-key requests/minute; `null` falls back to `API_RATE_LIMIT_PER_MINUTE`. */
+  readonly rateLimit: number | null;
 };
 
 /**
@@ -226,6 +230,7 @@ export async function findApiKeyByHash(
           scopes: true,
           isActive: true,
           expiresAt: true,
+          rateLimit: true,
         },
       });
       return row;

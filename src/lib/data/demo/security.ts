@@ -322,6 +322,8 @@ export type DemoApiKey = {
   readonly lastUsedAt: Date | null;
   readonly expiresAt: Date | null;
   readonly isActive: boolean;
+  /** `APIKey.rateLimit`: requests/minute, `null` = the deployment default. */
+  readonly rateLimit: number | null;
 };
 
 export const DEMO_API_KEYS: readonly DemoApiKey[] = [
@@ -336,6 +338,8 @@ export const DEMO_API_KEYS: readonly DemoApiKey[] = [
     lastUsedAt: new Date(Date.UTC(2024, 11, 20, 4, 22)),
     expiresAt: new Date(Date.UTC(2025, 11, 31)),
     isActive: true,
+    // Inherits the deployment default, which is the common case.
+    rateLimit: null,
   },
   {
     id: "demo-apikey-ingest",
@@ -348,6 +352,8 @@ export const DEMO_API_KEYS: readonly DemoApiKey[] = [
     lastUsedAt: new Date(Date.UTC(2024, 11, 20, 18, 3)),
     expiresAt: null,
     isActive: true,
+    // A nightly bulk ingest needs more headroom than the 60/min default.
+    rateLimit: 600,
   },
   {
     id: "demo-apikey-revoked",
@@ -360,5 +366,6 @@ export const DEMO_API_KEYS: readonly DemoApiKey[] = [
     lastUsedAt: new Date(Date.UTC(2024, 5, 30, 11, 0)),
     expiresAt: new Date(Date.UTC(2024, 6, 1)),
     isActive: false,
+    rateLimit: null,
   },
 ];

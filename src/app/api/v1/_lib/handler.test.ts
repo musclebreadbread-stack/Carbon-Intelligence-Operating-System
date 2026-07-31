@@ -52,6 +52,7 @@ const PRINCIPAL = {
   scopes: ["credits:retire"],
   isActive: true,
   expiresAt: null as Date | null,
+  rateLimit: null as number | null,
 };
 
 const SESSION = {
@@ -339,6 +340,55 @@ describe("withApiKey — rate limiting", () => {
       expect(response.status).toBe(401);
     }
     expect(apiRateLimiter.size).toBe(0);
+  });
+
+  // Defect 4: `APIKey.rateLimit`. Before the column existed every key shared one
+  // process-wide ceiling, so a bulk integration could not be given headroom.
+  it("applies the key's own APIKey.rateLimit instead of the deployment default", async () => {
+    findApiKeyByHash.mockResolvedValue({ ...PRINCIPAL, rateLimit: 5 });
+    const endpoint = withApiKey(async () => jsonOk({ ok: true }));
+
+    const first = await endpoint(request());
+    expect(first.headers.get("X-RateLimit-Limit")).toBe("5");
+    expect(first.headers.get("X-RateLimit-Remaining")).toBe("4");
+
+    for (let index = 0; index < 4; index += 1) {
+      expect((await endpoint(request())).status).toBe(200);
+    }
+    expect((await endpoint(request())).status).toBe(429);
+  });
+
+  it("gives a key with a raised limit more headroom than the default", async () => {
+    findApiKeyByHash.mockResolvedValue({ ...PRINCIPAL, rateLimit: 600 });
+    const endpoint = withApiKey(async () => jsonOk({ ok: true }));
+
+    const response = await endpoint(request());
+
+    expect(response.headers.get("X-RateLimit-Limit")).toBe("600");
+  });
+
+  it("lets the rate:unlimited scope override a low per-key limit", async () => {
+    findApiKeyByHash.mockResolvedValue({
+      ...PRINCIPAL,
+      rateLimit: 1,
+      scopes: [...PRINCIPAL.scopes, "rate:unlimited"],
+    });
+    const endpoint = withApiKey(async () => jsonOk({ ok: true }));
+
+    await endpoint(request());
+    expect((await endpoint(request())).status).toBe(200);
+  });
+
+  it("falls back to the default when the stored limit is unusable", async () => {
+    // A stored 0 must not lock the key out; `isActive = false` is how a key is
+    // disabled.
+    findApiKeyByHash.mockResolvedValue({ ...PRINCIPAL, rateLimit: 0 });
+    const endpoint = withApiKey(async () => jsonOk({ ok: true }));
+
+    const response = await endpoint(request());
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("X-RateLimit-Limit")).toBe("60");
   });
 });
 

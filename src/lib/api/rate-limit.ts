@@ -172,20 +172,40 @@ function normalisePositiveInt(value: number, fallback: number): number {
 export const apiRateLimiter = new RateLimiter();
 
 /**
- * Rate limit configured for one API key.
+ * Rate limit that applies to one API key, resolved in a fixed precedence:
  *
- * The `APIKey` model has no rate-limit column, so the ceiling is resolved from
- * `API_RATE_LIMIT_PER_MINUTE` with a documented default, and a key carrying the
- * `rate:unlimited` scope is exempted. Storing a per-key limit would need a schema
- * change, and the baseline migration is frozen.
+ *   1. the `rate:unlimited` scope — an operator-granted exemption,
+ *   2. `APIKey.rateLimit` — the per-key quota,
+ *   3. `API_RATE_LIMIT_PER_MINUTE` — the deployment-wide default,
+ *   4. `DEFAULT_RATE_LIMIT` (60).
+ *
+ * The scope wins over the column so revoking an exemption is one scope edit rather
+ * than a hunt for whichever number is larger, and the column wins over the
+ * environment so a batch integration can be given headroom without raising the
+ * ceiling for every key in the deployment.
+ *
+ * A non-positive or non-finite per-key value is ignored rather than honoured: a
+ * stored `0` would lock the key out completely, which is what `isActive = false`
+ * is for.
  */
 export function rateLimitForKey(
   scopes: readonly string[],
-  env: { readonly API_RATE_LIMIT_PER_MINUTE?: string | undefined } = process.env as {
-    readonly API_RATE_LIMIT_PER_MINUTE?: string | undefined;
-  },
+  options: {
+    /** `APIKey.rateLimit`; `null`/`undefined` falls through to the environment. */
+    readonly keyLimit?: number | null;
+    readonly env?: { readonly API_RATE_LIMIT_PER_MINUTE?: string | undefined };
+  } = {},
 ): number {
   if (scopes.includes("rate:unlimited")) return Number.MAX_SAFE_INTEGER;
+
+  const keyLimit = options.keyLimit;
+  if (typeof keyLimit === "number" && Number.isFinite(keyLimit) && keyLimit > 0) {
+    return Math.floor(keyLimit);
+  }
+
+  const env =
+    options.env ??
+    (process.env as { readonly API_RATE_LIMIT_PER_MINUTE?: string | undefined });
   const configured = Number(env.API_RATE_LIMIT_PER_MINUTE);
   return Number.isFinite(configured) && configured > 0
     ? Math.floor(configured)
