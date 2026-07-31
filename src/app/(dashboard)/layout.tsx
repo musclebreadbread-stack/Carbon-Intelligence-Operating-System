@@ -22,12 +22,17 @@ import { resolveActiveOrganization } from "@/lib/auth/active-organization";
 import { getSession, isSupabaseConfigured } from "@/lib/auth/session";
 import { describeLlmMode, isLlmConfigured } from "@/lib/ai/llm/factory";
 import { getDataMode, getFallbackReason, isDbConfigured } from "@/lib/data/db";
+import { countUnreadNotifications } from "@/lib/data/repositories/notifications";
 import {
   listFindings,
   listVerificationEngagements,
 } from "@/lib/data/repositories/verification";
 
-/** Open findings drive the header's notification badge. */
+/**
+ * Open findings still contribute to the header badge, but they are no longer the whole
+ * of it: unread `Notification` rows now count too, so a rule's `notify` effect is
+ * visible without opening the verification module.
+ */
 async function countOpenFindings(organizationId: string): Promise<number> {
   const engagements = await listVerificationEngagements(organizationId);
   const perEngagement = await Promise.all(
@@ -52,7 +57,10 @@ export default async function DashboardLayout({
     getSession(),
     resolveActiveOrganization(),
   ]);
-  const openFindings = await countOpenFindings(organization.id);
+  const [openFindings, unreadNotifications] = await Promise.all([
+    countOpenFindings(organization.id),
+    countUnreadNotifications(organization.id),
+  ]);
 
   const clientSession: ClientSession | null = session
     ? {
@@ -93,6 +101,7 @@ export default async function DashboardLayout({
             llmLabel={llm.label}
             llmConfigured={isLlmConfigured()}
             openFindings={openFindings}
+            unreadNotifications={unreadNotifications}
           />
           <main className="flex-1 space-y-4 overflow-y-auto bg-muted/30 p-6">
             <DemoModeBanner

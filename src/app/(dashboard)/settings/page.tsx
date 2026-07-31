@@ -8,6 +8,7 @@
  * the Korean setup guide.
  */
 
+import Link from "next/link";
 import { connection } from "next/server";
 import {
   Building2,
@@ -337,10 +338,14 @@ export default async function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Notification preferences</CardTitle>
+          <CardTitle>Notification delivery</CardTitle>
           <CardDescription>
-            Notification delivery needs a persisted `NotificationPreference` row and an outbound
-            channel, neither of which exists without a database and a mail or webhook provider.
+            In-app delivery is complete: a rule&apos;s <code>notify</code> effect writes a{" "}
+            <code>Notification</code> row, which appears in{" "}
+            <Link href="/notifications" className="underline">
+              the notification centre
+            </Link>{" "}
+            and on the header badge. Every other channel stops at a service you own.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-1.5 text-xs text-muted-foreground">
@@ -350,9 +355,13 @@ export default async function SettingsPage() {
             approaching expiry, and a calculation completing.
           </p>
           <p>
-            Wiring these to email or Slack is a deployment decision — the provider, the sender
-            identity and the recipient list are all the operator&apos;s to choose. The steps are
-            in <code>{SETUP_GUIDE_PATH}</code>.
+            A notification whose channel is <code>email</code>, <code>webhook</code>,{" "}
+            <code>slack</code> or <code>sms</code> is still <em>recorded</em> — it is never
+            silently dropped — but it is not transmitted, and the notification centre lists it
+            under &quot;Recorded, not sent&quot; with the credential that is missing. Supplying
+            that transport is a deployment decision: the provider, the sender identity and the
+            recipient list are all yours to choose. The steps are in{" "}
+            <code>{SETUP_GUIDE_PATH}</code>.
           </p>
         </CardContent>
       </Card>

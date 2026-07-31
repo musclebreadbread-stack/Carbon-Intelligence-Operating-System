@@ -27,6 +27,7 @@ import {
   Globe,
   Lock,
   Settings,
+  Bell,
   ChevronLeft,
   ChevronRight,
   Leaf,
@@ -76,6 +77,7 @@ const navigationSections: NavSection[] = [
     title: "System",
     items: [
       { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+      { title: "Notifications", href: "/notifications", icon: Bell },
       { title: "Analytics", href: "/analytics", icon: BarChart3 },
       { title: "API Gateway", href: "/api-gateway", icon: Globe },
       { title: "Security", href: "/security", icon: Lock },

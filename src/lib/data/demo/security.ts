@@ -10,29 +10,62 @@
 import { DEMO_ORGANIZATION_ID } from "./organization";
 
 /** Resource keys the permission matrix covers. */
+/**
+ * Resources the permission catalogue covers.
+ *
+ * These names are **the names the server actions enforce**, not a parallel taxonomy.
+ * They used to diverge, with real consequences: the catalogue offered `rule`, `credit`
+ * and `ai` while `executeRuleSetAction`, `retireCreditsAction` and `runAnalysisAction`
+ * check `validation_rule`, `carbon_credit` and `ai_analysis`, and `data_source` and
+ * `notification` were absent entirely. Because a `Permission` row for the enforced pair
+ * did not exist, no role except the wildcard administrator could ever be granted those
+ * capabilities — a sustainability manager holding `credit:create` still could not retire
+ * a credit, and nothing anywhere reported why.
+ *
+ * `src/lib/data/demo/rbac-coverage.test.ts` scans the action modules and fails if an
+ * enforced pair has no catalogue entry, so the two cannot drift again.
+ */
 export const DEMO_RESOURCES = [
   "organization",
   "master_data",
   "activity_data",
   "emission_factor",
   "calculation",
-  "rule",
+  "validation_rule",
   "target",
   "scenario",
   "roadmap",
-  "credit",
+  "carbon_credit",
   "disclosure",
   "verification",
   "mrv",
-  "ai",
+  "ai_analysis",
   "agent",
+  "data_source",
+  "notification",
   "audit",
   "security",
   "settings",
 ] as const;
 export type DemoResource = (typeof DEMO_RESOURCES)[number];
 
-export const DEMO_ACTIONS = ["read", "create", "update", "delete", "approve", "export"] as const;
+/**
+ * Actions the catalogue covers.
+ *
+ * `execute` and `retire` are here because the code enforces them: running a rule set is
+ * not an `update`, and retiring a carbon credit is irreversible and deliberately not
+ * expressible as one either.
+ */
+export const DEMO_ACTIONS = [
+  "read",
+  "create",
+  "update",
+  "delete",
+  "approve",
+  "export",
+  "execute",
+  "retire",
+] as const;
 export type DemoAction = (typeof DEMO_ACTIONS)[number];
 
 export type DemoPermission = {
@@ -103,10 +136,18 @@ export const DEMO_ROLES: readonly DemoRole[] = [
       "demo-perm-disclosure-create",
       "demo-perm-disclosure-update",
       "demo-perm-disclosure-approve",
-      "demo-perm-credit-create",
-      "demo-perm-credit-update",
-      "demo-perm-ai-create",
+      "demo-perm-carbon_credit-create",
+      "demo-perm-carbon_credit-update",
+      // Retirement is irreversible, so it is granted explicitly rather than implied
+      // by `update`.
+      "demo-perm-carbon_credit-retire",
+      "demo-perm-ai_analysis-create",
       "demo-perm-agent-create",
+      "demo-perm-agent-execute",
+      "demo-perm-validation_rule-create",
+      "demo-perm-validation_rule-update",
+      "demo-perm-validation_rule-execute",
+      "demo-perm-notification-update",
       "demo-perm-mrv-create",
       "demo-perm-mrv-update",
       "demo-perm-calculation-export",
@@ -126,7 +167,9 @@ export const DEMO_ROLES: readonly DemoRole[] = [
       "demo-perm-master_data-create",
       "demo-perm-master_data-update",
       "demo-perm-calculation-create",
-      "demo-perm-ai-create",
+      "demo-perm-ai_analysis-create",
+      "demo-perm-validation_rule-execute",
+      "demo-perm-notification-update",
     ],
   },
   {
@@ -143,6 +186,10 @@ export const DEMO_ROLES: readonly DemoRole[] = [
       "demo-perm-mrv-read",
       "demo-perm-organization-read",
       "demo-perm-master_data-read",
+      // Every role that can be notified must be able to dismiss its own
+      // notifications; the action scopes the update to the session's own user id.
+      "demo-perm-notification-read",
+      "demo-perm-notification-update",
     ],
   },
   {
@@ -155,6 +202,9 @@ export const DEMO_ROLES: readonly DemoRole[] = [
       ...READ_ALL,
       "demo-perm-verification-create",
       "demo-perm-verification-update",
+      // Forming the assurance opinion is an approval, not an update.
+      "demo-perm-verification-approve",
+      "demo-perm-notification-update",
       "demo-perm-audit-export",
     ],
   },
@@ -164,9 +214,12 @@ export const DEMO_ROLES: readonly DemoRole[] = [
     name: "열람자 (Viewer)",
     description: "Read-only dashboards; no access to security or audit configuration.",
     isSystem: true,
-    permissionIds: READ_ALL.filter(
-      (id) => id !== "demo-perm-security-read" && id !== "demo-perm-audit-read",
-    ),
+    permissionIds: [
+      ...READ_ALL.filter(
+        (id) => id !== "demo-perm-security-read" && id !== "demo-perm-audit-read",
+      ),
+      "demo-perm-notification-update",
+    ],
   },
 ];
 

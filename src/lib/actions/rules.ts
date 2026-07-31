@@ -14,7 +14,13 @@ import { z } from "zod";
 import { NotFoundError } from "@/lib/core/errors";
 import { applyRuleSetActions } from "@/lib/domain/rules/actions";
 import { evaluateRuleSet } from "@/lib/domain/rules/evaluate";
+import {
+  describeDelivery,
+  partitionByDeliverability,
+  planNotifications,
+} from "@/lib/domain/notifications/deliver";
 import { getRuleSet } from "@/lib/data/repositories/rules";
+import { persistNotifications } from "@/lib/data/repositories/notifications";
 import { prisma } from "@/lib/prisma";
 import {
   executeRuleSetInputSchema,
@@ -25,7 +31,7 @@ import {
 import { auditEntry, runAction } from "./runtime";
 import type { ActionState } from "./types";
 
-const PATHS = ["/validation-rules", "/activity-data"] as const;
+const PATHS = ["/validation-rules", "/activity-data", "/notifications"] as const;
 
 /** Local to this file: a toggle has no reuse outside it. */
 const ruleSetToggleSchema = z.object({
@@ -49,6 +55,15 @@ export type ExecuteRuleSetResult = {
   }[];
   /** `set_field` assignments the caller should apply to its own entity. */
   readonly fieldUpdates: Readonly<Record<string, string | null>>;
+  /** In-app `Notification` rows written from `notify` effects. */
+  readonly notificationsDelivered: number;
+  /**
+   * Notifications recorded but *not* sent, because their channel needs a transport
+   * the operator has to supply. Reported so the UI never implies they went out.
+   */
+  readonly notificationsPending: number;
+  /** Human-readable summary of the two counts above. */
+  readonly deliverySummary: string;
 };
 
 /**
@@ -82,27 +97,54 @@ export async function executeRuleSetAction(
         });
         const duration = Date.now() - startedAt;
 
-        // One transaction so a rule set is never half-recorded.
-        const executionIds = await prisma.$transaction(async (tx) => {
-          const ids: string[] = [];
-          for (const execution of outcome.executions) {
-            const created = await tx.ruleExecution.create({
-              data: {
-                ruleId: execution.ruleId,
-                status: execution.status,
-                triggerType: execution.triggerType,
-                triggeredBy: execution.triggeredBy,
-                inputData: execution.inputData as never,
-                outputData: execution.outputData as never,
-                errorMessage: execution.errorMessage,
-                duration,
-              },
-              select: { id: true },
-            });
-            ids.push(created.id);
-          }
-          return ids;
+        // A `notify` effect used to be built and then dropped, so a rule that said
+        // "tell the owner when the meter exceeds the threshold" did nothing at all.
+        // The plans are written with the executions, in the same transaction: a
+        // notification about a run that was rolled back would be a lie.
+        const plans = planNotifications(outcome.effects, {
+          organizationId,
+          fallbackUserId: session.userId,
+          knownUserIds: [session.userId],
+          entityType: input.entityType,
+          entityId: input.entityId,
+          actionUrl: "/notifications",
         });
+        const { deliverable, pending } = partitionByDeliverability(plans);
+
+        // One transaction so a rule set is never half-recorded.
+        const { executionIds, notificationsDelivered, notificationsRecorded } =
+          await prisma.$transaction(async (tx) => {
+            const ids: string[] = [];
+            for (const execution of outcome.executions) {
+              const created = await tx.ruleExecution.create({
+                data: {
+                  ruleId: execution.ruleId,
+                  status: execution.status,
+                  triggerType: execution.triggerType,
+                  triggeredBy: execution.triggeredBy,
+                  inputData: execution.inputData as never,
+                  outputData: execution.outputData as never,
+                  errorMessage: execution.errorMessage,
+                  duration,
+                },
+                select: { id: true },
+              });
+              ids.push(created.id);
+            }
+            // Both partitions are persisted, but counted separately, so the response
+            // can distinguish "delivered in-app" from "recorded, not sent". The
+            // pending ones keep their channel, so an operator can query exactly what
+            // is waiting on a transport they have not configured rather than the
+            // notification being lost.
+            const delivered = await persistNotifications(tx, deliverable);
+            const recorded = await persistNotifications(tx, pending);
+            return {
+              executionIds: ids,
+              notificationsDelivered: delivered,
+              notificationsRecorded: recorded,
+            };
+          },
+        );
 
         return {
           data: {
@@ -118,6 +160,9 @@ export async function executeRuleSetAction(
               message: effect.message,
             })),
             fieldUpdates: outcome.fieldUpdates,
+            notificationsDelivered,
+            notificationsPending: notificationsRecorded,
+            deliverySummary: describeDelivery(plans),
           },
           message: outcome.blocked
             ? `Rule set "${ruleSet.name}" rejected the record.`

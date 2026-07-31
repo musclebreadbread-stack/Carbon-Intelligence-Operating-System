@@ -57,5 +57,6 @@ export const SEED_COUNTS = {
     scenarios: SEED_TENANT.scenarios.length,
     carbonCredits: SEED_TENANT.carbonCredits.length,
     apiKeys: SEED_TENANT.apiKeys.length,
+    notifications: SEED_TENANT.notifications.length,
   },
 } as const;

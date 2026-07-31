@@ -18,6 +18,7 @@ export * from "./verification";
 export * from "./disclosure";
 export * from "./ai";
 export * from "./security";
+export * from "./notifications";
 
 import {
   DEMO_ACTIVITY_DATA,
@@ -36,6 +37,7 @@ import {
   DEMO_MCP_CONNECTIONS,
   DEMO_MCP_SERVERS,
 } from "./ai";
+import { DEMO_NOTIFICATIONS } from "./notifications";
 import {
   DEMO_CARBON_CREDITS,
   DEMO_CARBON_OFFSETS,
@@ -187,6 +189,7 @@ export const DEMO_DATASET = {
   users: DEMO_USERS,
   accessPolicies: DEMO_ACCESS_POLICIES,
   apiKeys: DEMO_API_KEYS,
+  notifications: DEMO_NOTIFICATIONS,
 } as const;
 
 export type DemoDataset = typeof DEMO_DATASET;

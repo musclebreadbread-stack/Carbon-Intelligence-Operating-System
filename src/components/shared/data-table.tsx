@@ -114,6 +114,20 @@ export function DataTable<TData>({
     [columns, enableRowSelection],
   );
 
+  // `react-hooks/incompatible-library` fires here and cannot be fixed in this file.
+  // TanStack Table's `useReactTable()` returns an object of *methods* (`getRowModel`,
+  // `getSelectedRowModel`, …) that read mutable internal state, so the React Compiler
+  // cannot memoize this component without risking a stale UI and correctly declines to
+  // try. That is the library's design, not a mistake here: the only "fix" would be to
+  // stop using TanStack Table, and the consequence of the warning — this one component
+  // is not auto-memoized — is acceptable for a table that already re-renders on every
+  // sort, filter and page change.
+  //
+  // It is suppressed rather than left standing so `npm run lint` reports zero problems
+  // and a genuinely new warning is visible instead of buried next to a permanent one.
+  // The fact itself is not lost: it is recorded here, where someone changing this
+  // component will read it, and in the README's architecture notes.
+  // eslint-disable-next-line react-hooks/incompatible-library -- inherent to TanStack Table; see above
   const table = useReactTable({
     data: data as TData[],
     columns: resolvedColumns,

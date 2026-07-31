@@ -35,6 +35,8 @@ export type HeaderProps = {
   readonly llmLabel: string;
   readonly llmConfigured: boolean;
   readonly openFindings: number;
+  /** Unread `Notification` rows, i.e. delivered rule `notify` effects. */
+  readonly unreadNotifications?: number;
 };
 
 function initials(name: string): string {
@@ -44,8 +46,18 @@ function initials(name: string): string {
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 
-export function Header({ signOut, llmLabel, llmConfigured, openFindings }: HeaderProps) {
+export function Header({
+  signOut,
+  llmLabel,
+  llmConfigured,
+  openFindings,
+  unreadNotifications = 0,
+}: HeaderProps) {
   const { session, dataMode } = useSession();
+  // The badge counts both, because both are things the user has not dealt with. The
+  // link goes to the notification centre, which is where a rule `notify` effect now
+  // lands; open findings remain reachable from there and from the verification module.
+  const outstanding = openFindings + unreadNotifications;
 
   return (
     <header className="flex h-14 items-center justify-between border-b bg-background px-4">
@@ -74,17 +86,17 @@ export function Header({ signOut, llmLabel, llmConfigured, openFindings }: Heade
         </Badge>
 
         <Link
-          href="/verification"
-          aria-label={`Notifications (${openFindings} open findings)`}
+          href="/notifications"
+          aria-label={`Notifications (${unreadNotifications} unread, ${openFindings} open findings)`}
           className={cn(
             buttonVariants({ variant: "ghost", size: "icon-sm" }),
             "relative",
           )}
         >
           <Bell className="size-4" />
-          {openFindings > 0 && (
+          {outstanding > 0 && (
             <span className="absolute top-0.5 right-0.5 flex size-3.5 items-center justify-center rounded-full bg-amber-500 text-[9px] font-semibold text-white">
-              {openFindings > 9 ? "9+" : openFindings}
+              {outstanding > 9 ? "9+" : outstanding}
             </span>
           )}
         </Link>

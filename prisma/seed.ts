@@ -1146,6 +1146,38 @@ async function seedSecurity(): Promise<void> {
   log("api keys", "not seeded — mint one in Settings › API keys");
 }
 
+/**
+ * In-app notifications for the demo tenant.
+ *
+ * Seeded so `/notifications` and the header badge show the same thing on a database as
+ * they do in demo mode. One row deliberately carries `channel: "email"`: it is recorded
+ * but not transmitted, because sending it needs an SMTP relay or a transactional-email
+ * provider that only the operating organisation can supply.
+ */
+async function seedNotifications(): Promise<void> {
+  for (const notification of SEED_TENANT.notifications) {
+    const data = {
+      organizationId: notification.organizationId,
+      userId: notification.userId,
+      type: notification.type,
+      title: notification.title,
+      message: notification.message,
+      channel: notification.channel,
+      isRead: notification.isRead,
+      readAt: notification.readAt,
+      actionUrl: notification.actionUrl,
+      expiresAt: notification.expiresAt,
+      createdAt: notification.createdAt,
+    };
+    await prisma.notification.upsert({
+      where: { id: notification.id },
+      create: { id: notification.id, ...data },
+      update: data,
+    });
+  }
+  log("notifications", `${SEED_TENANT.notifications.length} rows`);
+}
+
 async function main(): Promise<void> {
   console.log("\nCIOS seed\n");
 
@@ -1169,6 +1201,8 @@ async function main(): Promise<void> {
   await seedStrategy();
   await seedCarbonFinance();
   await seedSecurity();
+  // After security: notifications reference the seeded users.
+  await seedNotifications();
 
   console.log(
     `\nDone. ${SEED_COUNTS.tenant.activityEntries} activity entries seeded; the figures the ` +
