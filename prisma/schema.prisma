@@ -2181,6 +2181,8 @@ model AuditEvidence {
   description String?
   fileUrl     String?
   storageUrl  String?
+  fileName    String?
+  mimeType    String?
   fileType    String?
   fileSize    Int?
   hash        String?
@@ -2190,11 +2192,15 @@ model AuditEvidence {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  organizationId String?
+  userId         String?
+
   auditTrailId String?
   auditTrail   AuditTrail? @relation(fields: [auditTrailId], references: [id])
 
   @@index([auditTrailId])
   @@index([type])
+  @@index([organizationId])
 }
 
 model VerificationFinding {
@@ -2214,6 +2220,8 @@ model VerificationFinding {
   /// silently change an audit opinion by editing prose, and which the read path
   /// never decoded at all.
   misstatementAmount Float?
+  /// JSON array of AuditEvidence IDs linked to this finding.
+  evidenceIds        Json?
   dueDate            DateTime?
   resolvedAt         DateTime?
   createdAt          DateTime  @default(now())

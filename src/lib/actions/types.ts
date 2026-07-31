@@ -147,6 +147,18 @@ export function toActionError(error: unknown): ActionError {
       details: error.details as Readonly<Record<string, unknown>> | undefined,
     });
   }
+  // PeriodLockedError is a standalone sentinel (not an AppError subclass).
+  if (
+    error instanceof Error &&
+    "code" in error &&
+    (error as { code: string }).code === "PERIOD_LOCKED"
+  ) {
+    return actionError(
+      "CONFLICT",
+      error.message,
+      "action.error.PERIOD_LOCKED",
+    );
+  }
   console.error("[action] unhandled error", error);
   return actionError(
     "INTERNAL_ERROR",

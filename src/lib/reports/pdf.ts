@@ -5,13 +5,20 @@
  * - Cover page with metadata
  * - Section-based datapoints
  *
- * Uses built-in Helvetica font (Korean characters will render as available glyphs).
- * For full Korean font support in production, embed a TTF font file.
+ * Embeds the NotoSansKR font for full Korean character support.
  */
+
+import { resolve } from "path";
 
 import PDFDocument from "pdfkit";
 
 import type { ExportInput } from "./types";
+
+/** Path to the Korean font, resolved at build time. */
+const KOREAN_FONT_PATH = resolve(
+  process.cwd(),
+  "public/fonts/NotoSansKR-KSX1001.ttf",
+);
 
 /**
  * Generate a PDF buffer from the given export input.
@@ -30,6 +37,16 @@ export async function generatePdf(input: ExportInput): Promise<Buffer> {
         },
       });
 
+      // Register the Korean font for CJK glyph rendering.
+      try {
+        doc.registerFont("NotoSansKR", KOREAN_FONT_PATH);
+        doc.font("NotoSansKR");
+      } catch {
+        // Fall back to built-in Helvetica when the font file is unavailable
+        // (e.g., in test environments).
+        doc.font("Helvetica");
+      }
+
       const chunks: Buffer[] = [];
       doc.on("data", (chunk: Buffer) => chunks.push(chunk));
       doc.on("end", () => resolve(Buffer.concat(chunks)));
@@ -45,7 +62,7 @@ export async function generatePdf(input: ExportInput): Promise<Buffer> {
       doc.text(`Reporting Year: ${input.metadata.reportingYear}`);
       doc.text(`Generated: ${input.metadata.generatedAt}`);
       doc.text(
-        `Completeness: ${(input.metadata.completeness * 100).toFixed(1)}%`,
+        `Completeness: ${input.metadata.completeness.toFixed(1)}%`,
       );
       doc.moveDown(2);
 

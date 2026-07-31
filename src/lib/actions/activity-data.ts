@@ -29,6 +29,7 @@ import {
   meterReadingInputSchema,
 } from "@/lib/validation";
 
+import { assertPeriodNotLocked } from "./inventory-close";
 import { auditEntry, runAction } from "./runtime";
 import type { ActionState } from "./types";
 
@@ -112,12 +113,15 @@ export async function createActivityEntryAction(
       handler: async ({ session, input, organizationId }) => {
         const header = await prisma.activityData.findUnique({
           where: { id: input.activityDataId },
-          select: { id: true, organizationId: true, facilityId: true },
+          select: { id: true, organizationId: true, facilityId: true, reportingYear: true },
         });
         if (!header || header.organizationId !== organizationId) {
           // Re-read ownership from a trusted source rather than trusting the id.
           throw new NotFoundError(`Activity data set ${input.activityDataId} was not found`);
         }
+
+        // Block writes to a locked period.
+        await assertPeriodNotLocked(organizationId, header.reportingYear);
 
         const ruleSets = await listRuleSets(organizationId, {
           category: "activity_data",
@@ -260,11 +264,14 @@ export async function importActivityDataAction(
         // Re-read the header from a trusted source: the id came from the client.
         const header = await prisma.activityData.findUnique({
           where: { id: input.activityDataId },
-          select: { id: true, organizationId: true },
+          select: { id: true, organizationId: true, reportingYear: true },
         });
         if (!header || header.organizationId !== organizationId) {
           throw new NotFoundError(`Activity data set ${input.activityDataId} was not found`);
         }
+
+        // Block writes to a locked period.
+        await assertPeriodNotLocked(organizationId, header.reportingYear);
 
         // The mapping is re-checked rather than trusted: the client disables the
         // button on an incomplete mapping, but a direct POST does not.
@@ -408,11 +415,14 @@ export async function updateActivityEntryAction(
       handler: async ({ session, input, organizationId }) => {
         const before = await prisma.activityDataEntry.findUnique({
           where: { id: input.id },
-          include: { activityData: { select: { organizationId: true, facilityId: true } } },
+          include: { activityData: { select: { organizationId: true, facilityId: true, reportingYear: true } } },
         });
         if (!before || before.activityData.organizationId !== organizationId) {
           throw new NotFoundError(`Activity entry ${input.id} was not found`);
         }
+
+        // Block writes to a locked period.
+        await assertPeriodNotLocked(organizationId, before.activityData.reportingYear);
 
         const { id, ...changes } = input;
         const updated = await prisma.activityDataEntry.update({

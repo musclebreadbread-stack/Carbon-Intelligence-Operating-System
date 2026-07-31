@@ -1,15 +1,19 @@
 /**
  * Report export endpoint.
  *
- * GET /api/reports/:reportId/export?format=xlsx|pdf|docx
+ * GET /api/reports/:reportId/export?format=xlsx|pdf|docx&locale=ko|en
  *
  * Generates a real file from the disclosure report data. In demo mode, the
  * report is computed from fixtures (same numbers the UI shows). The response
  * is streamed as the appropriate MIME type with a Content-Disposition header.
+ *
+ * Re-verifies tenant membership and permission before serving the file.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 
+import { requireSession } from "@/lib/auth/session";
+import { requirePermission } from "@/lib/auth/rbac";
 import { activeOrganizationId } from "@/lib/auth/active-organization";
 import {
   getAssembledReport,
@@ -39,6 +43,7 @@ export async function GET(
 ) {
   const { reportId } = await params;
   const format = (request.nextUrl.searchParams.get("format") ?? "xlsx") as ExportFormat;
+  const locale = request.nextUrl.searchParams.get("locale") ?? "ko";
 
   if (!["xlsx", "pdf", "docx"].includes(format)) {
     return NextResponse.json(
@@ -48,9 +53,13 @@ export async function GET(
   }
 
   try {
+    // Re-verify authentication and permission on the export route.
+    const session = await requireSession();
     const organizationId = await activeOrganizationId();
 
-    // Find the report
+    requirePermission(session, "disclosure", "read", { organizationId });
+
+    // Find the report and verify tenant ownership.
     const reports = await listDisclosureReports(organizationId);
     const report = reports.find((r) => r.id === reportId);
 
@@ -69,18 +78,19 @@ export async function GET(
       return NextResponse.json({ error: "Could not assemble report" }, { status: 500 });
     }
 
-    // Build export input
+    // Build export input with locale-appropriate titles
+    const useKo = locale === "ko";
     const exportInput = buildExportInput({
       organizationName: report.name,
       framework: report.framework,
       reportingYear: report.reportingYear,
       completeness: assembled.completeness.percent,
-      locale: "ko",
+      locale,
       datapoints: assembled.sections.flatMap((section) =>
         section.requirements.map((req) => ({
           requirementCode: req.code,
-          title: req.name,
-          category: section.title,
+          title: useKo ? req.nameKo : req.name,
+          category: useKo ? section.titleKo : section.title,
           dataType: req.dataType,
           value: req.value ?? (req.numericValue !== null ? req.numericValue : null),
           source: req.isAnswered
@@ -116,6 +126,12 @@ export async function GET(
     });
   } catch (error) {
     console.error("Report export error:", error);
+    if (
+      error instanceof Error &&
+      (error.message.includes("Unauthorized") || error.message.includes("No session"))
+    ) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.json(
       { error: "Failed to generate report" },
       { status: 500 },

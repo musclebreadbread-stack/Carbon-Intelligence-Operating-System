@@ -1590,6 +1590,8 @@ CREATE TABLE "AuditEvidence" (
     "description" TEXT,
     "fileUrl" TEXT,
     "storageUrl" TEXT,
+    "fileName" TEXT,
+    "mimeType" TEXT,
     "fileType" TEXT,
     "fileSize" INTEGER,
     "hash" TEXT,
@@ -1598,6 +1600,8 @@ CREATE TABLE "AuditEvidence" (
     "verifiedBy" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "organizationId" TEXT,
+    "userId" TEXT,
     "auditTrailId" TEXT,
 
     CONSTRAINT "AuditEvidence_pkey" PRIMARY KEY ("id")
@@ -1614,6 +1618,7 @@ CREATE TABLE "VerificationFinding" (
     "response" TEXT,
     "status" TEXT NOT NULL DEFAULT 'open',
     "misstatementAmount" DOUBLE PRECISION,
+    "evidenceIds" JSONB,
     "dueDate" TIMESTAMP(3),
     "resolvedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -3197,6 +3202,9 @@ CREATE INDEX "AuditEvidence_auditTrailId_idx" ON "AuditEvidence"("auditTrailId")
 
 -- CreateIndex
 CREATE INDEX "AuditEvidence_type_idx" ON "AuditEvidence"("type");
+
+-- CreateIndex
+CREATE INDEX "AuditEvidence_organizationId_idx" ON "AuditEvidence"("organizationId");
 
 -- CreateIndex
 CREATE INDEX "VerificationFinding_engagementId_idx" ON "VerificationFinding"("engagementId");

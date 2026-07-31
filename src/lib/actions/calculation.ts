@@ -39,6 +39,7 @@ import {
   runCalculationRequestSchema,
 } from "@/lib/validation";
 
+import { assertPeriodNotLocked } from "./inventory-close";
 import { auditEntry, runAction } from "./runtime";
 import type { ActionState } from "./types";
 
@@ -70,6 +71,9 @@ export async function runCalculationAction(
         facilityCount: input.facilityIds.length,
       }),
       handler: async ({ session, input, organizationId }) => {
+        // Block calculation on a locked period.
+        await assertPeriodNotLocked(organizationId, input.reportingYear);
+
         const period =
           input.period ??
           {
@@ -360,6 +364,9 @@ export async function publishInventoryAction(
       schema: emissionInventoryInputSchema,
       revalidate: [...PATHS, "/esg-disclosure"],
       handler: async ({ session, input, organizationId }) => {
+        // Block publishing on a locked period.
+        await assertPeriodNotLocked(organizationId, input.reportingYear);
+
         const view = await getInventory(organizationId, input.reportingYear);
         const created = await prisma.emissionInventory.create({
           data: {

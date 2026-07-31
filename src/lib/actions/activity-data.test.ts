@@ -24,6 +24,7 @@ const activityDataEntryFindUnique = vi.fn();
 const activityDataEntryUpdate = vi.fn();
 const dataImportJobCreate = vi.fn();
 const auditCreateMany = vi.fn();
+const emissionInventoryFindUnique = vi.fn();
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -40,6 +41,9 @@ vi.mock("@/lib/prisma", () => ({
     dataImportJob: { create: (...args: unknown[]) => dataImportJobCreate(...args) },
     meterReading: { create: vi.fn(async () => ({ id: "meter-1" })) },
     auditTrail: { createMany: (...args: unknown[]) => auditCreateMany(...args) },
+    emissionInventory: {
+      findUnique: (...args: unknown[]) => emissionInventoryFindUnique(...args),
+    },
     // The import action writes the job and its entries in one transaction; the
     // callback is invoked with the same mock client so both writes are observable.
     $transaction: (callback: (tx: unknown) => Promise<unknown>) =>
@@ -170,6 +174,7 @@ beforeEach(() => {
   activityDataEntryUpdate.mockReset();
   dataImportJobCreate.mockReset();
   auditCreateMany.mockReset();
+  emissionInventoryFindUnique.mockReset();
 
   requireSession.mockResolvedValue(SESSION);
   canWrite.mockResolvedValue(true);
@@ -180,10 +185,13 @@ beforeEach(() => {
     id: "ad-1",
     organizationId: DEMO_ORGANIZATION_ID,
     facilityId: "fac-1",
+    reportingYear: DEMO_CURRENT_YEAR,
   });
   activityDataEntryCreate.mockResolvedValue({ id: "entry-1" });
   activityDataEntryCreateMany.mockResolvedValue({ count: 0 });
   dataImportJobCreate.mockResolvedValue({ id: "job-1" });
+  // Default: period is not locked (null means no inventory record exists).
+  emissionInventoryFindUnique.mockResolvedValue(null);
 });
 
 afterEach(() => {

@@ -1,19 +1,26 @@
 /**
  * Evidence upload endpoint.
  *
- * POST /api/evidence — upload a file as audit evidence.
- * GET /api/evidence — list uploaded evidence for the organization.
+ * POST /api/evidence — upload a file as audit evidence (persists AuditEvidence
+ *   metadata atomically with upload; cleans up orphan on failure).
+ * GET /api/evidence — list uploaded evidence for the session user's organization.
  *
- * When Supabase Storage is not configured, returns a descriptive error.
+ * When Supabase Storage is not configured, the metadata is still persisted (without
+ * a storageUrl) so the evidence list works in demo mode.
  */
+
+import { createHash } from "crypto";
 
 import { NextRequest, NextResponse } from "next/server";
 
+import { requireSession } from "@/lib/auth/session";
 import { activeOrganizationId } from "@/lib/auth/active-organization";
-import { uploadEvidence } from "@/lib/storage/evidence";
+import { prisma } from "@/lib/prisma";
+import { uploadEvidence, deleteEvidence } from "@/lib/storage/evidence";
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await requireSession();
     const organizationId = await activeOrganizationId();
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
@@ -26,27 +33,61 @@ export async function POST(request: NextRequest) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
+    const hash = createHash("sha256").update(buffer).digest("hex");
+    const fileName = file.name;
+    const mimeType = file.type || "application/octet-stream";
+    const fileSize = buffer.length;
+
+    // Attempt upload to storage.
     const result = await uploadEvidence(
       organizationId,
-      file.name,
+      fileName,
       buffer,
-      file.type || "application/octet-stream",
+      mimeType,
     );
 
-    if (!result.success) {
-      return NextResponse.json(
-        { error: result.error },
-        { status: 422 },
-      );
+    const storageUrl = result.success ? result.url ?? null : null;
+
+    // Persist AuditEvidence metadata atomically.
+    let evidence;
+    try {
+      evidence = await prisma.auditEvidence.create({
+        data: {
+          type: "document",
+          title: fileName,
+          fileName,
+          mimeType,
+          fileSize,
+          hash,
+          storageUrl,
+          organizationId,
+          userId: session.userId,
+        },
+      });
+    } catch (dbError) {
+      // If metadata persistence fails and a file was uploaded, clean up the orphan.
+      if (storageUrl) {
+        const path = `${organizationId}/${fileName}`;
+        await deleteEvidence(path).catch(() => {});
+      }
+      throw dbError;
     }
 
     return NextResponse.json({
-      url: result.url,
-      fileName: file.name,
-      size: buffer.length,
+      id: evidence.id,
+      url: storageUrl,
+      fileName,
+      size: fileSize,
+      hash,
     });
   } catch (error) {
     console.error("Evidence upload error:", error);
+    if (
+      error instanceof Error &&
+      (error.message.includes("Unauthorized") || error.message.includes("No session"))
+    ) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.json(
       { error: "Failed to upload evidence" },
       { status: 500 },
@@ -56,13 +97,34 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   try {
-    // In demo mode, return an empty list with a helpful message
-    return NextResponse.json({
-      evidence: [],
-      message: "증거 파일 목록은 Supabase Storage 구성 후 사용할 수 있습니다.",
+    const session = await requireSession();
+    const organizationId = await activeOrganizationId();
+
+    const evidence = await prisma.auditEvidence.findMany({
+      where: { organizationId },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        title: true,
+        fileName: true,
+        mimeType: true,
+        fileSize: true,
+        hash: true,
+        storageUrl: true,
+        createdAt: true,
+        userId: true,
+      },
     });
+
+    return NextResponse.json({ evidence });
   } catch (error) {
     console.error("Evidence list error:", error);
+    if (
+      error instanceof Error &&
+      (error.message.includes("Unauthorized") || error.message.includes("No session"))
+    ) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.json(
       { error: "Failed to list evidence" },
       { status: 500 },

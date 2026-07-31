@@ -100,6 +100,8 @@ export const verificationFindingInputSchema = z
     assignedToId: idSchema.nullish(),
     /** Absolute magnitude of the misstatement in tCO2e, when quantified. */
     misstatementAmount: z.number().finite().nullish(),
+    /** Optional evidence IDs to link to this finding. */
+    evidenceIds: z.array(idSchema).default([]),
   })
   .superRefine((value, ctx) => {
     const isClosed = (CLOSED_FINDING_STATUSES as readonly string[]).includes(value.status);

@@ -27,6 +27,7 @@ import {
   generateDisclosureReportSchema,
 } from "@/lib/validation";
 
+import { assertPeriodNotLocked } from "./inventory-close";
 import { auditEntry, runAction } from "./runtime";
 import type { ActionState } from "./types";
 
@@ -71,6 +72,9 @@ export async function generateDisclosureReportAction(
         framework: input.framework,
       }),
       handler: async ({ session, input, organizationId }) => {
+        // Block report generation on a locked period.
+        await assertPeriodNotLocked(organizationId, input.reportingYear);
+
         const [inventoryView, portfolio] = await Promise.all([
           getInventory(organizationId, input.reportingYear),
           getCreditPortfolio(organizationId),
@@ -367,11 +371,13 @@ export async function saveDisclosureResponseAction(
         if (input.reportId) {
           const report = await prisma.disclosureReport.findUnique({
             where: { id: input.reportId },
-            select: { organizationId: true },
+            select: { organizationId: true, reportingYear: true },
           });
           if (!report || report.organizationId !== organizationId) {
             throw new NotFoundError(`Report ${input.reportId} was not found`);
           }
+          // Block writes to a locked period.
+          await assertPeriodNotLocked(organizationId, report.reportingYear);
         }
 
         const existing = await prisma.disclosureResponse.findFirst({

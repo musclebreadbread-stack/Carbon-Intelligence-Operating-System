@@ -204,5 +204,31 @@ export async function getAssembledReport(
   const view = await getFrameworkCompleteness(organizationId, framework, reportingYear);
   if (!view) return null;
   const context = await disclosureContext(organizationId, reportingYear);
-  return assembleReport(framework, view.mapping.responses, context);
+
+  // Merge auto-populated and narrative responses so the assembled report includes
+  // persisted narrative answers, not just auto-populated numbers.
+  const narratives = (await listNarrativeResponses(organizationId)).filter(
+    (response) => response.framework === framework,
+  );
+  const byCode = new Map(
+    view.mapping.responses.map((r) => [r.requirementCode, r]),
+  );
+  // Narrative responses override only when the auto-populated slot is empty.
+  for (const narrative of narratives) {
+    if (!byCode.has(narrative.requirementCode)) {
+      byCode.set(narrative.requirementCode, {
+        requirementCode: narrative.requirementCode,
+        framework,
+        value: narrative.value,
+        numericValue: null,
+        status: narrative.status,
+        notes: null,
+        unit: null,
+        isAutoPopulated: false,
+      });
+    }
+  }
+  const merged = [...byCode.values()];
+
+  return assembleReport(framework, merged, context);
 }

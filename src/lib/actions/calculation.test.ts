@@ -65,7 +65,10 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     $transaction: (fn: (tx: unknown) => Promise<unknown>) => transaction(fn),
     auditTrail: { createMany: (...args: unknown[]) => auditCreateMany(...args) },
-    emissionInventory: { create: vi.fn(async () => ({ id: "inv-1" })) },
+    emissionInventory: {
+      create: vi.fn(async () => ({ id: "inv-1" })),
+      findUnique: vi.fn(async () => null), // no locked inventory by default
+    },
   },
 }));
 

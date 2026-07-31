@@ -3,210 +3,213 @@
  *
  * Once a period is locked, mutations targeting that period return PERIOD_LOCKED.
  * The lock can only be released by an admin through the unlock action.
+ *
+ * Refactored to use `runAction` boundary: requireSession -> zod -> requirePermission
+ * -> domain -> persist -> audit -> revalidate. The client's organizationId is never
+ * trusted; the session provides it.
  */
 
 "use server";
 
-import { revalidatePath } from "next/cache";
-
-import {
-  type ActionState,
-  actionError,
-  actionSuccess,
-  demoModeFailure,
-  toActionError,
-} from "@/lib/actions/types";
-import { getSession } from "@/lib/auth/session";
-import { canWrite } from "@/lib/data/db";
 import { prisma } from "@/lib/prisma";
+import {
+  periodApprovalSchema,
+  periodCloseRequestSchema,
+  periodUnlockSchema,
+} from "@/lib/validation";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-export interface PeriodLockInput {
-  readonly organizationId: string;
-  readonly reportingYear: number;
-  readonly reason?: string;
-}
-
-export interface PeriodApprovalInput {
-  readonly organizationId: string;
-  readonly reportingYear: number;
-  readonly approved: boolean;
-  readonly comment?: string;
-}
+import { auditEntry, runAction } from "./runtime";
+import { type ActionState, actionError } from "./types";
 
 // ---------------------------------------------------------------------------
 // Actions
 // ---------------------------------------------------------------------------
 
+const PATHS = ["/emission-engine", "/dashboard"] as const;
+
 /**
  * Request to close/lock a reporting period.
  */
 export async function requestCloseAction(
-  _prev: ActionState,
-  formData: FormData,
-): Promise<ActionState> {
-  try {
-    const writable = await canWrite();
-    if (!writable) return demoModeFailure();
+  rawInput: unknown,
+): Promise<ActionState<{ readonly reportingYear: number }>> {
+  return runAction(
+    {
+      name: "requestClose",
+      resource: "calculation",
+      action: "approve",
+      schema: periodCloseRequestSchema,
+      revalidate: [...PATHS],
+      handler: async ({ session, input, organizationId }) => {
+        await prisma.emissionInventory.update({
+          where: {
+            organizationId_reportingYear: { organizationId, reportingYear: input.reportingYear },
+          },
+          data: {
+            lockedAt: new Date(),
+            lockedBy: session.userId,
+            lockReason: input.reason,
+            status: "locked",
+          },
+        });
 
-    const session = await getSession();
-    if (!session) {
-      return actionError("UNAUTHORIZED", "Session expired", "action.error.UNAUTHORIZED");
-    }
-
-    const organizationId = formData.get("organizationId") as string;
-    const reportingYear = Number(formData.get("reportingYear"));
-    const reason = (formData.get("reason") as string) || "기간 마감 요청";
-
-    if (!organizationId || !reportingYear) {
-      return actionError("VALIDATION_ERROR", "Missing required fields", "action.error.VALIDATION_ERROR");
-    }
-
-    await prisma.emissionInventory.update({
-      where: {
-        organizationId_reportingYear: { organizationId, reportingYear },
+        return {
+          data: { reportingYear: input.reportingYear },
+          message: "Period close requested.",
+          messageKey: "action.success.requestClose",
+          audit: [
+            auditEntry(session, {
+              entityType: "EmissionInventory",
+              entityId: `${organizationId}:${input.reportingYear}`,
+              action: "update",
+              after: { status: "locked", reason: input.reason },
+            }),
+          ],
+        };
       },
-      data: {
-        lockedAt: new Date(),
-        lockedBy: session.userId,
-        lockReason: reason,
-        status: "locked",
-      },
-    });
-
-    revalidatePath("/emission-engine");
-    return actionSuccess({}, "Period close requested.", "action.success.requestClose");
-  } catch (error) {
-    return toActionError(error);
-  }
+    },
+    rawInput,
+  );
 }
 
 /**
  * Approve a period close request.
  */
 export async function approveCloseAction(
-  _prev: ActionState,
-  formData: FormData,
-): Promise<ActionState> {
-  try {
-    const writable = await canWrite();
-    if (!writable) return demoModeFailure();
+  rawInput: unknown,
+): Promise<ActionState<{ readonly reportingYear: number }>> {
+  return runAction(
+    {
+      name: "approveClose",
+      resource: "calculation",
+      action: "approve",
+      schema: periodApprovalSchema,
+      revalidate: [...PATHS],
+      handler: async ({ session, input, organizationId }) => {
+        await prisma.emissionInventory.update({
+          where: {
+            organizationId_reportingYear: { organizationId, reportingYear: input.reportingYear },
+          },
+          data: {
+            status: "approved",
+            verifiedAt: new Date(),
+          },
+        });
 
-    const session = await getSession();
-    if (!session) {
-      return actionError("UNAUTHORIZED", "Session expired", "action.error.UNAUTHORIZED");
-    }
-
-    const organizationId = formData.get("organizationId") as string;
-    const reportingYear = Number(formData.get("reportingYear"));
-
-    if (!organizationId || !reportingYear) {
-      return actionError("VALIDATION_ERROR", "Missing required fields", "action.error.VALIDATION_ERROR");
-    }
-
-    await prisma.emissionInventory.update({
-      where: {
-        organizationId_reportingYear: { organizationId, reportingYear },
+        return {
+          data: { reportingYear: input.reportingYear },
+          message: "Period close approved.",
+          messageKey: "action.success.approveClose",
+          audit: [
+            auditEntry(session, {
+              entityType: "EmissionInventory",
+              entityId: `${organizationId}:${input.reportingYear}`,
+              action: "update",
+              after: { status: "approved" },
+            }),
+          ],
+        };
       },
-      data: {
-        status: "approved",
-        verifiedAt: new Date(),
-      },
-    });
-
-    revalidatePath("/emission-engine");
-    return actionSuccess({}, "Period close approved.", "action.success.approveClose");
-  } catch (error) {
-    return toActionError(error);
-  }
+    },
+    rawInput,
+  );
 }
 
 /**
  * Reject a period close request.
  */
 export async function rejectCloseAction(
-  _prev: ActionState,
-  formData: FormData,
-): Promise<ActionState> {
-  try {
-    const writable = await canWrite();
-    if (!writable) return demoModeFailure();
+  rawInput: unknown,
+): Promise<ActionState<{ readonly reportingYear: number }>> {
+  return runAction(
+    {
+      name: "rejectClose",
+      resource: "calculation",
+      action: "approve",
+      schema: periodApprovalSchema,
+      revalidate: [...PATHS],
+      handler: async ({ session, input, organizationId }) => {
+        await prisma.emissionInventory.update({
+          where: {
+            organizationId_reportingYear: { organizationId, reportingYear: input.reportingYear },
+          },
+          data: {
+            lockedAt: null,
+            lockedBy: null,
+            lockReason: null,
+            status: "draft",
+          },
+        });
 
-    const session = await getSession();
-    if (!session) {
-      return actionError("UNAUTHORIZED", "Session expired", "action.error.UNAUTHORIZED");
-    }
-
-    const organizationId = formData.get("organizationId") as string;
-    const reportingYear = Number(formData.get("reportingYear"));
-
-    if (!organizationId || !reportingYear) {
-      return actionError("VALIDATION_ERROR", "Missing required fields", "action.error.VALIDATION_ERROR");
-    }
-
-    await prisma.emissionInventory.update({
-      where: {
-        organizationId_reportingYear: { organizationId, reportingYear },
+        return {
+          data: { reportingYear: input.reportingYear },
+          message: "Period close rejected.",
+          messageKey: "action.success.rejectClose",
+          audit: [
+            auditEntry(session, {
+              entityType: "EmissionInventory",
+              entityId: `${organizationId}:${input.reportingYear}`,
+              action: "update",
+              after: { status: "draft" },
+              reason: input.comment ?? null,
+            }),
+          ],
+        };
       },
-      data: {
-        lockedAt: null,
-        lockedBy: null,
-        lockReason: null,
-        status: "draft",
-      },
-    });
-
-    revalidatePath("/emission-engine");
-    return actionSuccess({}, "Period close rejected.", "action.success.rejectClose");
-  } catch (error) {
-    return toActionError(error);
-  }
+    },
+    rawInput,
+  );
 }
 
 /**
  * Unlock a locked period (admin only).
  */
 export async function unlockPeriodAction(
-  _prev: ActionState,
-  formData: FormData,
-): Promise<ActionState> {
-  try {
-    const writable = await canWrite();
-    if (!writable) return demoModeFailure();
+  rawInput: unknown,
+): Promise<ActionState<{ readonly reportingYear: number }>> {
+  return runAction(
+    {
+      name: "unlockPeriod",
+      resource: "calculation",
+      action: "approve",
+      schema: periodUnlockSchema,
+      revalidate: [...PATHS],
+      handler: async ({ session, input, organizationId }) => {
+        await prisma.emissionInventory.update({
+          where: {
+            organizationId_reportingYear: { organizationId, reportingYear: input.reportingYear },
+          },
+          data: {
+            lockedAt: null,
+            lockedBy: null,
+            lockReason: null,
+            status: "draft",
+          },
+        });
 
-    const session = await getSession();
-    if (!session) {
-      return actionError("UNAUTHORIZED", "Session expired", "action.error.UNAUTHORIZED");
-    }
-
-    const organizationId = formData.get("organizationId") as string;
-    const reportingYear = Number(formData.get("reportingYear"));
-
-    if (!organizationId || !reportingYear) {
-      return actionError("VALIDATION_ERROR", "Missing required fields", "action.error.VALIDATION_ERROR");
-    }
-
-    await prisma.emissionInventory.update({
-      where: {
-        organizationId_reportingYear: { organizationId, reportingYear },
+        return {
+          data: { reportingYear: input.reportingYear },
+          message: "Period unlocked.",
+          messageKey: "action.success.unlockPeriod",
+          audit: [
+            auditEntry(session, {
+              entityType: "EmissionInventory",
+              entityId: `${organizationId}:${input.reportingYear}`,
+              action: "update",
+              after: { status: "draft" },
+              reason: input.reason ?? null,
+            }),
+          ],
+        };
       },
-      data: {
-        lockedAt: null,
-        lockedBy: null,
-        lockReason: null,
-        status: "draft",
-      },
-    });
-
-    revalidatePath("/emission-engine");
-    return actionSuccess({}, "Period unlocked.", "action.success.unlockPeriod");
-  } catch (error) {
-    return toActionError(error);
-  }
+    },
+    rawInput,
+  );
 }
+
+// ---------------------------------------------------------------------------
+// Period-lock guard utilities (used by other action modules)
+// ---------------------------------------------------------------------------
 
 /**
  * Check if a period is locked. Used by mutation guards.
@@ -233,4 +236,41 @@ export function periodLockGuard(inventory: {
     );
   }
   return null;
+}
+
+/**
+ * Throws a `PeriodLockedError` if the given reporting year is locked.
+ *
+ * Designed for use inside `runAction` handlers: the thrown error is caught by
+ * the runtime and converted to `{status:'error', code:'CONFLICT'}`.
+ */
+export async function assertPeriodNotLocked(
+  organizationId: string,
+  reportingYear: number,
+): Promise<void> {
+  const inventory = await prisma.emissionInventory.findUnique({
+    where: { organizationId_reportingYear: { organizationId, reportingYear } },
+    select: { lockedAt: true, status: true },
+  });
+  // If no inventory exists yet, the period is open by definition.
+  if (!inventory) return;
+  if (isPeriodLocked(inventory)) {
+    throw new PeriodLockedError(reportingYear);
+  }
+}
+
+/**
+ * Sentinel error for a locked-period write attempt.
+ *
+ * Caught by the `runAction` catch block and converted into an `ActionError` with
+ * code `CONFLICT` and `messageKey` `action.error.PERIOD_LOCKED`.
+ */
+export class PeriodLockedError extends Error {
+  readonly code = "PERIOD_LOCKED" as const;
+  readonly reportingYear: number;
+  constructor(reportingYear: number) {
+    super(`Reporting year ${reportingYear} is locked. Unlock it before making changes.`);
+    this.name = "PeriodLockedError";
+    this.reportingYear = reportingYear;
+  }
 }

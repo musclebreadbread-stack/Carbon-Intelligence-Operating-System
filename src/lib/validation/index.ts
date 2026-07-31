@@ -21,3 +21,4 @@ export * from "./disclosure";
 export * from "./credits";
 export * from "./verification";
 export * from "./agent";
+export * from "./inventory-close";

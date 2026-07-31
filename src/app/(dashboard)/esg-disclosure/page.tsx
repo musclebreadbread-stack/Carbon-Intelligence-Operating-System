@@ -476,6 +476,29 @@ export default async function EsgDisclosurePage() {
                   {report.reportingYear} · due {formatDate(report.dueDate)}
                   {report.submittedAt ? ` · submitted ${formatDate(report.submittedAt)}` : ""}
                 </span>
+                <span className="ml-auto flex gap-1">
+                  <a
+                    href={`/api/reports/${report.id}/export?format=xlsx&locale=ko`}
+                    className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium hover:bg-muted"
+                    download
+                  >
+                    XLSX
+                  </a>
+                  <a
+                    href={`/api/reports/${report.id}/export?format=pdf&locale=ko`}
+                    className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium hover:bg-muted"
+                    download
+                  >
+                    PDF
+                  </a>
+                  <a
+                    href={`/api/reports/${report.id}/export?format=docx&locale=ko`}
+                    className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium hover:bg-muted"
+                    download
+                  >
+                    DOCX
+                  </a>
+                </span>
                 {report.notes && (
                   <p className="w-full text-xs text-muted-foreground">{report.notes}</p>
                 )}

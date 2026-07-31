@@ -143,6 +143,7 @@ export async function recordFindingAction(
             dueDate: input.dueDate ?? null,
             resolvedAt: input.resolvedAt ?? null,
             assignedToId: input.assignedToId ?? null,
+            evidenceIds: input.evidenceIds.length > 0 ? input.evidenceIds : undefined,
           },
           select: { id: true },
         });
