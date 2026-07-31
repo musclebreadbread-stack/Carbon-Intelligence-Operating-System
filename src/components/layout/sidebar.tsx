@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useT } from "@/components/providers/locale-provider";
+import type { DictionaryKey } from "@/lib/i18n/dictionaries/ko";
 import {
   Building2,
   Database,
@@ -34,54 +36,54 @@ import {
 } from "lucide-react";
 
 interface NavItem {
-  title: string;
+  titleKey: DictionaryKey;
   href: string;
   icon: React.ElementType;
 }
 
 interface NavSection {
-  title: string;
+  titleKey: DictionaryKey;
   items: NavItem[];
 }
 
 const navigationSections: NavSection[] = [
   {
-    title: "Core Operations",
+    titleKey: "nav.sectionOperations",
     items: [
-      { title: "Organization", href: "/organization", icon: Building2 },
-      { title: "Master Data", href: "/master-data", icon: Database },
-      { title: "Activity Data", href: "/activity-data", icon: Activity },
-      { title: "Emission Engine", href: "/emission-engine", icon: Flame },
-      { title: "Emission Factors", href: "/emission-factors", icon: BookOpen },
+      { titleKey: "nav.organization", href: "/organization", icon: Building2 },
+      { titleKey: "nav.masterData", href: "/master-data", icon: Database },
+      { titleKey: "nav.activityData", href: "/activity-data", icon: Activity },
+      { titleKey: "nav.emissionEngine", href: "/emission-engine", icon: Flame },
+      { titleKey: "nav.emissionFactors", href: "/emission-factors", icon: BookOpen },
     ],
   },
   {
-    title: "AI & Intelligence",
+    titleKey: "nav.sectionIntelligence",
     items: [
-      { title: "AI Engine", href: "/ai-engine", icon: Brain },
-      { title: "AI Roadmap", href: "/ai-roadmap", icon: Map },
-      { title: "AI Simulator", href: "/ai-simulator", icon: FlaskConical },
-      { title: "AI Agents", href: "/ai-agents", icon: Bot },
+      { titleKey: "nav.aiEngine", href: "/ai-engine", icon: Brain },
+      { titleKey: "nav.aiRoadmap", href: "/ai-roadmap", icon: Map },
+      { titleKey: "nav.aiSimulator", href: "/ai-simulator", icon: FlaskConical },
+      { titleKey: "nav.aiAgents", href: "/ai-agents", icon: Bot },
     ],
   },
   {
-    title: "Reporting & Compliance",
+    titleKey: "nav.sectionCompliance",
     items: [
-      { title: "Digital MRV", href: "/digital-mrv", icon: Shield },
-      { title: "Verification", href: "/verification", icon: FileCheck },
-      { title: "ESG Disclosure", href: "/esg-disclosure", icon: FileText },
-      { title: "Carbon Finance", href: "/carbon-finance", icon: Coins },
+      { titleKey: "nav.digitalMrv", href: "/digital-mrv", icon: Shield },
+      { titleKey: "nav.verification", href: "/verification", icon: FileCheck },
+      { titleKey: "nav.esgDisclosure", href: "/esg-disclosure", icon: FileText },
+      { titleKey: "nav.carbonFinance", href: "/carbon-finance", icon: Coins },
     ],
   },
   {
-    title: "System",
+    titleKey: "nav.sectionSystem",
     items: [
-      { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-      { title: "Notifications", href: "/notifications", icon: Bell },
-      { title: "Analytics", href: "/analytics", icon: BarChart3 },
-      { title: "API Gateway", href: "/api-gateway", icon: Globe },
-      { title: "Security", href: "/security", icon: Lock },
-      { title: "Settings", href: "/settings", icon: Settings },
+      { titleKey: "nav.dashboard", href: "/dashboard", icon: LayoutDashboard },
+      { titleKey: "nav.notifications", href: "/notifications", icon: Bell },
+      { titleKey: "nav.analytics", href: "/analytics", icon: BarChart3 },
+      { titleKey: "nav.apiGateway", href: "/api-gateway", icon: Globe },
+      { titleKey: "nav.security", href: "/security", icon: Lock },
+      { titleKey: "nav.settings", href: "/settings", icon: Settings },
     ],
   },
 ];
@@ -93,6 +95,7 @@ function getInitialCollapsed() {
 
 export function Sidebar() {
   const pathname = usePathname();
+  const t = useT();
   const [collapsed, setCollapsed] = React.useState(getInitialCollapsed);
 
   const toggleCollapsed = () => {
@@ -128,17 +131,18 @@ export function Sidebar() {
         <ScrollArea className="flex-1 py-2">
           <nav className="flex flex-col gap-1 px-2">
             {navigationSections.map((section, sectionIndex) => (
-              <div key={section.title}>
+              <div key={section.titleKey}>
                 {sectionIndex > 0 && <Separator className="my-2" />}
                 {!collapsed && (
                   <p className="mb-1 px-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    {section.title}
+                    {t(section.titleKey)}
                   </p>
                 )}
                 <div className="flex flex-col gap-0.5">
                   {section.items.map((item) => {
                     const isActive = pathname === item.href;
                     const Icon = item.icon;
+                    const title = t(item.titleKey);
 
                     if (collapsed) {
                       return (
@@ -157,7 +161,7 @@ export function Sidebar() {
                             <Icon className="size-4" />
                           </TooltipTrigger>
                           <TooltipContent side="right">
-                            {item.title}
+                            {title}
                           </TooltipContent>
                         </Tooltip>
                       );
@@ -173,7 +177,7 @@ export function Sidebar() {
                         )}
                       >
                         <Icon className="size-4 shrink-0" />
-                        <span>{item.title}</span>
+                        <span>{title}</span>
                       </Link>
                     );
                   })}

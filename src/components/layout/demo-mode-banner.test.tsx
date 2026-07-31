@@ -3,64 +3,70 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { LocaleProvider } from "@/components/providers/locale-provider";
 import { DemoModeBanner } from "./demo-mode-banner";
 import { boundaryCopy, classifyBoundaryError } from "@/lib/error-boundary";
 
+function renderBanner(
+  props: Partial<React.ComponentProps<typeof DemoModeBanner>> = {},
+  locale: "ko" | "en" = "ko",
+) {
+  const defaults = {
+    demoMode: true,
+    databaseConfigured: false,
+    supabaseConfigured: false,
+    llmConfigured: false,
+  };
+  return render(
+    <LocaleProvider locale={locale}>
+      <DemoModeBanner {...defaults} {...props} />
+    </LocaleProvider>,
+  );
+}
+
 describe("DemoModeBanner", () => {
-  it("renders in demo mode and names every unconfigured dependency", () => {
-    render(
-      <DemoModeBanner
-        demoMode
-        databaseConfigured={false}
-        supabaseConfigured={false}
-        llmConfigured={false}
-        reason="DATABASE_URL is not set"
-      />,
-    );
+  it("renders in demo mode and names every unconfigured dependency (Korean default)", () => {
+    renderBanner({ reason: "DATABASE_URL is not set" });
 
     expect(screen.getByTestId("demo-mode-banner")).toBeTruthy();
-    expect(screen.getByText(/every figure below is computed/i)).toBeTruthy();
+    // Korean text from dictionary - appears in both title and badge
+    expect(screen.getAllByText(/\uB370\uBAA8 \uBAA8\uB4DC/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("DATABASE_URL")).toBeTruthy();
     expect(screen.getByText("NEXT_PUBLIC_SUPABASE_URL")).toBeTruthy();
     expect(screen.getByText("OPENAI_API_KEY")).toBeTruthy();
     expect(screen.getByText(/DATABASE_URL is not set/)).toBeTruthy();
   });
 
+  it("renders English when locale is en", () => {
+    renderBanner({ reason: "DATABASE_URL is not set" }, "en");
+
+    expect(screen.getByTestId("demo-mode-banner")).toBeTruthy();
+    expect(screen.getAllByText(/Demo mode/).length).toBeGreaterThanOrEqual(1);
+  });
+
   it("renders nothing when a database is reachable", () => {
-    const { container } = render(
-      <DemoModeBanner
-        demoMode={false}
-        databaseConfigured
-        supabaseConfigured
-        llmConfigured
-      />,
-    );
+    const { container } = renderBanner({
+      demoMode: false,
+      databaseConfigured: true,
+      supabaseConfigured: true,
+      llmConfigured: true,
+    });
     expect(container.innerHTML).toBe("");
   });
 
   it("omits the dependencies that are configured", () => {
-    render(
-      <DemoModeBanner
-        demoMode
-        databaseConfigured={false}
-        supabaseConfigured
-        llmConfigured
-      />,
-    );
+    renderBanner({
+      databaseConfigured: false,
+      supabaseConfigured: true,
+      llmConfigured: true,
+    });
     expect(screen.getByText("DATABASE_URL")).toBeTruthy();
     expect(screen.queryByText("OPENAI_API_KEY")).toBeNull();
   });
 
   it("links the Korean setup guide", () => {
-    render(
-      <DemoModeBanner
-        demoMode
-        databaseConfigured={false}
-        supabaseConfigured={false}
-        llmConfigured={false}
-      />,
-    );
-    expect(screen.getByText("docs/CIOS-직접-설정-가이드.docx")).toBeTruthy();
+    renderBanner();
+    expect(screen.getByText("docs/CIOS-\uC9C1\uC811-\uC124\uC815-\uAC00\uC774\uB4DC.docx")).toBeTruthy();
   });
 });
 

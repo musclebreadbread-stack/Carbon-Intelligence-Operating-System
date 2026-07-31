@@ -17,7 +17,7 @@ import {
   SessionProvider,
   type ClientSession,
 } from "@/components/providers/session-provider";
-import { signOutAction } from "@/lib/actions/auth";
+import { signOutAction, setLocaleAction } from "@/lib/actions/auth";
 import { resolveActiveOrganization } from "@/lib/auth/active-organization";
 import { getSession, isSupabaseConfigured } from "@/lib/auth/session";
 import { describeLlmMode, isLlmConfigured } from "@/lib/ai/llm/factory";
@@ -98,6 +98,7 @@ export default async function DashboardLayout({
         <div className="flex flex-1 flex-col overflow-hidden">
           <Header
             signOut={signOutAction}
+            setLocale={setLocaleAction}
             llmLabel={llm.label}
             llmConfigured={isLlmConfigured()}
             openFindings={openFindings}
