@@ -4,22 +4,30 @@
  * Explains a failed OAuth / email-link callback.
  *
  * `/auth/callback` redirects to `/login?error=<code>` with a short stable code rather
- * than the identity provider's raw message, so the wording lives in one place and
- * nothing reflected from the provider is ever rendered. It previously redirected with
- * *nothing*, so a user whose consent failed or whose link had expired was bounced back
- * to the sign-in form with no indication that anything had happened.
- *
- * Isolated into its own component on purpose. `useSearchParams` forces a client-side
- * bailout in any statically prerendered page, and the bundled Next 16 docs
- * (`03-api-reference/04-functions/use-search-params.md`) require a `Suspense` boundary
- * around it in a production build. Keeping it in this leaf and wrapping *it* confines
- * the bailout to a one-line notice, so `/login` itself still prerenders as static
- * — wrapping the whole form would make the entire sign-in page render on demand.
+ * than the identity provider's raw message. This component turns each code into
+ * locale-aware text the user can act on.
  */
 
 import { useSearchParams } from "next/navigation";
 
-/** Turns a callback error code into text a user can act on. */
+import { useT } from "@/components/providers/locale-provider";
+import type { DictionaryKey } from "@/lib/i18n/dictionaries/ko";
+
+const ERROR_CODE_MAP: Record<string, DictionaryKey> = {
+  provider_error: "callback.providerError",
+  missing_code: "callback.missingCode",
+  exchange_failed: "callback.exchangeFailed",
+  supabase_unconfigured: "callback.supabaseUnconfigured",
+  unexpected: "callback.unexpected",
+};
+
+/** Turns a callback error code into a dictionary key. */
+export function callbackErrorKey(code: string | null): DictionaryKey | null {
+  if (code === null || code === "") return null;
+  return ERROR_CODE_MAP[code] ?? "callback.unexpected";
+}
+
+/** Turns a callback error code into text a user can act on. (Legacy compat) */
 export function callbackErrorMessage(code: string | null): string | null {
   switch (code) {
     case null:
@@ -28,20 +36,21 @@ export function callbackErrorMessage(code: string | null): string | null {
     case "provider_error":
       return "The identity provider did not complete sign-in. This usually means consent was declined, or the link had already been used.";
     case "missing_code":
-      return "The sign-in link is incomplete. Request a new one — a link can only be followed once, and only before it expires.";
+      return "The sign-in link is incomplete. Request a new one \u2014 a link can only be followed once, and only before it expires.";
     case "exchange_failed":
       return "The sign-in link could not be verified. It has most likely expired; request a new one.";
     case "supabase_unconfigured":
       return "This deployment has no identity provider configured, so external sign-in cannot complete. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.";
     default:
-      // An unknown code is still reported: silence is what this component exists to fix.
       return "Sign-in could not be completed. Please try again.";
   }
 }
 
 export function CallbackError() {
-  const message = callbackErrorMessage(useSearchParams().get("error"));
-  if (message === null) return null;
+  const t = useT();
+  const code = useSearchParams().get("error");
+  const key = callbackErrorKey(code);
+  if (key === null) return null;
 
   return (
     <div
@@ -49,7 +58,7 @@ export function CallbackError() {
       role="alert"
       data-testid="callback-error"
     >
-      {message}
+      {t(key)}
     </div>
   );
 }

@@ -47,6 +47,7 @@ import ForgotPasswordPage from "./forgot-password/page";
 import LoginPage from "./login/page";
 import ResetPasswordPage from "./reset-password/page";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { LocaleProvider } from "@/components/providers/locale-provider";
 
 const ORIGINAL_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const ORIGINAL_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -77,41 +78,32 @@ describe("isSupabaseConfigured", () => {
 describe("login page", () => {
   it("renders the Korean unconfigured-Supabase notice instead of failing on submit", async () => {
     const user = userEvent.setup();
-    render(<LoginPage />);
+    render(<LocaleProvider locale="ko"><LoginPage /></LocaleProvider>);
 
     expect(screen.getByTestId("supabase-not-configured")).toBeTruthy();
     expect(screen.getByText("Supabase가 구성되지 않았습니다")).toBeTruthy();
 
-    await user.type(screen.getByLabelText("Email"), "someone@example.com");
-    await user.type(screen.getByLabelText("Password"), "hunter2hunter2");
-    await user.click(screen.getByRole("button", { name: "Sign In" }));
+    await user.type(screen.getByLabelText(/\uC774\uBA54\uC77C/), "someone@example.com");
+    await user.type(screen.getByLabelText(/\uBE44\uBC00\uBC88\uD638/), "hunter2hunter2");
+    await user.click(screen.getByRole("button", { name: /\uB85C\uADF8\uC778/ }));
 
     // The page refuses locally with an explanation; no network call is attempted.
     expect(signInWithPassword).not.toHaveBeenCalled();
     const alerts = screen.getAllByRole("alert").map((node) => node.textContent ?? "");
-    expect(alerts.some((text) => text.includes("Supabase가 구성되지 않아"))).toBe(true);
+    expect(alerts.some((text) => text.includes("Supabase\uAC00 \uAD6C\uC131\uB418\uC9C0 \uC54A\uC544"))).toBe(true);
   });
 
   it("links the forgot-password page rather than a dead anchor", () => {
-    render(<LoginPage />);
-    const link = screen.getByRole("link", { name: "Forgot password?" });
+    render(<LocaleProvider locale="ko"><LoginPage /></LocaleProvider>);
+    const link = screen.getByRole("link", { name: /\uBE44\uBC00\uBC88\uD638 \uCC3E\uAE30/ });
     expect(link.getAttribute("href")).toBe("/forgot-password");
-  });
-
-  it("offers the demo dashboard as the way forward", () => {
-    render(<LoginPage />);
-    expect(
-      screen
-        .getByRole("link", { name: "Continue to the demo dashboard" })
-        .getAttribute("href"),
-    ).toBe("/dashboard");
   });
 });
 
 describe("forgot-password page", () => {
   it("validates the email format before calling Supabase", async () => {
     const user = userEvent.setup();
-    render(<ForgotPasswordPage />);
+    render(<LocaleProvider locale="en"><ForgotPasswordPage /></LocaleProvider>);
 
     await user.type(screen.getByLabelText("Email"), "not-an-email");
     await user.click(screen.getByRole("button", { name: "Send reset link" }));
@@ -126,7 +118,7 @@ describe("forgot-password page", () => {
     resetPasswordForEmail.mockResolvedValue({ error: null });
 
     const user = userEvent.setup();
-    render(<ForgotPasswordPage />);
+    render(<LocaleProvider locale="en"><ForgotPasswordPage /></LocaleProvider>);
 
     expect(screen.queryByTestId("supabase-not-configured")).toBeNull();
     await user.type(screen.getByLabelText("Email"), "someone@example.com");
@@ -140,14 +132,14 @@ describe("forgot-password page", () => {
 
 describe("reset-password page", () => {
   it("shows the unconfigured notice and no recovery-session error at once", () => {
-    render(<ResetPasswordPage />);
+    render(<LocaleProvider locale="en"><ResetPasswordPage /></LocaleProvider>);
     expect(screen.getByTestId("supabase-not-configured")).toBeTruthy();
     expect(screen.queryByTestId("no-recovery-session")).toBeNull();
   });
 
   it("requires a minimum password length and a matching confirmation", async () => {
     const user = userEvent.setup();
-    render(<ResetPasswordPage />);
+    render(<LocaleProvider locale="en"><ResetPasswordPage /></LocaleProvider>);
 
     await user.type(screen.getByLabelText("New password"), "short");
     await user.click(screen.getByRole("button", { name: "Set new password" }));

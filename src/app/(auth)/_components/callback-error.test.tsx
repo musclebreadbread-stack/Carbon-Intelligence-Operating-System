@@ -2,15 +2,12 @@
 
 /**
  * OAuth / email-link callback error notice.
- *
- * `/auth/callback` used to redirect every failure to `/login` with nothing attached, so
- * the user learned nothing. These tests pin that each stable code produces text the user
- * can act on, that an unknown code still says *something* rather than falling back to
- * silence, and that no code renders nothing at all.
  */
 
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+
+import { LocaleProvider } from "@/components/providers/locale-provider";
 
 const searchParams = { get: vi.fn<(key: string) => string | null>() };
 
@@ -20,7 +17,7 @@ vi.mock("next/navigation", () => ({
 
 import { CallbackError, callbackErrorMessage } from "./callback-error";
 
-describe("callbackErrorMessage", () => {
+describe("callbackErrorMessage (legacy compat)", () => {
   it("returns null when there is no error to report", () => {
     expect(callbackErrorMessage(null)).toBeNull();
     expect(callbackErrorMessage("")).toBeNull();
@@ -46,8 +43,6 @@ describe("callbackErrorMessage", () => {
   });
 
   it("says something for an unrecognised code rather than nothing", () => {
-    // Silence is the bug this component exists to fix, so an unknown code must not
-    // reintroduce it.
     expect(callbackErrorMessage("something_new")).not.toBeNull();
   });
 
@@ -62,29 +57,55 @@ describe("callbackErrorMessage", () => {
   });
 });
 
-describe("CallbackError", () => {
+describe("CallbackError (locale-aware)", () => {
   it("renders nothing when the URL carries no error", () => {
     searchParams.get.mockReturnValue(null);
 
-    render(<CallbackError />);
+    render(
+      <LocaleProvider locale="ko">
+        <CallbackError />
+      </LocaleProvider>,
+    );
 
     expect(screen.queryByTestId("callback-error")).toBeNull();
   });
 
-  it("renders the explanation as an alert when it does", () => {
+  it("renders Korean explanation by default", () => {
     searchParams.get.mockReturnValue("exchange_failed");
 
-    render(<CallbackError />);
+    render(
+      <LocaleProvider locale="ko">
+        <CallbackError />
+      </LocaleProvider>,
+    );
 
     const alert = screen.getByTestId("callback-error");
     expect(alert.getAttribute("role")).toBe("alert");
+    // Korean text for exchange_failed
+    expect(alert.textContent).toContain("\uB9CC\uB8CC");
+  });
+
+  it("renders English explanation when locale is en", () => {
+    searchParams.get.mockReturnValue("exchange_failed");
+
+    render(
+      <LocaleProvider locale="en">
+        <CallbackError />
+      </LocaleProvider>,
+    );
+
+    const alert = screen.getByTestId("callback-error");
     expect(alert.textContent).toContain("expired");
   });
 
   it("does not render the raw code", () => {
     searchParams.get.mockReturnValue("exchange_failed");
 
-    render(<CallbackError />);
+    render(
+      <LocaleProvider locale="ko">
+        <CallbackError />
+      </LocaleProvider>,
+    );
 
     expect(screen.getByTestId("callback-error").textContent).not.toContain("exchange_failed");
   });
