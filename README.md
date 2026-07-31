@@ -18,19 +18,38 @@ Supabase Auth · Tailwind 4 · Vitest.
 
 ## Quick start
 
+Node **22.22.2+** — `package.json` declares `engines.node` as `^22.22.2 || ^24.15.0 || >=26.0.0`,
+mirroring jsdom 30, the strictest dependency. Next 16 itself only needs 20.9, but
+`@supabase/supabase-js` requires 22 and the jsdom component tests cannot start on Node 20 at all.
+Nothing else is required — no environment file, no database, no accounts:
+
 ```bash
-npm ci                  # postinstall runs `prisma generate`
-cp .env.example .env.local
-npm run dev             # http://localhost:3000
+npm ci        # postinstall runs `prisma generate`, which needs no DATABASE_URL
+npm run dev   # http://localhost:3000
 ```
 
-With no environment variables set the application still runs — see [demo mode](#demo-mode).
-To leave demo mode, provision a database and run:
+That is the entire clean-clone path: with no `.env` present, `npm ci` succeeds — `prisma generate`
+reads only the schema, never `DATABASE_URL` — and the app comes up in [demo mode](#demo-mode).
+`.env.example` is a template, not a prerequisite: it ships with empty values on purpose, and empty is
+read as "unconfigured", so copying it changes nothing until you edit it. Copy it to **`.env`** rather
+than `.env.local` when you do — Next.js loads both, but the Prisma CLI loads only `.env`, so
+`DATABASE_URL` and `DIRECT_URL` placed in `.env.local` are invisible to `prisma migrate deploy`. Both
+files are gitignored.
+
+> **Windows PowerShell 5.1** has no `&&` operator — `npm ci && npm run dev` fails with
+> `'&&' 토큰은 이 버전에서 올바른 문 구분 기호가 아닙니다`. Run the commands on separate lines, or
+> separate them with `;` (`npm ci; npm run dev`). PowerShell 7+ (`pwsh`) and `cmd.exe` accept `&&`.
+
+To leave demo mode, provision a database, put `DATABASE_URL` and `DIRECT_URL` in `.env`, then:
 
 ```bash
 npx prisma migrate deploy   # applies prisma/migrations/0_init (148 models)
 npm run db:seed             # idempotent reference data + demo tenant
 ```
+
+Unlike `prisma generate`, the Prisma CLI commands that resolve the datasource — `migrate`, `db push`,
+`validate` — read `env("DATABASE_URL")` and `env("DIRECT_URL")` and fail with `P1012` when either is
+unset. Set both in `.env` before running them.
 
 ## Commands
 
@@ -41,15 +60,20 @@ npm run db:seed             # idempotent reference data + demo tenant
 | `npm start` | Serves a production build. |
 | `npm run lint` | ESLint (flat config, `eslint-config-next`). |
 | `npm run typecheck` | `tsc --noEmit`. |
-| `npm test` | `vitest run` — the full suite (1,388 tests across 70 files). |
+| `npm test` | `vitest run` — the full suite (1,444 tests across 73 files). |
 | `npm run test:watch` | Vitest in watch mode. |
 | `npm test -- --coverage` | Coverage summary via `@vitest/coverage-v8`. |
 | `npm run db:seed` | `tsx prisma/seed.ts`. Idempotent; safe to re-run. |
 | `npm run docs:setup-guide` | Regenerates `docs/CIOS-직접-설정-가이드.docx`. |
 
-CI (`.github/workflows/ci.yml`) runs, in order: `npm ci`, `prisma generate`, `lint`, `typecheck`,
-`test -- --coverage`, `build`, `prisma validate`, a migration-drift check against
-`prisma/migrations/0_init/migration.sql`, and the setup-guide generator.
+CI (`.github/workflows/ci.yml`) has two jobs. **verify** runs, in order: `npm ci`,
+`prisma generate`, `lint`, `typecheck`, `test -- --coverage`, `build`, `prisma validate`, a
+migration-drift check against `prisma/migrations/0_init/migration.sql`, and the setup-guide
+generator — with placeholder environment variables, so every gate goes through the demo-mode path.
+**zero-config** deliberately sets *no* environment variables at all on the minimum supported Node
+version: it installs, builds, boots the app and asserts `/api/v1/health` reports an unconfigured
+database. That job is what keeps the quick start above honest; the placeholders in `verify` would
+otherwise hide an install- or boot-time dependency on `DATABASE_URL`.
 
 ## Architecture
 
@@ -120,14 +144,15 @@ persistence is stubbed. Mutations refuse with `DEMO_MODE` rather than pretending
 loads the identical dataset, so connecting a database does not change the figures, only makes them
 writable.
 
-To leave demo mode: set `DATABASE_URL` (and `DIRECT_URL`), run `npx prisma migrate deploy`, then
-`npm run db:seed`. `/settings` shows the live configuration state of every dependency.
+To leave demo mode: set `DATABASE_URL` (and `DIRECT_URL`) in `.env`, run `npx prisma migrate deploy`,
+then `npm run db:seed`. `/settings` shows the live configuration state of every dependency.
 
 ## Environment variables
 
 `.env.example` is the authoritative list — each entry carries a comment stating exactly what
 degrades without it, and `src/lib/env.test.ts` fails the build if a variable is read but
-undocumented, or documented but unread.
+undocumented, or documented but unread. `src/lib/zero-config.test.ts` guards the other half of the
+contract: that none of it is needed to install, build or boot.
 
 | Variable | Required | Without it |
 | --- | --- | --- |
@@ -168,8 +193,8 @@ standalone output as a non-root user on port 3000:
 
 ```bash
 docker build -t cios:latest .
-docker run --rm --env-file .env.local cios:latest npx prisma migrate deploy
-docker run -d -p 3000:3000 --env-file .env.local cios:latest
+docker run --rm --env-file .env cios:latest npx prisma migrate deploy
+docker run -d -p 3000:3000 --env-file .env cios:latest
 ```
 
 Vercel works with the defaults; register the environment variables in the project settings and run

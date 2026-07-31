@@ -181,22 +181,30 @@ export function buildSections(): readonly GuideSection[] {
         {
           kind: "steps",
           items: [
-            "Node.js 22 이상과 npm 10 이상이 설치되어 있는지 확인합니다. 버전이 낮으면 https://nodejs.org 에서 LTS 22.x를 설치하십시오.",
-            "저장소를 클론하고 의존성을 설치합니다. `npm ci`는 postinstall 단계에서 `prisma generate`를 자동으로 실행합니다.",
-            "환경변수 파일을 만듭니다. `.env.example`을 `.env.local`로 복사하면 되고, 이 단계에서는 값을 비워 두어도 됩니다.",
+            "Node.js 20.19 이상(또는 22.12 이상)이 설치되어 있는지 확인합니다. Next 16 자체의 최소 버전은 20.9이지만 테스트 실행에 쓰이는 Vite가 20.19 이상을 요구하므로 package.json의 engines 필드는 `^20.19.0 || >=22.12.0`으로 선언되어 있습니다. 버전이 낮으면 https://nodejs.org 에서 LTS 22.x를 설치하십시오.",
+            "저장소를 클론하고 의존성을 설치합니다. `npm ci`는 postinstall 단계에서 `prisma generate`를 자동으로 실행하며, 이 명령은 스키마만 읽고 DATABASE_URL을 해석하지 않으므로 환경변수 파일이 전혀 없어도 성공합니다.",
+            "환경변수 파일은 이 단계에서 만들지 않아도 됩니다. 3절 이후 실제 값을 넣을 준비가 되면 `.env.example`을 `.env`로 복사하십시오. `.env.local`이 아니라 `.env`인 이유는 Next.js는 두 파일을 모두 읽지만 Prisma CLI는 `.env`만 읽기 때문입니다. DATABASE_URL을 `.env.local`에만 넣으면 `npx prisma migrate deploy`가 P1012 오류로 실패합니다.",
             "개발 서버를 실행하고 http://localhost:3000 을 엽니다. 로그인 없이 /dashboard 이하 화면을 볼 수 있습니다(데모 관리자 세션).",
             "화면 상단의 데모 모드 배너와 /settings 화면의 'Environment configuration' 패널에서 현재 어떤 의존성이 구성되었는지 확인합니다.",
             "코드 검증 명령을 순서대로 실행해 개발 환경이 정상인지 확인합니다.",
           ],
         },
         {
+          kind: "text",
+          text: "Windows에서 주의할 점: PowerShell 5.1(Windows 기본 버전)에는 `&&` 연산자가 없습니다. `npm ci && npm run dev`를 실행하면 \"'&&' 토큰은 이 버전에서 올바른 문 구분 기호가 아닙니다\" 오류가 발생하므로, 명령을 한 줄에 하나씩 실행하거나 `;`로 구분해 `npm ci; npm run dev`와 같이 입력하십시오. PowerShell 7 이상(pwsh)과 cmd.exe는 `&&`를 지원합니다.",
+        },
+        {
           kind: "code",
           lines: [
-            "node -v && npm -v",
-            "git clone <저장소 URL> && cd Carbon-Intelligence-Operating-System",
+            "node -v",
+            "npm -v",
+            "git clone <저장소 URL>",
+            "cd Carbon-Intelligence-Operating-System",
             "npm ci",
-            "cp .env.example .env.local",
             "npm run dev",
+            "",
+            "# PowerShell 5.1에서 두 명령을 한 줄에 붙이려면 && 대신 ; 를 씁니다",
+            "npm ci; npm run dev",
             "",
             "# 검증 명령",
             "npm run lint",
@@ -211,7 +219,8 @@ export function buildSections(): readonly GuideSection[] {
         },
       ],
       verification: [
-        "`npm test`가 실패 없이 종료됩니다(1,388개 테스트, 70개 파일).",
+        "`.env` 파일이 하나도 없는 상태에서 `npm ci`와 `npm run dev`가 모두 성공하고, http://localhost:3000/api/v1/health 응답의 database.configured 값이 false로 표시됩니다(= 데모 모드).",
+        "`npm test`가 실패 없이 종료됩니다(1,444개 테스트, 73개 파일).",
         "`npm run build`가 성공하고 32개 라우트가 출력됩니다.",
         "http://localhost:3000/settings 의 'Dependencies configured' 카드가 현재 구성 수를 표시합니다.",
       ],
@@ -229,7 +238,7 @@ export function buildSections(): readonly GuideSection[] {
           kind: "steps",
           items: [
             "https://supabase.com/dashboard 에 접속해 조직을 만들고 'New project'를 선택합니다. 리전은 국내 사용자 기준 ap-northeast-2(서울)를 권장합니다. 생성 시 표시되는 데이터베이스 비밀번호는 다시 볼 수 없으므로 즉시 안전한 곳에 보관하십시오.",
-            "Project Settings → API 화면에서 'Project URL'과 'anon public' 키를 복사해 `.env.local`의 NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY에 넣습니다. service_role 키는 이 코드베이스에서 사용하지 않으므로 등록하지 마십시오.",
+            "Project Settings → API 화면에서 'Project URL'과 'anon public' 키를 복사해 `.env`의 NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY에 넣습니다. service_role 키는 이 코드베이스에서 사용하지 않으므로 등록하지 마십시오.",
             "Authentication → Providers → Email을 활성화합니다. 'Confirm email'을 켜면 회원가입 후 확인 메일이 필요하며, 애플리케이션의 회원가입 화면은 이 상태를 안내하고 재발송 경로를 제공합니다.",
             "Authentication → URL Configuration에서 Site URL을 운영 도메인(예: https://cios.example.com)으로 지정하고, Redirect URLs에 `http://localhost:3000/auth/callback` 과 `https://<운영도메인>/auth/callback` 을 모두 추가합니다. 이 애플리케이션의 콜백 라우트 경로는 `/auth/callback` 입니다.",
             "Google OAuth: https://console.cloud.google.com 에서 프로젝트 생성 → 'OAuth 동의 화면' 구성 → '사용자 인증 정보 → OAuth 클라이언트 ID(웹 애플리케이션)' 생성 → '승인된 리디렉션 URI'에 `https://<project-ref>.supabase.co/auth/v1/callback` 을 추가합니다. 발급된 클라이언트 ID/보안 비밀을 Supabase의 Authentication → Providers → Google에 입력하고 활성화합니다.",
@@ -266,7 +275,7 @@ export function buildSections(): readonly GuideSection[] {
           kind: "steps",
           items: [
             "Supabase를 쓰는 경우: 프로젝트의 'Connect' 화면에서 두 개의 연결 문자열을 복사합니다. 포트 6543(pooled, pgbouncer)은 DATABASE_URL, 포트 5432(direct)는 DIRECT_URL에 넣습니다. 자체 PostgreSQL을 쓰는 경우 15 버전 이상을 준비하고 두 값에 같은 직결 문자열을 넣어도 됩니다.",
-            "`.env.local`에 두 값을 등록합니다. 비밀번호에 특수문자가 있으면 URL 인코딩해야 합니다.",
+            "`.env`에 두 값을 등록합니다. 비밀번호에 특수문자가 있으면 URL 인코딩해야 합니다.",
             "pgvector 확장을 활성화합니다. Supabase는 Database → Extensions에서 `vector`를 검색해 Enable하고, 자체 PostgreSQL은 SQL로 `create extension if not exists vector;` 를 실행합니다. 현재 스키마에는 벡터 컬럼이 없고 시맨틱 검색은 미구현 항목이므로(12절 표 참고), 이 단계는 향후 확장을 위한 준비입니다.",
             "베이스라인 마이그레이션을 적용합니다. `prisma/migrations/0_init/migration.sql` 하나로 148개 모델의 테이블·인덱스·열거형이 생성됩니다. 이미 동일한 테이블이 존재하는 데이터베이스라면 `npx prisma migrate resolve --applied 0_init` 로 적용 표시만 남기십시오.",
             "참조 데이터와 데모 테넌트를 시드합니다. `npm run db:seed`는 멱등하게 작성되어 여러 번 실행해도 안전합니다. 시드 전에 SEED_ADMIN_PASSWORD를 지정하지 않으면 문서화된 기본 비밀번호가 사용되고 경고가 출력되므로, 반드시 지정하거나 시드 직후 변경하십시오.",
@@ -278,7 +287,7 @@ export function buildSections(): readonly GuideSection[] {
         {
           kind: "code",
           lines: [
-            '# .env.local 예시 (Supabase)',
+            '# .env 예시 (Supabase)',
             'DATABASE_URL="postgresql://postgres.<project-ref>:<비밀번호>@aws-0-ap-northeast-2.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1"',
             'DIRECT_URL="postgresql://postgres.<project-ref>:<비밀번호>@aws-0-ap-northeast-2.pooler.supabase.com:5432/postgres"',
             "",
@@ -311,7 +320,7 @@ export function buildSections(): readonly GuideSection[] {
         {
           kind: "steps",
           items: [
-            "https://platform.openai.com/api-keys 에서 'Create new secret key'로 키를 발급하고 `.env.local`의 OPENAI_API_KEY에 등록합니다. 키는 발급 시점에만 확인할 수 있습니다.",
+            "https://platform.openai.com/api-keys 에서 'Create new secret key'로 키를 발급하고 `.env`의 OPENAI_API_KEY에 등록합니다. 키는 발급 시점에만 확인할 수 있습니다.",
             "모델을 선택합니다. 기본값은 gpt-4o-mini이며, 더 긴 서술 품질이 필요하면 OPENAI_MODEL에 gpt-4o 또는 추론 모델명을 지정합니다. 모델을 바꿔도 산정 결과는 달라지지 않습니다(수치는 통계 엔진이 계산).",
             "https://platform.openai.com/settings/organization/limits 에서 월 사용 한도(soft limit 알림, hard limit 차단)를 설정합니다. 예: soft 20달러, hard 50달러.",
             "Billing → Payment methods에 결제수단을 등록하고, 필요하면 선불(credit) 방식으로 상한을 고정합니다.",
@@ -339,7 +348,7 @@ export function buildSections(): readonly GuideSection[] {
           kind: "steps",
           items: [
             "32바이트 난수를 16진수로 생성합니다. 아래 명령의 출력값(64자)을 그대로 사용합니다.",
-            "`.env.local`의 FIELD_ENCRYPTION_KEY에 등록합니다. 운영 환경에서는 파일이 아니라 시크릿 저장소(Vercel Environment Variables, AWS Secrets Manager, GCP Secret Manager, Kubernetes Secret)에 보관하십시오.",
+            "`.env`의 FIELD_ENCRYPTION_KEY에 등록합니다. 운영 환경에서는 파일이 아니라 시크릿 저장소(Vercel Environment Variables, AWS Secrets Manager, GCP Secret Manager, Kubernetes Secret)에 보관하십시오.",
             "키를 분실하면 이미 암호화된 자격증명을 복호화할 수 없습니다. 오프라인 백업(봉인 문서 또는 KMS 백업)을 별도로 보관하십시오.",
             "키 회전이 필요하면 새 키를 발급하고 각 데이터 소스의 자격증명을 다시 등록하십시오. 기존 데이터를 새 키로 자동 재암호화하는 스크립트는 제공되지 않습니다(12절 표 참고).",
             "접근 권한을 제한합니다. 이 키는 애플리케이션 런타임과 배포 파이프라인만 읽을 수 있어야 하며, 개발자 로컬 환경에는 운영 키를 두지 마십시오.",
@@ -350,7 +359,7 @@ export function buildSections(): readonly GuideSection[] {
           lines: [
             'node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"',
             "",
-            "# .env.local",
+            "# .env",
             "FIELD_ENCRYPTION_KEY=<위 명령의 64자 출력>",
           ],
         },
@@ -375,7 +384,7 @@ export function buildSections(): readonly GuideSection[] {
             "https://account.mapbox.com 에서 계정을 만들고 Access tokens → 'Create a token'을 선택합니다.",
             "public 스코프(styles:read, fonts:read, datasets:read)만 부여하고 secret 스코프는 선택하지 않습니다.",
             "'URL restrictions'에 운영 도메인과 http://localhost:3000 을 등록해 토큰 도용을 막습니다.",
-            "발급된 토큰을 `.env.local`의 MAPBOX_ACCESS_TOKEN에 등록합니다.",
+            "발급된 토큰을 `.env`의 MAPBOX_ACCESS_TOKEN에 등록합니다.",
             "지도가 의미를 갖도록 각 사업장(Facility)의 위도·경도를 입력합니다. 좌표가 없으면 지도에 표시할 지점이 없습니다.",
             "사용량 알림을 설정합니다(Mapbox 계정 → Billing → Usage alerts).",
           ],
@@ -403,7 +412,7 @@ export function buildSections(): readonly GuideSection[] {
           kind: "steps",
           items: [
             "관리형 Redis를 준비합니다. 서버리스 환경(Vercel)에서는 https://upstash.com 의 Redis가 적합하고, 자체 인프라에서는 Redis 7 이상 또는 ElastiCache를 사용합니다.",
-            "TLS 연결 문자열(rediss://...)을 `.env.local`의 REDIS_URL에 등록합니다.",
+            "TLS 연결 문자열(rediss://...)을 `.env`의 REDIS_URL에 등록합니다.",
             "기본 분당 호출 한도를 API_RATE_LIMIT_PER_MINUTE로 조정합니다(미지정 시 60).",
             "특정 통합에 한도를 적용하지 않으려면 해당 API 키에 `rate:unlimited` 스코프를 부여합니다. API 키별 개별 한도는 현재 스키마에 컬럼이 없어 지원하지 않습니다(12절 표 참고).",
             "단일 인스턴스로만 운영한다면 이 절을 생략해도 무방합니다. 레이트리밋은 프로세스 내부 토큰 버킷으로 계속 동작합니다.",
@@ -451,8 +460,8 @@ export function buildSections(): readonly GuideSection[] {
           kind: "code",
           lines: [
             "docker build -t cios:latest .",
-            "docker run --rm --env-file .env.local cios:latest npx prisma migrate deploy",
-            "docker run -d -p 3000:3000 --env-file .env.local --name cios cios:latest",
+            "docker run --rm --env-file .env cios:latest npx prisma migrate deploy",
+            "docker run -d -p 3000:3000 --env-file .env --name cios cios:latest",
             "curl -s http://localhost:3000/api/v1/health",
           ],
         },

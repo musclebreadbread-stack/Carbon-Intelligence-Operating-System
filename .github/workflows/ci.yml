@@ -83,3 +83,61 @@ jobs:
       - name: Check the setup guide is a real OOXML file
         run: |
           node -e "const z=require('fs').readFileSync('docs/CIOS-직접-설정-가이드.docx'); if (z[0] !== 0x50 || z[1] !== 0x4b) throw new Error('not a zip/docx'); if (z.length < 10240) throw new Error('suspiciously small: ' + z.length); console.log('ok', z.length, 'bytes');"
+
+  # The job above sets placeholder values, which would hide the failure mode this
+  # one exists for: the README quick start is `npm ci` then `npm run dev` on a
+  # fresh clone with no environment file whatsoever. Nothing is set here on
+  # purpose, so an install- or boot-time dependency on DATABASE_URL fails CI
+  # instead of the user's laptop.
+  zero-config:
+    name: Clean clone, no environment variables
+    runs-on: ubuntu-latest
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # The minimum major that package.json#engines allows (jsdom 30 needs
+          # 22.22.2; the app itself would run on 20.9).
+          node-version: "22"
+          cache: npm
+
+      - name: Confirm the checkout carries no environment file
+        run: |
+          for file in .env .env.local .env.development .env.development.local .env.production; do
+            if [ -e "$file" ]; then
+              echo "::error file=$file::A fresh checkout must not contain $file"
+              exit 1
+            fi
+          done
+          echo "No environment file present — this is the state a user clones into."
+
+      - name: Install (postinstall must not need a datasource URL)
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Boot and confirm the app serves demo mode
+        run: |
+          npm run dev &
+          server=$!
+          trap 'kill "$server" 2>/dev/null || true' EXIT
+          for _ in $(seq 1 60); do
+            if curl -fsS -o /dev/null http://localhost:3000/api/v1/health; then break; fi
+            sleep 2
+          done
+          health="$(curl -fsS http://localhost:3000/api/v1/health)"
+          echo "$health"
+          case "$health" in
+            *'"database":{"configured":false'*) ;;
+            *) echo "::error::/api/v1/health did not report an unconfigured database"; exit 1 ;;
+          esac
+          status="$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/dashboard)"
+          if [ "$status" != "200" ]; then
+            echo "::error::/dashboard returned $status without any environment variables"
+            exit 1
+          fi
+          echo "/dashboard renders in demo mode with no configuration."
