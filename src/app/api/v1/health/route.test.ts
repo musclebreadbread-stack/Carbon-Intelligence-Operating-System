@@ -183,6 +183,17 @@ describe("GET /api/v1/health envelope and dependency reporting", () => {
     expect(body.meta.dataMode).toBeDefined();
   });
 
+  it("reports the same mode in the envelope as in the payload", async () => {
+    // The envelope had the same bug in a quieter place: `meta.dataMode` read the
+    // observed mode, so every API response said `"dataMode":"database"` on an
+    // unconfigured deployment while refusing every write. A client using that field
+    // to decide whether to POST was misled.
+    const body = await health();
+
+    expect(body.meta.dataMode).toBe("demo");
+    expect(body.data.database.mode).toBe("demo");
+  });
+
   it("reports Supabase and the LLM as unconfigured with no credentials present", async () => {
     const body = await health();
 

@@ -35,8 +35,12 @@ vi.mock("@/lib/supabase/client", async () => {
   };
 });
 
+/** Search params the login page's `CallbackError` notice reads. */
+const searchParams = new URLSearchParams();
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  useSearchParams: () => searchParams,
 }));
 
 import ForgotPasswordPage from "./forgot-password/page";

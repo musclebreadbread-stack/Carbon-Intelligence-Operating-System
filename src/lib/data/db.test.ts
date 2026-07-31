@@ -3,7 +3,9 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   DB_UNAVAILABLE_CODES,
   canWrite,
+  dbUnconfiguredReason,
   getDataMode,
+  getEffectiveDataMode,
   getFallbackReason,
   isDbConfigured,
   isDbUnavailableError,
@@ -201,5 +203,83 @@ describe("canWrite", () => {
     delete process.env.DATABASE_URL;
     await expect(canWrite()).resolves.toBe(false);
     expect(getDataMode()).toBe("demo");
+  });
+});
+
+/**
+ * `dbUnconfiguredReason` and `getEffectiveDataMode` (defect 1).
+ *
+ * `getDataMode()` reports the *observed* mode and starts optimistically at
+ * `"database"`, because nothing has entered demo mode until a read has actually failed.
+ * That is right for the demo-mode banner, which reports what happened, and wrong for
+ * anything answering "can this be written to?" before the first read — which is exactly
+ * what `GET /api/v1/health` and the API response envelope do.
+ */
+describe("dbUnconfiguredReason", () => {
+  it("returns null for a usable URL", () => {
+    expect(dbUnconfiguredReason("postgresql://app:s3cret@db.internal:5432/cios")).toBeNull();
+  });
+
+  it("distinguishes absent from placeholder, which is what an operator needs to know", () => {
+    expect(dbUnconfiguredReason(undefined)).toBe("DATABASE_URL is not set");
+    expect(dbUnconfiguredReason("")).toBe("DATABASE_URL is not set");
+    expect(dbUnconfiguredReason("   ")).toBe("DATABASE_URL is not set");
+    expect(
+      dbUnconfiguredReason("postgresql://placeholder:placeholder@localhost:5432/placeholder"),
+    ).toBe("DATABASE_URL is a placeholder value");
+  });
+
+  it("is the single source of the wording withDb records", async () => {
+    // If these drifted, the banner and the health endpoint would explain the same
+    // situation two different ways.
+    delete process.env.DATABASE_URL;
+    await withDb(
+      async () => "live",
+      () => "fixture",
+    );
+    expect(getFallbackReason()).toBe(dbUnconfiguredReason());
+  });
+
+  it("has no side effect on the observed mode", () => {
+    delete process.env.DATABASE_URL;
+    dbUnconfiguredReason();
+    expect(getDataMode()).toBe("database");
+  });
+});
+
+describe("getEffectiveDataMode", () => {
+  it("reports demo on a fresh process with no DATABASE_URL, before any read", () => {
+    // The regression: the observed mode is still the optimistic default here.
+    delete process.env.DATABASE_URL;
+    expect(getDataMode()).toBe("database");
+    expect(getEffectiveDataMode()).toBe("demo");
+  });
+
+  it("reports demo for a placeholder URL", () => {
+    process.env.DATABASE_URL = "postgresql://placeholder:placeholder@localhost:5432/placeholder";
+    expect(getEffectiveDataMode()).toBe("demo");
+  });
+
+  it("reports database when a usable URL is set and nothing has fallen back", () => {
+    process.env.DATABASE_URL = "postgresql://app:s3cret@db.internal:5432/cios";
+    expect(getEffectiveDataMode()).toBe("database");
+  });
+
+  it("follows the observed mode once a configured database proves unreachable", async () => {
+    process.env.DATABASE_URL = "postgresql://app:s3cret@db.internal:5432/cios";
+    await withDb(
+      async () => {
+        throw prismaError("P1001");
+      },
+      () => "fixture",
+    );
+    expect(getEffectiveDataMode()).toBe("demo");
+    expect(isDemoMode()).toBe(true);
+  });
+
+  it("does not itself flip the process into demo mode", () => {
+    delete process.env.DATABASE_URL;
+    getEffectiveDataMode();
+    expect(getDataMode()).toBe("database");
   });
 });

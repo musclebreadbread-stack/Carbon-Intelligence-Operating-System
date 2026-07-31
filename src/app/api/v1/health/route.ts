@@ -15,7 +15,11 @@ import { connection } from "next/server";
 
 import { describeLlmMode, isLlmConfigured } from "@/lib/ai/llm/factory";
 import { isSupabaseConfigured } from "@/lib/auth/session";
-import { dbUnconfiguredReason, getDataMode, getFallbackReason } from "@/lib/data/db";
+import {
+  dbUnconfiguredReason,
+  getEffectiveDataMode,
+  getFallbackReason,
+} from "@/lib/data/db";
 
 import { jsonOk } from "../_lib/handler";
 
@@ -26,19 +30,16 @@ export async function GET() {
 
   const llm = describeLlmMode();
 
-  // `getDataMode()` reports the *observed* mode, and the process starts
+  // `getEffectiveDataMode()` rather than `getDataMode()`. The observed mode starts
   // optimistically in `"database"`: nothing has entered demo mode until some
   // repository read has gone through `withDb()` and failed. On a freshly booted
   // process with no `DATABASE_URL` — exactly the state a first-time operator hits
-  // this endpoint in — the observed mode is therefore a lie. Every field below is
-  // resolved against the *configuration* as well as the observation, so the report
-  // is conservative rather than optimistic. `dbUnconfiguredReason()` is used instead
-  // of flipping the mode here, because a GET must not have the side effect of
-  // putting the process into demo mode.
+  // this endpoint in — the observed mode is therefore a lie. Both helpers are
+  // side-effect free, because a GET must not have the side effect of putting the
+  // process into demo mode.
   const unconfiguredReason = dbUnconfiguredReason();
   const configured = unconfiguredReason === null;
-  const observedMode = getDataMode();
-  const dataMode = configured ? observedMode : "demo";
+  const dataMode = getEffectiveDataMode();
 
   return jsonOk({
     status: "ok",

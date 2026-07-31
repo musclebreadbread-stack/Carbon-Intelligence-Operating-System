@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Card,
@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import { CallbackError } from "../_components/callback-error";
 import { SupabaseNotice } from "../_components/supabase-notice";
 
 /**
@@ -117,6 +118,12 @@ export default function LoginPage() {
       </CardHeader>
       <CardContent className="space-y-4">
         <SupabaseNotice configured={configured} />
+
+        {/* Suspense per the bundled use-search-params doc: confining the bailout to
+            this notice keeps /login itself statically prerendered. */}
+        <Suspense fallback={null}>
+          <CallbackError />
+        </Suspense>
 
         {error && (
           <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive" role="alert">

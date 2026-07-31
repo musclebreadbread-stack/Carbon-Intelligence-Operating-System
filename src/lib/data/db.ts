@@ -110,9 +110,34 @@ export function isDbUnavailableError(error: unknown): boolean {
   );
 }
 
-/** The mode the process is currently serving reads from. */
+/**
+ * The mode the process is currently *observed* to be serving reads from.
+ *
+ * Starts optimistically at `"database"`: nothing has entered demo mode until some read
+ * has gone through `withDb()` and failed. Correct for the demo-mode banner, which
+ * reports what has actually happened — but wrong for anything that answers "can this
+ * deployment be written to?" before the first read. Use `getEffectiveDataMode()` for
+ * that.
+ */
 export function getDataMode(): DataMode {
   return currentMode;
+}
+
+/**
+ * The mode the process *will* serve reads from, resolved against the configuration as
+ * well as the observation.
+ *
+ * `getDataMode()` on its own reported `"database"` on a freshly booted process with no
+ * `DATABASE_URL` at all, which made `GET /api/v1/health` answer `"writable":true` and
+ * put `"dataMode":"database"` in the `meta` block of every API response while every
+ * mutation was in fact being refused with `DEMO_MODE`. This is the conservative
+ * version: unconfigured means demo, whatever has or has not been read yet.
+ *
+ * Side-effect free, so a health check or a response envelope can ask without flipping
+ * the process into demo mode as a consequence of being asked.
+ */
+export function getEffectiveDataMode(): DataMode {
+  return isDbConfigured() ? currentMode : "demo";
 }
 
 export function isDemoMode(): boolean {

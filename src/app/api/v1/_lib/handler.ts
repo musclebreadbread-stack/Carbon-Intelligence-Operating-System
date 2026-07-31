@@ -21,7 +21,7 @@ import type { z } from "zod";
 import { AppError } from "@/lib/core/errors";
 import { sessionFromApiKey, type SessionUser } from "@/lib/auth/session";
 import { requirePermission } from "@/lib/auth/rbac";
-import { getDataMode } from "@/lib/data/db";
+import { getEffectiveDataMode } from "@/lib/data/db";
 import { findApiKeyByHash, touchApiKey } from "@/lib/data/repositories/security";
 import { hashApiKey } from "@/lib/security/field-crypto";
 import {
@@ -60,6 +60,12 @@ const STATUS_FOR_CODE: Readonly<Record<ApiErrorCode, number>> = {
 
 export type ApiMeta = {
   readonly version: string;
+  /**
+   * `getEffectiveDataMode()`, not `getDataMode()`. The observed mode starts
+   * optimistically at `"database"`, so an unconfigured deployment used to report
+   * `"dataMode":"database"` in the meta block of every response while refusing every
+   * write — a client checking this field to decide whether to POST was misled.
+   */
   readonly dataMode: string;
   readonly count?: number;
   readonly organizationId?: string;
@@ -77,7 +83,7 @@ export function jsonOk<T>(
 ): NextResponse {
   const meta: ApiMeta = {
     version: API_VERSION,
-    dataMode: getDataMode(),
+    dataMode: getEffectiveDataMode(),
     ...(Array.isArray(data) ? { count: data.length } : {}),
     ...init.meta,
   };
@@ -104,7 +110,7 @@ export function jsonError(
         message,
         ...(init.details ? { details: init.details } : {}),
       },
-      meta: { version: API_VERSION, dataMode: getDataMode() },
+      meta: { version: API_VERSION, dataMode: getEffectiveDataMode() },
     },
     { status: init.status ?? STATUS_FOR_CODE[code], headers: { ...init.headers } },
   );
