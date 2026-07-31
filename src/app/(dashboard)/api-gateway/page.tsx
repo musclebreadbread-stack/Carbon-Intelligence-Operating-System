@@ -27,6 +27,7 @@ import { listApiKeys } from "@/lib/data/repositories/security";
 import { DEFAULT_RATE_LIMIT, DEFAULT_WINDOW_MS } from "@/lib/api/rate-limit";
 import { formatDate, formatDateTime, formatNumber } from "@/lib/format";
 import { SETUP_GUIDE_PATH } from "@/lib/i18n/messages";
+import { getDictionary } from "@/lib/i18n/server";
 
 import { listEndpoints, readHealth } from "./_lib/endpoints";
 
@@ -48,6 +49,7 @@ function booleanBadge(value: unknown, trueLabel: string, falseLabel: string) {
 
 export default async function ApiGatewayPage() {
   await connection();
+  const dict = await getDictionary();
 
   const organizationId = await activeOrganizationId();
 
@@ -74,7 +76,7 @@ export default async function ApiGatewayPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="API gateway"
+        title={dict["apiGateway.title"]}
         description="REST surface, API-key authentication, rate limiting and the live health report."
         meta={[
           { label: "Version", value: "v1" },

@@ -50,6 +50,7 @@ import {
   formatPercent,
   humaniseEnum,
 } from "@/lib/format";
+import { getDictionary } from "@/lib/i18n/server";
 
 import { FindingForm } from "./_components/finding-form";
 import { MaterialityPanel } from "./_components/materiality-panel";
@@ -71,6 +72,7 @@ const FINDING_TYPES = [
 
 export default async function VerificationPage() {
   await connection();
+  const dict = await getDictionary();
 
   const organizationId = await activeOrganizationId();
   const years = await listReportingYears(organizationId);
@@ -89,7 +91,7 @@ export default async function VerificationPage() {
     return (
       <div className="space-y-6">
         <PageHeader
-          title="Verification"
+          title={dict["verification.title"]}
           description="Third-party assurance engagements, findings, evidence and the assurance opinion."
         />
         <EmptyState

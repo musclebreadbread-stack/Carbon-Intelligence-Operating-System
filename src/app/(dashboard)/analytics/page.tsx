@@ -37,9 +37,11 @@ import { listFacilities } from "@/lib/data/repositories/organization";
 import { rollUp } from "@/lib/domain/emissions/aggregate";
 import { formatEmissions, formatNumber, formatMonth, scopeLabel } from "@/lib/format";
 import { isScope3Category, scope3Definition } from "@/lib/reference/scope3-categories";
+import { getDictionary } from "@/lib/i18n/server";
 
 export default async function AnalyticsPage() {
   await connection();
+  const dict = await getDictionary();
 
   const organizationId = await activeOrganizationId();
   const years = await listReportingYears(organizationId);
@@ -146,7 +148,7 @@ export default async function AnalyticsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Analytics"
+        title={dict["analytics.title"]}
         description="Trend, composition, facility comparison, intensity and year-on-year attribution — computed from the calculated inventory."
         meta={[
           { label: "Current year", value: String(currentYear) },

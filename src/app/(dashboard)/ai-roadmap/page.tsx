@@ -40,6 +40,7 @@ import {
   formatPercent,
   humaniseEnum,
 } from "@/lib/format";
+import { getDictionary } from "@/lib/i18n/server";
 
 type InvestmentRow = {
   readonly technologyId: string;
@@ -141,6 +142,7 @@ const investmentColumns: ColumnDef<InvestmentRow, unknown>[] = [
 
 export default async function AiRoadmapPage() {
   await connection();
+  const dict = await getDictionary();
 
   const organizationId = await activeOrganizationId();
   const years = await listReportingYears(organizationId);
@@ -174,7 +176,7 @@ export default async function AiRoadmapPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="AI roadmap"
+        title={dict["roadmap.title"]}
         description="Decarbonisation sequencing, marginal abatement cost curve, least-cost portfolio and investment appraisal."
         meta={[
           { label: "MACC year", value: String(macc.year) },

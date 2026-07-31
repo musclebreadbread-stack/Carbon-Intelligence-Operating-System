@@ -43,6 +43,7 @@ import {
 } from "@/lib/data/repositories/organization";
 import { formatEmissions, formatNumber, humaniseEnum, scopeLabel } from "@/lib/format";
 import { SCOPE3_CATEGORY_DEFINITIONS } from "@/lib/reference/scope3-categories";
+import { getDictionary } from "@/lib/i18n/server";
 
 import { EntityForms } from "./_components/entity-forms";
 import { FacilityMap } from "./_components/facility-map";
@@ -59,6 +60,7 @@ function collectByTier(node: HierarchyNode, into: Map<string, HierarchyNode[]>):
 
 export default async function OrganizationPage() {
   await connection();
+  const dict = await getDictionary();
 
   const organizationId = await activeOrganizationId();
   const years = await listReportingYears(organizationId);
@@ -94,7 +96,7 @@ export default async function OrganizationPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Organization"
+        title={dict["org.title"]}
         description="Reporting boundary, seven-level hierarchy and consolidation approach."
         meta={[
           { label: "Reporting year", value: String(reportingYear) },

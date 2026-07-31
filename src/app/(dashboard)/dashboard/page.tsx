@@ -56,11 +56,13 @@ import {
   formatPercent,
   scopeLabel,
 } from "@/lib/format";
+import { getDictionary } from "@/lib/i18n/server";
 
 export default async function DashboardPage() {
   await connection();
 
   const organizationId = await activeOrganizationId();
+  const dict = await getDictionary();
   const years = await listReportingYears(organizationId);
   const currentYear = years[0] ?? new Date().getUTCFullYear();
   const priorYear = years[1] ?? currentYear - 1;
@@ -136,8 +138,8 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Dashboard"
-        description="Carbon Intelligence Operating System — inventory, targets, finance and data-quality overview."
+        title={dict["dashboard.title"]}
+        description={dict["app.description"]}
         meta={[
           { label: "Reporting year", value: String(currentYear) },
           { label: "Comparison", value: String(priorYear) },

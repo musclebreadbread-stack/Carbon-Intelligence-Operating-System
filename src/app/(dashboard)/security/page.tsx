@@ -35,9 +35,11 @@ import {
 import { isDbConfigured } from "@/lib/data/db";
 import { formatDate, formatDateTime, formatNumber, humaniseEnum } from "@/lib/format";
 import { SETUP_GUIDE_PATH } from "@/lib/i18n/messages";
+import { getDictionary } from "@/lib/i18n/server";
 
 export default async function SecurityPage() {
   await connection();
+  const dict = await getDictionary();
 
   const organizationId = await activeOrganizationId();
 
@@ -80,7 +82,7 @@ export default async function SecurityPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Security"
+        title={dict["security.title"]}
         description="Users, roles, the permission matrix, API keys, sessions and attribute-based access policies."
         meta={[
           { label: "Users", value: formatNumber(users.length) },

@@ -39,6 +39,7 @@ import { listEmissionSources } from "@/lib/data/repositories/organization";
 import { listRuleExecutions, listRuleSets } from "@/lib/data/repositories/rules";
 import { formatDateTime, formatNumber, humaniseEnum } from "@/lib/format";
 import { UNIT_REGISTRY } from "@/lib/reference/units";
+import { getDictionary } from "@/lib/i18n/server";
 
 import { CsvImport } from "./_components/csv-import";
 import { EntryForm } from "./_components/entry-form";
@@ -47,6 +48,7 @@ import { RuleRunner } from "./_components/rule-runner";
 
 export default async function ActivityDataPage() {
   await connection();
+  const dict = await getDictionary();
 
   const organizationId = await activeOrganizationId();
   const years = await listReportingYears(organizationId);
@@ -110,7 +112,7 @@ export default async function ActivityDataPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Activity data"
+        title={dict["activity.title"]}
         description="Every measured or estimated activity the inventory is built from, with its validation results and computed data quality."
         meta={[
           { label: "Reporting year", value: String(reportingYear) },

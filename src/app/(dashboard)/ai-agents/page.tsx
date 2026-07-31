@@ -41,6 +41,7 @@ import {
   formatNumber,
   humaniseEnum,
 } from "@/lib/format";
+import { getDictionary } from "@/lib/i18n/server";
 
 import { TaskRunner } from "./_components/task-runner";
 
@@ -52,6 +53,7 @@ const CONNECTION_TONE: Readonly<Record<string, string>> = {
 
 export default async function AiAgentsPage() {
   await connection();
+  const dict = await getDictionary();
 
   const organizationId = await activeOrganizationId();
 
@@ -85,7 +87,7 @@ export default async function AiAgentsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="AI agents"
+        title={dict["agents.title"]}
         description="Agent registry, task queue, bounded tool-call runtime, tool catalogue and MCP server connections."
         meta={[
           { label: "Agents", value: formatNumber(agents.length) },

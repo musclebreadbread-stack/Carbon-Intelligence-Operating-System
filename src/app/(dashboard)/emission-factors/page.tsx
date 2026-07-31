@@ -36,6 +36,7 @@ import { formatDate, formatNumber, scopeLabel } from "@/lib/format";
 import { SCOPE3_CATEGORY_DEFINITIONS } from "@/lib/reference/scope3-categories";
 import { UNIT_REGISTRY } from "@/lib/reference/units";
 import { EMISSION_FACTOR_UNITS } from "@/lib/core/enums";
+import { getDictionary } from "@/lib/i18n/server";
 
 import { FactorTable, type FactorTableRow } from "./_components/factor-table";
 import { ResolutionExplainer } from "./_components/resolution-explainer";
@@ -43,6 +44,7 @@ import { UnitConverter } from "./_components/unit-converter";
 
 export default async function EmissionFactorsPage() {
   await connection();
+  const dict = await getDictionary();
 
   const organizationId = await activeOrganizationId();
 
@@ -86,7 +88,7 @@ export default async function EmissionFactorsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Emission factors"
+        title={dict["factors.title"]}
         description="Versioned factor library with validity windows, publisher citations and the documented specificity ranking the calculation engine applies."
         meta={[
           { label: "Factors", value: formatNumber(rows.length) },

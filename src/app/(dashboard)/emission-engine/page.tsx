@@ -47,6 +47,7 @@ import {
   scopeLabel,
 } from "@/lib/format";
 import { toProvenanceTree } from "@/lib/domain/lineage/graph";
+import { getDictionary } from "@/lib/i18n/server";
 
 import { RunCalculationPanel } from "./_components/run-calculation-panel";
 import { ScopeTotals } from "./_components/scope-totals";
@@ -54,6 +55,7 @@ import { TraceDrawer, type TracedResult } from "./_components/trace-drawer";
 
 export default async function EmissionEnginePage() {
   await connection();
+  const dict = await getDictionary();
 
   const organizationId = await activeOrganizationId();
   const years = await listReportingYears(organizationId);
@@ -103,7 +105,7 @@ export default async function EmissionEnginePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Emission engine"
+        title={dict["engine.title"]}
         description="Scope 1, 2 and 3 calculation, uncertainty propagation, calculation traces and data lineage."
         meta={[
           { label: "Reporting year", value: String(reportingYear) },

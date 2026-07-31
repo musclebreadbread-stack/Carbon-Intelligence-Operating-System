@@ -15,7 +15,7 @@ import { revalidatePath } from "next/cache";
 
 import { isSupabaseConfigured } from "@/lib/auth/session";
 import { ACTIVE_ORGANIZATION_COOKIE } from "@/lib/auth/active-organization";
-import { LOCALE_COOKIE, LOCALES, parseLocale } from "@/lib/i18n/locales";
+import { LOCALE_COOKIE, parseLocale } from "@/lib/i18n/locales";
 import { listOrganizations } from "@/lib/data/repositories/organization";
 
 import { actionError, actionSuccess, type ActionState } from "./types";

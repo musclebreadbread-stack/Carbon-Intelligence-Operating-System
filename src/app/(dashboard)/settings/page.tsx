@@ -43,6 +43,7 @@ import { getInventory } from "@/lib/data/repositories/calculation";
 import { getOrganization } from "@/lib/data/repositories/organization";
 import { formatEmissions, formatNumber, humaniseEnum } from "@/lib/format";
 import { SETUP_GUIDE_PATH } from "@/lib/i18n/messages";
+import { getDictionary } from "@/lib/i18n/server";
 
 const MONTHS = [
   "January",
@@ -119,6 +120,7 @@ const ENVIRONMENT: readonly {
 
 export default async function SettingsPage() {
   await connection();
+  const dict = await getDictionary();
 
   const organizationId = await activeOrganizationId();
   const years = await listReportingYears(organizationId);
@@ -136,7 +138,7 @@ export default async function SettingsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Settings"
+        title={dict["settings.title"]}
         description="Organisation profile, reporting conventions and the configuration status of every external dependency."
         meta={[
           { label: "Data mode", value: dataMode },

@@ -41,6 +41,7 @@ import {
   formatPercent,
   humaniseEnum,
 } from "@/lib/format";
+import { getDictionary } from "@/lib/i18n/server";
 
 import { NetEmissionsPanel } from "./_components/net-emissions-panel";
 import { RetirementForm } from "./_components/retirement-form";
@@ -116,6 +117,7 @@ const creditColumns: ColumnDef<CreditRow, unknown>[] = [
 
 export default async function CarbonFinancePage() {
   await connection();
+  const dict = await getDictionary();
 
   const organizationId = await activeOrganizationId();
   const years = await listReportingYears(organizationId);
@@ -161,7 +163,7 @@ export default async function CarbonFinancePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Carbon finance"
+        title={dict["finance.title"]}
         description="Credit registry, retirement, gross-versus-net emissions, ETS position, REC/PPA coverage and internal carbon pricing."
         meta={[
           { label: "Reporting year", value: String(reportingYear) },

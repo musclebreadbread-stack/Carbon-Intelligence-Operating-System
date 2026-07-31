@@ -35,11 +35,13 @@ import { ENERGY_TYPES, FUEL_CATEGORIES, VEHICLE_TYPES } from "@/lib/core/enums";
 import { getMasterData } from "@/lib/data/repositories/master-data";
 import { formatNumber } from "@/lib/format";
 import { UNIT_REGISTRY } from "@/lib/reference/units";
+import { getDictionary } from "@/lib/i18n/server";
 
 import { MasterDataTabs } from "./_components/master-data-tabs";
 
 export default async function MasterDataPage() {
   await connection();
+  const dict = await getDictionary();
 
   const organizationId = await activeOrganizationId();
   const bundle = await getMasterData(organizationId);
@@ -65,7 +67,7 @@ export default async function MasterDataPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Master data"
+        title={dict["master.title"]}
         description="The reference entities every activity entry points at: products, materials, fuels, vehicles, refrigerants, suppliers, routes, energy, waste and water."
         meta={[{ label: "Records", value: formatNumber(total) }]}
       />

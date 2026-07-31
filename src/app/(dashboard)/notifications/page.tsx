@@ -38,6 +38,7 @@ import {
 import { listNotifications } from "@/lib/data/repositories/notifications";
 import { formatDateTime, formatNumber } from "@/lib/format";
 import { SETUP_GUIDE_PATH } from "@/lib/i18n/messages";
+import { getDictionary } from "@/lib/i18n/server";
 
 import { NotificationList } from "./_components/notification-list";
 
@@ -58,6 +59,7 @@ function deliverable(channel: string): boolean {
 
 export default async function NotificationsPage() {
   await connection();
+  const dict = await getDictionary();
 
   const organizationId = await activeOrganizationId();
   const notifications = await listNotifications(organizationId, { limit: 100 });
@@ -69,7 +71,7 @@ export default async function NotificationsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Notifications"
+        title={dict["notifications.title"]}
         description="In-app delivery of rule-engine notify effects, and what is waiting on a transport you have to supply."
         meta={[
           { label: "Total", value: formatNumber(notifications.length) },

@@ -44,9 +44,11 @@ import {
   formatPercent,
   humaniseEnum,
 } from "@/lib/format";
+import { getDictionary } from "@/lib/i18n/server";
 
 export default async function EsgDisclosurePage() {
   await connection();
+  const dict = await getDictionary();
 
   const organizationId = await activeOrganizationId();
   const years = await listReportingYears(organizationId);
@@ -74,7 +76,7 @@ export default async function EsgDisclosurePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="ESG disclosure"
+        title={dict["disclosure.title"]}
         description="Framework mapping, auto-populated numeric datapoints, response editor and report generation."
         meta={[
           { label: "Reporting year", value: String(reportingYear) },

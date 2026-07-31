@@ -37,9 +37,11 @@ import {
   scopeLabel,
 } from "@/lib/format";
 import { UNIT_REGISTRY } from "@/lib/reference/units";
+import { getDictionary } from "@/lib/i18n/server";
 
 export default async function DigitalMrvPage() {
   await connection();
+  const dict = await getDictionary();
 
   const organizationId = await activeOrganizationId();
   const years = await listReportingYears(organizationId);
@@ -58,7 +60,7 @@ export default async function DigitalMrvPage() {
     return (
       <div className="space-y-6">
         <PageHeader
-          title="Digital MRV"
+          title={dict["mrv.title"]}
           description="Monitoring, reporting and verification plans with their coverage and completeness."
         />
         <EmptyState

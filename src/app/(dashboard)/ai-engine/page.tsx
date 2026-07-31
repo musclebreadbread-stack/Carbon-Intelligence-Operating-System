@@ -50,6 +50,7 @@ import {
   formatPercent,
   humaniseEnum,
 } from "@/lib/format";
+import { getDictionary } from "@/lib/i18n/server";
 
 import { AnomalyFeed, type AnomalyRow } from "./_components/anomaly-feed";
 
@@ -62,6 +63,7 @@ const GAP_SEVERITY_TONE: Readonly<Record<string, string>> = {
 
 export default async function AiEnginePage() {
   await connection();
+  const dict = await getDictionary();
 
   const organizationId = await activeOrganizationId();
   const years = await listReportingYears(organizationId);
@@ -120,7 +122,7 @@ export default async function AiEnginePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="AI engine"
+        title={dict["ai.title"]}
         description="Anomaly detection, gap analysis, forecasting and confidence scoring — deterministic statistics with an explainable trail."
         meta={[
           { label: "Reporting year", value: String(currentYear) },
