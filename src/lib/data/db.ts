@@ -54,6 +54,22 @@ export function isDbConfigured(url: string | undefined = process.env.DATABASE_UR
   return !PLACEHOLDER_URL_MARKERS.some((marker) => lower.includes(marker));
 }
 
+/**
+ * Why `DATABASE_URL` cannot be used, or `null` when it can be.
+ *
+ * The single source of this wording: `withDb`, `canWrite` and `GET /api/v1/health`
+ * all report it, and they must not drift. Deliberately side-effect free — a health
+ * check has to be able to describe the configuration without flipping the process
+ * into demo mode as a side effect of being asked.
+ */
+export function dbUnconfiguredReason(
+  url: string | undefined = process.env.DATABASE_URL,
+): string | null {
+  if (isDbConfigured(url)) return null;
+  const present = typeof url === "string" && url.trim().length > 0;
+  return present ? "DATABASE_URL is a placeholder value" : "DATABASE_URL is not set";
+}
+
 /** Extracts a Prisma error code from an unknown throwable. */
 function errorCode(error: unknown): string | undefined {
   if (typeof error !== "object" || error === null) return undefined;
@@ -128,12 +144,9 @@ function enterDemoMode(reason: string): void {
  * malformed query must not be masked as "no database".
  */
 export async function withDb<T>(query: () => Promise<T>, fallback: () => T | Promise<T>): Promise<T> {
-  if (!isDbConfigured()) {
-    enterDemoMode(
-      process.env.DATABASE_URL
-        ? "DATABASE_URL is a placeholder value"
-        : "DATABASE_URL is not set",
-    );
+  const unconfigured = dbUnconfiguredReason();
+  if (unconfigured !== null) {
+    enterDemoMode(unconfigured);
     return fallback();
   }
   try {
@@ -155,12 +168,9 @@ export async function withDb<T>(query: () => Promise<T>, fallback: () => T | Pro
  * can report `DEMO_MODE` instead of pretending a write succeeded.
  */
 export async function canWrite(): Promise<boolean> {
-  if (!isDbConfigured()) {
-    enterDemoMode(
-      process.env.DATABASE_URL
-        ? "DATABASE_URL is a placeholder value"
-        : "DATABASE_URL is not set",
-    );
+  const unconfigured = dbUnconfiguredReason();
+  if (unconfigured !== null) {
+    enterDemoMode(unconfigured);
     return false;
   }
   return true;
