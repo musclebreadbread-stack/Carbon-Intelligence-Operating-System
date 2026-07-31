@@ -181,7 +181,7 @@ export function buildSections(): readonly GuideSection[] {
         {
           kind: "steps",
           items: [
-            "Node.js 20.19 이상(또는 22.12 이상)이 설치되어 있는지 확인합니다. Next 16 자체의 최소 버전은 20.9이지만 테스트 실행에 쓰이는 Vite가 20.19 이상을 요구하므로 package.json의 engines 필드는 `^20.19.0 || >=22.12.0`으로 선언되어 있습니다. 버전이 낮으면 https://nodejs.org 에서 LTS 22.x를 설치하십시오.",
+            "Node.js 22.22.2 이상(또는 24.15 이상)이 설치되어 있는지 `node -v`로 확인합니다. Next 16 자체의 최소 버전은 20.9이지만, @supabase/supabase-js가 22 이상을, 컴포넌트 테스트가 사용하는 jsdom 30이 22.22.2 이상을 요구합니다. Node 20에서는 `npm test`의 jsdom 테스트 9개 파일이 아예 실행되지 않습니다. 그래서 package.json의 engines 필드는 `^22.22.2 || ^24.15.0 || >=26.0.0`으로 선언되어 있습니다. 버전이 낮으면 https://nodejs.org 에서 LTS 22.x를 설치하십시오.",
             "저장소를 클론하고 의존성을 설치합니다. `npm ci`는 postinstall 단계에서 `prisma generate`를 자동으로 실행하며, 이 명령은 스키마만 읽고 DATABASE_URL을 해석하지 않으므로 환경변수 파일이 전혀 없어도 성공합니다.",
             "환경변수 파일은 이 단계에서 만들지 않아도 됩니다. 3절 이후 실제 값을 넣을 준비가 되면 `.env.example`을 `.env`로 복사하십시오. `.env.local`이 아니라 `.env`인 이유는 Next.js는 두 파일을 모두 읽지만 Prisma CLI는 `.env`만 읽기 때문입니다. DATABASE_URL을 `.env.local`에만 넣으면 `npx prisma migrate deploy`가 P1012 오류로 실패합니다.",
             "개발 서버를 실행하고 http://localhost:3000 을 엽니다. 로그인 없이 /dashboard 이하 화면을 볼 수 있습니다(데모 관리자 세션).",
