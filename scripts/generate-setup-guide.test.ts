@@ -54,10 +54,10 @@ function sectionText(section: GuideSection): string {
 }
 
 describe("buildSections", () => {
-  it("returns exactly the twelve required sections, numbered in order", () => {
-    expect(sections).toHaveLength(12);
+  it("returns exactly the thirteen required sections, numbered in order", () => {
+    expect(sections).toHaveLength(13);
     expect(sections.map((section) => section.number)).toEqual([
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
     ]);
   });
 
@@ -202,8 +202,8 @@ describe("required content", () => {
     }
   });
 
-  it("lists the unimplemented work as a three-column table (section 12)", () => {
-    const section = byNumber.get(12)!;
+  it("lists the unimplemented work as a three-column table (section 13)", () => {
+    const section = byNumber.get(13)!;
     const tables = section.blocks.filter((block) => block.kind === "table");
     expect(tables).toHaveLength(1);
     const table = tables[0] as Extract<GuideBlock, { kind: "table" }>;

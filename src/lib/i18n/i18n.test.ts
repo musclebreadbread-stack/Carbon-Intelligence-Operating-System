@@ -90,10 +90,10 @@ describe("resolveMessage (backwards compat)", () => {
     expect(msg).toContain("\uB370\uC774\uD130\uBCA0\uC774\uC2A4");
   });
 
-  it("falls back to English when ko not available for a key", () => {
+  it("resolves Korean for a key that now has a ko entry", () => {
     const msg = resolveMessage("action.error.NOT_FOUND", "fallback", "ko");
-    // NOT_FOUND only has en in the messages table; should fall back to en
-    expect(msg).toContain("record");
+    // NOT_FOUND now has a Korean translation
+    expect(msg).toContain("\uB808\uCF54\uB4DC");
   });
 
   it("uses fallback for unknown key", () => {

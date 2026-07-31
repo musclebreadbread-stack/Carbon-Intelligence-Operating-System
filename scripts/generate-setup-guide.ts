@@ -679,6 +679,49 @@ export function buildSections(): readonly GuideSection[] {
 
     {
       number: 12,
+      title: "테스트 계정 및 신규 기능 안내",
+      summary:
+        "Supabase 미구성 시 자동으로 활성화되는 내장 테스트 계정과, 이번 업데이트에서 추가된 기능을 설명합니다.",
+      cost: "무료 (내장 기능입니다).",
+      blocks: [
+        {
+          kind: "text",
+          text: "내장 테스트/데모 계정: Supabase가 구성되지 않으면 아래 계정으로 자동 로그인됩니다.",
+        },
+        {
+          kind: "table",
+          caption: "표 12-1. 테스트 계정 정보",
+          headers: ["항목", "값"],
+          rows: [
+            ["이메일", "admin@example.com"],
+            ["이름", "데모 관리자"],
+            ["역할", "조직 관리자 (전체 권한)"],
+            ["비밀번호", "불필요 — 자동 세션 부여"],
+          ],
+        },
+        {
+          kind: "text",
+          text: "이번 업데이트에서 추가된 기능:",
+        },
+        {
+          kind: "bullets",
+          items: [
+            "XLSX/PDF/DOCX 실제 파일 내보내기: GET /api/reports/:id/export?format=xlsx|pdf|docx",
+            "증거 파일 업로드: POST /api/evidence (Supabase Storage 연동, 미구성 시 안내 메시지 반환)",
+            "기간 마감/잠금 + 승인 워크플로: 잠긴 기간에는 PERIOD_LOCKED 에러로 변경이 차단됩니다.",
+            "접근성 개선: 스킵 링크, 모바일 드로어, axe-core 기반 자동 검증",
+            "i18n 안티 드리프트 게이트: 딕셔너리 키 동기화, 액션 메시지 한국어 커버리지, UI 복사 드리프트 탐지",
+          ],
+        },
+      ],
+      verification: [
+        "로그인 화면에서 '테스트 계정' 패널이 표시되고, '대시보드로 이동' 버튼이 동작합니다.",
+        "ESG 공시 화면에서 XLSX/PDF/DOCX 다운로드가 실제 파일을 생성합니다.",
+      ],
+    },
+
+    {
+      number: 13,
       title: "미구현 · 외부 의존 기능 목록",
       summary:
         "현재 코드베이스에서 완료되지 않았거나 사용자의 계정·데이터·절차가 있어야 완성되는 항목을 모두 밝힙니다.",
@@ -702,13 +745,13 @@ export function buildSections(): readonly GuideSection[] {
             ],
             [
               "한국어 UI",
-              "메시지 테이블(src/lib/i18n/messages.ts)에 ko 컬럼이 있고 데모·오류·설정 안내는 한국어를 제공하지만, 화면 문구는 설계상 영어입니다.",
-              "전면 한국어화가 필요하면 각 페이지 문구를 메시지 테이블 경유로 전환하는 i18n 후속 작업을 진행하십시오.",
+              "완료. 전체 UI가 한국어를 기본값으로 사용하며, 설정에서 영문으로 전환할 수 있습니다. 딕셔너리 기반 i18n이 모든 페이지에 적용되어 있습니다.",
+              "추가 문구가 필요하면 src/lib/i18n/dictionaries/{ko,en}.ts에 키를 추가하십시오.",
             ],
             [
               "API 키별 개별 레이트리밋",
-              "APIKey 모델에 rateLimit 컬럼이 없고 베이스라인 마이그레이션이 동결되어 있어, 전역 기본값(API_RATE_LIMIT_PER_MINUTE)과 `rate:unlimited` 스코프 예외만 지원합니다.",
-              "키별 한도가 필요하면 스키마에 컬럼을 추가하고 새 마이그레이션을 생성한 뒤 rateLimitForKey를 확장하십시오.",
+              "완료. APIKey 모델에 rateLimit 컬럼이 추가되어 키별 개별 한도를 설정할 수 있습니다.",
+              "관리자 화면에서 키 생성 시 rateLimit 값을 지정하거나, 기본값(API_RATE_LIMIT_PER_MINUTE)을 사용하십시오.",
             ],
             [
               "인터랙티브 지도",

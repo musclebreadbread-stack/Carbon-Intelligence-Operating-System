@@ -147,6 +147,20 @@ writable.
 To leave demo mode: set `DATABASE_URL` (and `DIRECT_URL`) in `.env`, run `npx prisma migrate deploy`,
 then `npm run db:seed`. `/settings` shows the live configuration state of every dependency.
 
+### Test account (테스트 계정)
+
+When Supabase is not configured, a built-in demo administrator account is automatically active:
+
+| Field | Value |
+| --- | --- |
+| Email | `admin@example.com` |
+| Name | Demo Administrator (데모 관리자) |
+| Role | Organization admin (full access) |
+| Password | Not needed — automatic session |
+
+The login page shows a visible "테스트 계정" info panel when Supabase is unconfigured, with a
+button to go directly to the dashboard. All features are accessible with this account.
+
 ## Environment variables
 
 `.env.example` is the authoritative list — each entry carries a comment stating exactly what

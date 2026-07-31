@@ -18,6 +18,7 @@ import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { useT } from "@/components/providers/locale-provider";
 import { CallbackError } from "../_components/callback-error";
 import { SupabaseNotice } from "../_components/supabase-notice";
+import { TestAccountPanel } from "../_components/test-account-panel";
 
 function isEmailNotConfirmed(error: { code?: string; message: string }): boolean {
   return (
@@ -112,6 +113,7 @@ export default function LoginPage() {
       </CardHeader>
       <CardContent className="space-y-4">
         <SupabaseNotice configured={configured} />
+        <TestAccountPanel configured={configured} />
 
         <Suspense fallback={null}>
           <CallbackError />

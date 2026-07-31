@@ -1307,6 +1307,9 @@ model EmissionInventory {
   totalEmissions Float?    @default(0)
   unit           String    @default("tCO2e")
   status         String    @default("draft")
+  lockedAt       DateTime?
+  lockedBy       String?
+  lockReason     String?
   verifiedAt     DateTime?
   publishedAt    DateTime?
   createdAt      DateTime  @default(now())
@@ -2177,6 +2180,7 @@ model AuditEvidence {
   title       String
   description String?
   fileUrl     String?
+  storageUrl  String?
   fileType    String?
   fileSize    Int?
   hash        String?

@@ -343,6 +343,19 @@ const en: Dictionary = {
   // Action messages
   "action.success": "Completed successfully",
   "action.error": "An error occurred while processing",
+
+  // Test account
+  "testAccount.title": "Test Account",
+  "testAccount.description": "Supabase is not configured — running in demo mode. Use the built-in account below to test all features.",
+  "testAccount.email": "Email",
+  "testAccount.emailValue": "admin@example.com",
+  "testAccount.name": "Name",
+  "testAccount.nameValue": "Demo Administrator",
+  "testAccount.role": "Role",
+  "testAccount.roleValue": "Organization Admin (full access)",
+  "testAccount.password": "No password needed — automatic login",
+  "testAccount.cta": "Go to dashboard",
+
   "action.error.UNAUTHORIZED": "Your session has expired. Sign in again to continue.",
   "action.error.FORBIDDEN": "You do not have permission to do this. Ask an administrator to grant it.",
   "action.error.VALIDATION_ERROR": "Some values need attention before this can be saved.",

@@ -20,7 +20,7 @@ import {
   getInventory,
   resetDemoCalculationCache,
 } from "@/lib/data/repositories/calculation";
-import { formatEmissions } from "@/lib/format";
+import { createFormatter, formatEmissions } from "@/lib/format";
 
 import { NetEmissionsPanel } from "./net-emissions-panel";
 
@@ -30,30 +30,38 @@ describe("carbon-finance net emissions", () => {
     resetDemoCalculationCache();
   });
 
-  it("renders net emissions as gross minus retired offsets", async () => {
-    const view = await getCarbonFinanceView(DEMO_ORGANIZATION_ID, {
-      reportingYear: DEMO_CURRENT_YEAR,
-    });
+  it.each(["ko", "en"] as const)(
+    "renders net emissions as gross minus retired offsets (locale=%s)",
+    async (locale) => {
+      const fmt = createFormatter(locale);
+      const view = await getCarbonFinanceView(DEMO_ORGANIZATION_ID, {
+        reportingYear: DEMO_CURRENT_YEAR,
+      });
 
-    render(<NetEmissionsPanel net={view.net} reportingYear={DEMO_CURRENT_YEAR} />);
+      // Verify locale formatting works for all emission values
+      expect(fmt.emissions(view.net.grossEmissions).length).toBeGreaterThan(0);
+      expect(fmt.emissions(view.net.offsetQuantity).length).toBeGreaterThan(0);
 
-    const gross = screen.getByTestId("gross-emissions").textContent;
-    const retired = screen.getByTestId("retired-offsets").textContent;
-    const net = screen.getByTestId("net-emissions").textContent;
+      render(<NetEmissionsPanel net={view.net} reportingYear={DEMO_CURRENT_YEAR} />);
 
-    expect(gross).toBe(formatEmissions(view.net.grossEmissions));
-    expect(retired).toBe(formatEmissions(view.net.offsetQuantity));
-    // The arithmetic itself, independent of the panel.
-    expect(net).toBe(
-      formatEmissions(
+      const gross = screen.getByTestId("gross-emissions").textContent;
+      const retired = screen.getByTestId("retired-offsets").textContent;
+      const net = screen.getByTestId("net-emissions").textContent;
+
+      expect(gross).toBe(formatEmissions(view.net.grossEmissions));
+      expect(retired).toBe(formatEmissions(view.net.offsetQuantity));
+      // The arithmetic itself, independent of the panel.
+      expect(net).toBe(
+        formatEmissions(
+          Math.max(0, view.net.grossEmissions - view.net.offsetQuantity),
+        ),
+      );
+      expect(view.net.netEmissions).toBeCloseTo(
         Math.max(0, view.net.grossEmissions - view.net.offsetQuantity),
-      ),
-    );
-    expect(view.net.netEmissions).toBeCloseTo(
-      Math.max(0, view.net.grossEmissions - view.net.offsetQuantity),
-      6,
-    );
-  });
+        6,
+      );
+    },
+  );
 
   it("keeps gross equal to the inventory total, unchanged by offsetting", async () => {
     const [view, inventory] = await Promise.all([

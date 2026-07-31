@@ -341,6 +341,19 @@ const ko = {
   // Action messages
   "action.success": "성공적으로 처리되었습니다",
   "action.error": "처리 중 오류가 발생했습니다",
+
+  // Test account
+  "testAccount.title": "테스트 계정",
+  "testAccount.description": "Supabase가 구성되지 않아 데모 모드로 동작합니다. 아래 내장 계정으로 모든 기능을 테스트할 수 있습니다.",
+  "testAccount.email": "이메일",
+  "testAccount.emailValue": "admin@example.com",
+  "testAccount.name": "이름",
+  "testAccount.nameValue": "데모 관리자",
+  "testAccount.role": "역할",
+  "testAccount.roleValue": "조직 관리자 (전체 권한)",
+  "testAccount.password": "비밀번호 불필요 — 자동 로그인",
+  "testAccount.cta": "대시보드로 이동",
+
   "action.error.UNAUTHORIZED": "세션이 만료되었습니다. 다시 로그인해 주세요.",
   "action.error.FORBIDDEN": "권한이 없습니다. 관리자에게 권한 부여를 요청하세요.",
   "action.error.VALIDATION_ERROR": "저장하기 전에 확인이 필요한 값이 있습니다.",

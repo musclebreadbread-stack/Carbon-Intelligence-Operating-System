@@ -203,6 +203,13 @@ export default async function Home() {
                 <code>{SETUP_GUIDE_PATH}</code> 문서에 단계별로 정리되어 있습니다.
               </p>
             )}
+            {dataMode === "demo" && (
+              <div className="rounded-md border border-emerald-400/60 bg-emerald-50/50 dark:bg-emerald-950/20 p-3 text-xs space-y-1">
+                <p className="font-medium text-emerald-800 dark:text-emerald-300">테스트 계정 (Test Account)</p>
+                <p>이메일: <code>admin@example.com</code> · 이름: 데모 관리자 · 역할: 조직 관리자 (전체 권한)</p>
+                <p className="text-muted-foreground">비밀번호 불필요 — Supabase 미구성 시 자동 로그인됩니다.</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 

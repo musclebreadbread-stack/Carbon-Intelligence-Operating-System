@@ -38,6 +38,12 @@ export default async function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-4 focus:bg-background focus:text-foreground focus:underline"
+        >
+          Skip to content
+        </a>
         <LocaleProvider locale={locale}>{children}</LocaleProvider>
       </body>
     </html>

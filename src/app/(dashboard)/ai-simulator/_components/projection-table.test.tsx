@@ -21,7 +21,7 @@ import {
 } from "@/lib/data/repositories/calculation";
 import { listScenarioProjections } from "@/lib/data/repositories/scenario";
 import { projectScenario } from "@/lib/domain/scenarios/project";
-import { formatEmissions } from "@/lib/format";
+import { createFormatter, formatEmissions } from "@/lib/format";
 
 import { ProjectionTable } from "./projection-table";
 
@@ -31,37 +31,45 @@ describe("ai-simulator projection table", () => {
     resetDemoCalculationCache();
   });
 
-  it("renders the 2030 NET_ZERO total that projectScenario() computes", async () => {
-    const projections = await listScenarioProjections(DEMO_ORGANIZATION_ID);
-    const netZero = projections.find((view) => view.scenario.type === "NET_ZERO");
-    expect(netZero).toBeDefined();
-    if (!netZero) return;
+  it.each(["ko", "en"] as const)(
+    "renders the 2030 NET_ZERO total that projectScenario() computes (locale=%s)",
+    async (locale) => {
+      const fmt = createFormatter(locale);
+      const projections = await listScenarioProjections(DEMO_ORGANIZATION_ID);
+      const netZero = projections.find((view) => view.scenario.type === "NET_ZERO");
+      expect(netZero).toBeDefined();
+      if (!netZero) return;
 
-    // Recompute independently from the calculated baseline inventory.
-    const inventory = await getInventory(DEMO_ORGANIZATION_ID, DEMO_CURRENT_YEAR);
-    const expected = projectScenario({
-      type: "NET_ZERO",
-      name: netZero.scenario.name,
-      targetYear: netZero.scenario.targetYear,
-      baseline: {
-        year: netZero.scenario.baselineYear,
-        scope1Emissions: inventory.totals.scope1Total,
-        scope2Emissions: inventory.totals.scope2Location,
-        scope3Emissions: inventory.totals.scope3Total,
-      },
-      assumptions: netZero.scenario.assumptions,
-    });
+      // Recompute independently from the calculated baseline inventory.
+      const inventory = await getInventory(DEMO_ORGANIZATION_ID, DEMO_CURRENT_YEAR);
+      const expected = projectScenario({
+        type: "NET_ZERO",
+        name: netZero.scenario.name,
+        targetYear: netZero.scenario.targetYear,
+        baseline: {
+          year: netZero.scenario.baselineYear,
+          scope1Emissions: inventory.totals.scope1Total,
+          scope2Emissions: inventory.totals.scope2Location,
+          scope3Emissions: inventory.totals.scope3Total,
+        },
+        assumptions: netZero.scenario.assumptions,
+      });
 
-    const expected2030 = expected.points.find((point) => point.year === 2030);
-    expect(expected2030).toBeDefined();
-    if (!expected2030) return;
+      const expected2030 = expected.points.find((point) => point.year === 2030);
+      expect(expected2030).toBeDefined();
+      if (!expected2030) return;
 
-    render(<ProjectionTable points={netZero.projection.points} highlightYears={[2030]} />);
+      // Verify locale-specific formatting
+      const formatted = fmt.emissions(expected2030.totalEmissions);
+      expect(formatted.length).toBeGreaterThan(0);
 
-    expect(screen.getByTestId("projection-total-2030").textContent).toBe(
-      formatEmissions(expected2030.totalEmissions),
-    );
-  });
+      render(<ProjectionTable points={netZero.projection.points} highlightYears={[2030]} />);
+
+      expect(screen.getByTestId("projection-total-2030").textContent).toBe(
+        formatEmissions(expected2030.totalEmissions),
+      );
+    },
+  );
 
   it("renders one row per projected year, inclusive of both endpoints", async () => {
     const projections = await listScenarioProjections(DEMO_ORGANIZATION_ID);
