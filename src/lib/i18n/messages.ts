@@ -16,11 +16,11 @@
  * components can use it.
  */
 
-export const LOCALES = ["en", "ko"] as const;
-export type Locale = (typeof LOCALES)[number];
+import { DEFAULT_LOCALE, LOCALES } from "./locales";
+import type { Locale } from "./locales";
 
-/** Default locale for the application UI. */
-export const DEFAULT_LOCALE: Locale = "en";
+export { DEFAULT_LOCALE, LOCALES };
+export type { Locale };
 
 export type MessageEntry = {
   readonly en: string;
