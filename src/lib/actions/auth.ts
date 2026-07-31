@@ -13,10 +13,10 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
-import { isSupabaseConfigured } from "@/lib/auth/session";
+import { isSupabaseConfigured, requireSession } from "@/lib/auth/session";
 import { ACTIVE_ORGANIZATION_COOKIE } from "@/lib/auth/active-organization";
 import { LOCALE_COOKIE, parseLocale } from "@/lib/i18n/locales";
-import { listOrganizations } from "@/lib/data/repositories/organization";
+import { listOrganizationsForUser } from "@/lib/data/repositories/organization";
 
 import { actionError, actionSuccess, type ActionState } from "./types";
 
@@ -37,9 +37,10 @@ export async function signOutAction(): Promise<never> {
  * Records the organisation the user is looking at.
  *
  * Stored in a cookie rather than on the session, because the session is derived
- * from the identity provider and the tenant selection is a UI preference. The id
- * is checked against the organisations the deployment actually has, so a forged
- * cookie cannot point a page at another tenant.
+ * from the identity provider and the tenant selection is a UI preference. The id is
+ * checked against the organisations the **session user is a member of** — not, as it
+ * once was, against every organisation the deployment has, which let any signed-in
+ * user select any tenant.
  */
 export async function setActiveOrganizationAction(
   organizationId: unknown,
@@ -53,11 +54,15 @@ export async function setActiveOrganizationAction(
     );
   }
 
-  const organizations = await listOrganizations();
+  const session = await requireSession();
+  const organizations = await listOrganizationsForUser(session.userId);
   if (!organizations.some((organization) => organization.id === organizationId)) {
+    // Deliberately "not available to you" rather than "does not exist": the two are
+    // the same answer here, which is what stops the action being an organisation-id
+    // oracle.
     return actionError(
       "NOT_FOUND",
-      "That organization is not available to this deployment",
+      "That organization is not available to this account",
       "action.error.NOT_FOUND",
     );
   }

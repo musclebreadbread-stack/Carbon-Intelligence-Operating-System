@@ -18,12 +18,13 @@
  */
 
 import { UnauthorizedError } from "@/lib/core/errors";
-import { getDataMode } from "@/lib/data/db";
+import { getDataMode, isDbConfigured } from "@/lib/data/db";
 import {
   getDefaultOrganizationId,
   getOrganization,
 } from "@/lib/data/repositories/organization";
 import {
+  getUserByEmail,
   listAccessPolicies,
   listPermissions,
   listRoles,
@@ -135,7 +136,10 @@ export async function getDemoSession(): Promise<SessionUser> {
  */
 export async function getSession(): Promise<SessionUser | null> {
   if (!isSupabaseConfigured()) {
-    return getDemoSession();
+    // The automatic administrator exists only for a genuinely zero-config,
+    // read-only checkout. A configured database without an identity provider is
+    // a deployment error, not permission to impersonate an administrator.
+    return isDbConfigured() ? null : getDemoSession();
   }
 
   const { createClient } = await import("@/lib/supabase/server");
@@ -147,20 +151,14 @@ export async function getSession(): Promise<SessionUser | null> {
 
   if (error || !user?.email) return null;
 
-  const organizationId = await getDefaultOrganizationId();
-  const [organization, users] = await Promise.all([
-    getOrganization(organizationId),
-    listUsers(organizationId),
-  ]);
-
-  const email = user.email.toLowerCase();
-  const row = users.find((candidate) => candidate.email.toLowerCase() === email);
+  const row = await getUserByEmail(user.email);
   if (!row) {
     // Authenticated with Supabase but with no `User` row: the account exists in
-    // the identity provider and not in the tenant, which is not a session.
+    // the identity provider and not in a tenant, which is not a session.
     return null;
   }
 
+  const organization = await getOrganization(row.organizationId);
   const { roles, accessPolicies } = await loadAuthorization(row.organizationId, row.id);
 
   return {

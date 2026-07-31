@@ -149,17 +149,30 @@ then `npm run db:seed`. `/settings` shows the live configuration state of every 
 
 ### Test account (테스트 계정)
 
-When Supabase is not configured, a built-in demo administrator account is automatically active:
+When **neither** Supabase **nor** a database is configured, a built-in demo administrator is
+automatically active. It is a read-only account:
 
 | Field | Value |
 | --- | --- |
 | Email | `admin@example.com` |
 | Name | Demo Administrator (데모 관리자) |
-| Role | Organization admin (full access) |
+| Role | Demo administrator — read-only (데모 관리자 · 읽기 전용) |
 | Password | Not needed — automatic session |
 
-The login page shows a visible "테스트 계정" info panel when Supabase is unconfigured, with a
-button to go directly to the dashboard. All features are accessible with this account.
+The login page shows a visible "테스트 계정" info panel in that mode, with a button to go directly
+to the dashboard. What this account can and cannot do:
+
+- **Can**: navigate every page and read every figure. The numbers are genuinely computed from the
+  fixtures by the production engines, so calculation previews, disclosure completeness, scenario
+  projections and analytics are all real.
+- **Cannot**: save anything. Every mutation returns `DEMO_MODE`, because there is nowhere to persist
+  to. That includes activity-data entry, CSV import, calculation runs, disclosure authoring,
+  evidence upload (which additionally needs Supabase Storage) and period close.
+
+Configuring a database *without* Supabase does **not** produce this account. That combination is a
+deployment error — a writable database with no identity provider — so the proxy answers `503
+AUTH_NOT_CONFIGURED` on protected routes and `getSession()` returns no session at all, rather than
+exposing an anonymous administrator with write access.
 
 ## Environment variables
 
@@ -172,7 +185,7 @@ contract: that none of it is needed to install, build or boot.
 | --- | --- | --- |
 | `DATABASE_URL` | yes | Demo mode: reads use fixtures (still computed), writes return `DEMO_MODE`. |
 | `DIRECT_URL` | yes | `prisma migrate deploy` fails on providers that only allow DDL over a direct connection. |
-| `NEXT_PUBLIC_SUPABASE_URL` | yes | No identity provider: demo administrator session, auth pages report the misconfiguration, no OAuth. |
+| `NEXT_PUBLIC_SUPABASE_URL` | yes | No identity provider. With no `DATABASE_URL` either: the read-only demo session. With a real `DATABASE_URL`: protected routes fail closed with `503 AUTH_NOT_CONFIGURED`. |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | yes | As above. |
 | `OPENAI_API_KEY` | no | Narrative text is generated deterministically from calculation traces; every numeric result is unaffected. |
 | `OPENAI_MODEL` / `OPENAI_BASE_URL` / `OPENAI_ORGANIZATION` / `OPENAI_TIMEOUT_MS` | no | Defaults: `gpt-4o-mini`, the public OpenAI endpoint, no organisation header, 60 s. |

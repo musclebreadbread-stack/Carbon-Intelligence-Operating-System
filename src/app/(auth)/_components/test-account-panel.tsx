@@ -3,9 +3,10 @@
 /**
  * Test account info panel.
  *
- * Shown on the login page when Supabase is not configured. Displays the
- * built-in demo/test account credentials and explains that all features are
- * accessible without a password.
+ * Shown on the login page when Supabase is not configured. Displays the built-in
+ * demo account and states its real scope: no password is needed, and nothing can be
+ * saved. The copy used to promise "all features", which was wrong in the only mode
+ * this panel appears in — every mutation is refused with `DEMO_MODE`.
  */
 
 import { UserCheck } from "lucide-react";

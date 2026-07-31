@@ -29,6 +29,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { PageHeader } from "@/components/shared/page-header";
 import { activeOrganizationId } from "@/lib/auth/active-organization";
+import { requireSession } from "@/lib/auth/session";
 import {
   DELIVERABLE_CHANNELS,
   EXTERNAL_TRANSPORT_REQUIREMENTS,
@@ -61,8 +62,13 @@ export default async function NotificationsPage() {
   await connection();
   const dict = await getDictionary();
 
-  const organizationId = await activeOrganizationId();
-  const notifications = await listNotifications(organizationId, { limit: 100 });
+  const [organizationId, session] = await Promise.all([
+    activeOrganizationId(),
+    requireSession(),
+  ]);
+  const notifications = await listNotifications(organizationId, session.userId, {
+    limit: 100,
+  });
 
   const inApp = notifications.filter((notification) => deliverable(notification.channel));
   const pending = notifications.filter((notification) => !deliverable(notification.channel));

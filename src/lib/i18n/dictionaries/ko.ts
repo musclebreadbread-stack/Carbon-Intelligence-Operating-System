@@ -344,13 +344,13 @@ const ko = {
 
   // Test account
   "testAccount.title": "테스트 계정",
-  "testAccount.description": "Supabase가 구성되지 않아 데모 모드로 동작합니다. 아래 내장 계정으로 모든 기능을 테스트할 수 있습니다.",
+  "testAccount.description": "Supabase와 데이터베이스가 구성되지 않아 읽기 전용 데모로 동작합니다. 샘플 데이터와 계산 결과를 둘러볼 수 있으며 변경·업로드 기능은 저장되지 않습니다.",
   "testAccount.email": "이메일",
   "testAccount.emailValue": "admin@example.com",
   "testAccount.name": "이름",
   "testAccount.nameValue": "데모 관리자",
   "testAccount.role": "역할",
-  "testAccount.roleValue": "조직 관리자 (전체 권한)",
+  "testAccount.roleValue": "데모 관리자 (읽기 전용)",
   "testAccount.password": "비밀번호 불필요 — 자동 로그인",
   "testAccount.cta": "대시보드로 이동",
 

@@ -26,7 +26,11 @@ vi.mock("@/lib/prisma", () => ({
 import type { NotificationPlan } from "@/lib/domain/notifications/deliver";
 
 import { getDataMode, resetDataMode } from "../db";
-import { DEMO_NOTIFICATIONS, DEMO_ORGANIZATION_ID } from "../demo";
+import {
+  DEMO_ADMIN_USER_ID,
+  DEMO_NOTIFICATIONS,
+  DEMO_ORGANIZATION_ID,
+} from "../demo";
 
 import {
   countUnreadNotifications,
@@ -135,6 +139,21 @@ describe("persistNotifications", () => {
 });
 
 describe("listNotifications against a database", () => {
+  it("scopes every query to the recipient, not only to the organisation", async () => {
+    // The user-facing read path takes the recipient as a required argument. It used
+    // to be optional and no caller passed it, so the notification centre showed
+    // every colleague's messages and action URLs.
+    notificationFindMany.mockResolvedValue([]);
+
+    await listNotifications(DEMO_ORGANIZATION_ID, "user-7");
+
+    const [args] = notificationFindMany.mock.calls[0] as [
+      { where: Record<string, unknown> },
+    ];
+    expect(args.where.userId).toBe("user-7");
+    expect(args.where.organizationId).toBe(DEMO_ORGANIZATION_ID);
+  });
+
   it("maps rows onto the notification shape, newest first", async () => {
     notificationFindMany.mockResolvedValue([
       {
@@ -153,7 +172,7 @@ describe("listNotifications against a database", () => {
       },
     ]);
 
-    const rows = await listNotifications(DEMO_ORGANIZATION_ID);
+    const rows = await listNotifications(DEMO_ORGANIZATION_ID, DEMO_ADMIN_USER_ID);
 
     expect(getDataMode()).toBe("database");
     expect(rows).toHaveLength(1);
@@ -167,7 +186,7 @@ describe("listNotifications against a database", () => {
   it("excludes expired notifications", async () => {
     notificationFindMany.mockResolvedValue([]);
 
-    await listNotifications(DEMO_ORGANIZATION_ID);
+    await listNotifications(DEMO_ORGANIZATION_ID, DEMO_ADMIN_USER_ID);
 
     const [args] = notificationFindMany.mock.calls[0] as [
       { where: { OR: readonly unknown[] } },
@@ -176,10 +195,10 @@ describe("listNotifications against a database", () => {
     expect(args.where.OR).toHaveLength(2);
   });
 
-  it("filters to one user when asked", async () => {
+  it("adds the unread filter when asked", async () => {
     notificationFindMany.mockResolvedValue([]);
 
-    await listNotifications(DEMO_ORGANIZATION_ID, { userId: "user-2", unreadOnly: true });
+    await listNotifications(DEMO_ORGANIZATION_ID, "user-2", { unreadOnly: true });
 
     const [args] = notificationFindMany.mock.calls[0] as [
       { where: Record<string, unknown> },
@@ -193,17 +212,20 @@ describe("listNotifications in demo mode", () => {
   it("falls back to the fixtures when the database is unreachable", async () => {
     notificationFindMany.mockRejectedValue(p1001());
 
-    const rows = await listNotifications(DEMO_ORGANIZATION_ID);
+    const rows = await listNotifications(DEMO_ORGANIZATION_ID, DEMO_ADMIN_USER_ID);
 
     expect(getDataMode()).toBe("demo");
     expect(rows).toHaveLength(DEMO_NOTIFICATIONS.length);
+    expect(rows.every((row) => row.userId === DEMO_ADMIN_USER_ID)).toBe(true);
   });
 
   it("applies the unread filter to the fixtures too", async () => {
     // Demo mode and database mode must not disagree about what is unread.
     notificationFindMany.mockRejectedValue(p1001());
 
-    const rows = await listNotifications(DEMO_ORGANIZATION_ID, { unreadOnly: true });
+    const rows = await listNotifications(DEMO_ORGANIZATION_ID, DEMO_ADMIN_USER_ID, {
+      unreadOnly: true,
+    });
 
     expect(rows.every((row) => !row.isRead)).toBe(true);
     expect(rows).toHaveLength(DEMO_NOTIFICATIONS.filter((row) => !row.isRead).length);
@@ -212,13 +234,19 @@ describe("listNotifications in demo mode", () => {
   it("returns nothing for another organisation", async () => {
     notificationFindMany.mockRejectedValue(p1001());
 
-    expect(await listNotifications("another-company")).toEqual([]);
+    expect(await listNotifications("another-company", DEMO_ADMIN_USER_ID)).toEqual([]);
+  });
+
+  it("returns nothing for another recipient in the same organisation", async () => {
+    notificationFindMany.mockRejectedValue(p1001());
+
+    expect(await listNotifications(DEMO_ORGANIZATION_ID, "someone-else")).toEqual([]);
   });
 
   it("includes a fixture on an external channel, so the boundary is visible in the UI", async () => {
     notificationFindMany.mockRejectedValue(p1001());
 
-    const rows = await listNotifications(DEMO_ORGANIZATION_ID);
+    const rows = await listNotifications(DEMO_ORGANIZATION_ID, DEMO_ADMIN_USER_ID);
 
     expect(rows.some((row) => row.channel !== "in_app")).toBe(true);
   });
@@ -228,13 +256,19 @@ describe("countUnreadNotifications", () => {
   it("counts through the database when one is reachable", async () => {
     notificationCount.mockResolvedValue(7);
 
-    expect(await countUnreadNotifications(DEMO_ORGANIZATION_ID)).toBe(7);
+    expect(await countUnreadNotifications(DEMO_ORGANIZATION_ID, DEMO_ADMIN_USER_ID)).toBe(
+      7,
+    );
+    const [args] = notificationCount.mock.calls[0] as [
+      { where: Record<string, unknown> },
+    ];
+    expect(args.where.userId).toBe(DEMO_ADMIN_USER_ID);
   });
 
   it("counts the unread fixtures in demo mode", async () => {
     notificationCount.mockRejectedValue(p1001());
 
-    expect(await countUnreadNotifications(DEMO_ORGANIZATION_ID)).toBe(
+    expect(await countUnreadNotifications(DEMO_ORGANIZATION_ID, DEMO_ADMIN_USER_ID)).toBe(
       DEMO_NOTIFICATIONS.filter((row) => !row.isRead).length,
     );
   });

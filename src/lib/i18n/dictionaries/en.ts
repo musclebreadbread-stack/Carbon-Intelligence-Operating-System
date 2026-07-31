@@ -346,13 +346,13 @@ const en: Dictionary = {
 
   // Test account
   "testAccount.title": "Test Account",
-  "testAccount.description": "Supabase is not configured — running in demo mode. Use the built-in account below to test all features.",
+  "testAccount.description": "Supabase and the database are not configured, so this is a read-only demo. You can explore sample data and calculated results; changes and uploads are not persisted.",
   "testAccount.email": "Email",
   "testAccount.emailValue": "admin@example.com",
   "testAccount.name": "Name",
   "testAccount.nameValue": "Demo Administrator",
   "testAccount.role": "Role",
-  "testAccount.roleValue": "Organization Admin (full access)",
+  "testAccount.roleValue": "Demo Administrator (read-only)",
   "testAccount.password": "No password needed — automatic login",
   "testAccount.cta": "Go to dashboard",
 

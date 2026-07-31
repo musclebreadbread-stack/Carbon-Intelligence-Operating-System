@@ -89,14 +89,21 @@ export async function persistNotifications(
 }
 
 export type ListNotificationsOptions = {
-  readonly userId?: string;
   readonly unreadOnly?: boolean;
   readonly limit?: number;
 };
 
-/** Notifications for an organisation, newest first. */
+/**
+ * Notifications addressed to one recipient, newest first.
+ *
+ * `userId` is required, not optional. It used to be optional and neither the
+ * notification centre nor the header badge passed it, so every member of an
+ * organisation read every other member's messages — including their deep links. A
+ * recipient filter that a caller can forget is not a filter.
+ */
 export async function listNotifications(
   organizationId: string,
+  userId: string,
   options: ListNotificationsOptions = {},
 ): Promise<readonly NotificationRow[]> {
   const limit = options.limit ?? 50;
@@ -105,7 +112,7 @@ export async function listNotifications(
       const rows = await prisma.notification.findMany({
         where: {
           organizationId,
-          ...(options.userId !== undefined ? { userId: options.userId } : {}),
+          userId,
           ...(options.unreadOnly === true ? { isRead: false } : {}),
           // An expired notification is noise, not history: the audit trail is where
           // history lives.
@@ -133,16 +140,16 @@ export async function listNotifications(
       DEMO_NOTIFICATIONS.filter(
         (notification) =>
           notification.organizationId === organizationId &&
-          (options.userId === undefined || notification.userId === options.userId) &&
+          notification.userId === userId &&
           (options.unreadOnly !== true || !notification.isRead),
       ).slice(0, limit),
   );
 }
 
-/** Unread count for the header badge. */
+/** Unread count for the header badge, for one recipient. */
 export async function countUnreadNotifications(
   organizationId: string,
-  userId?: string,
+  userId: string,
 ): Promise<number> {
   return withDb<number>(
     async () =>
@@ -150,7 +157,7 @@ export async function countUnreadNotifications(
         where: {
           organizationId,
           isRead: false,
-          ...(userId !== undefined ? { userId } : {}),
+          userId,
           OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
         },
       }),
@@ -158,8 +165,8 @@ export async function countUnreadNotifications(
       DEMO_NOTIFICATIONS.filter(
         (notification) =>
           notification.organizationId === organizationId &&
-          !notification.isRead &&
-          (userId === undefined || notification.userId === userId),
+          notification.userId === userId &&
+          !notification.isRead,
       ).length,
   );
 }

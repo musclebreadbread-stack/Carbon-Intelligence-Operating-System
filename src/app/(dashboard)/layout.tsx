@@ -59,7 +59,9 @@ export default async function DashboardLayout({
   ]);
   const [openFindings, unreadNotifications] = await Promise.all([
     countOpenFindings(organization.id),
-    countUnreadNotifications(organization.id),
+    session
+      ? countUnreadNotifications(organization.id, session.userId)
+      : Promise.resolve(0),
   ]);
 
   const clientSession: ClientSession | null = session

@@ -24,6 +24,7 @@ import {
   DEMO_ORGANIZATION_ID,
   DEMO_PRODUCTION_LINES,
   DEMO_SOURCE_HIERARCHY,
+  DEMO_USERS,
   type SourceHierarchy,
 } from "../demo";
 
@@ -85,7 +86,15 @@ function demoOrganization(): OrganizationSummary {
   };
 }
 
-/** Every organisation the deployment knows about, for the switcher. */
+/**
+ * Every organisation the deployment knows about.
+ *
+ * Deployment-wide, so it is **not** what the organisation switcher or the active
+ * organisation cookie may be validated against — use `listOrganizationsForUser`
+ * for anything a session can influence. This remains for
+ * `getDefaultOrganizationId()`, which answers "which tenant does a fresh
+ * deployment start on?" and is not a per-user question.
+ */
 export async function listOrganizations(): Promise<readonly OrganizationSummary[]> {
   return withDb(
     async () => {
@@ -108,6 +117,45 @@ export async function listOrganizations(): Promise<readonly OrganizationSummary[
       }));
     },
     () => [demoOrganization()],
+  );
+}
+
+/**
+ * Active organisations the given user is a member of.
+ *
+ * The membership join is in the `where` clause rather than applied afterwards, so
+ * the database never returns a row the caller then has to remember to filter. This
+ * is the only list a signed-in user's tenant selection is validated against.
+ */
+export async function listOrganizationsForUser(
+  userId: string,
+): Promise<readonly OrganizationSummary[]> {
+  return withDb(
+    async () => {
+      const rows = await prisma.organization.findMany({
+        where: { isActive: true, users: { some: { id: userId, isActive: true } } },
+        orderBy: { name: "asc" },
+      });
+      return rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        legalName: row.legalName,
+        industry: row.industry,
+        sector: row.sector,
+        country: row.country,
+        region: row.region,
+        fiscalYearStart: row.fiscalYearStart,
+        baseCurrency: row.baseCurrency,
+        reportingYear: row.reportingYear,
+        isActive: row.isActive,
+      }));
+    },
+    () =>
+      DEMO_USERS.some(
+        (user) => user.id === userId && user.organizationId === DEMO_ORGANIZATION_ID,
+      )
+        ? [demoOrganization()]
+        : [],
   );
 }
 

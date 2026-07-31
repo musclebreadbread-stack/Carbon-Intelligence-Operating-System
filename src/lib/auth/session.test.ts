@@ -85,6 +85,60 @@ describe("isSupabaseConfigured", () => {
   });
 });
 
+describe("getSession across every (database × Supabase) combination", () => {
+  // The automatic demo administrator is what makes a clean checkout navigable. It
+  // is also, in the wrong combination, an anonymous administrator: `canWrite()`
+  // returns true for any valid `DATABASE_URL`, so "Supabase missing" plus "real
+  // database" used to mean unauthenticated administrator writes. The demo session
+  // is therefore permitted only when there is nowhere to persist to either.
+  const REAL_DB = "postgresql://app:s3cret@db.internal:5432/cios";
+
+  it("no Supabase, no database: the read-only demo administrator", async () => {
+    delete process.env.DATABASE_URL;
+    unconfigureSupabase();
+    resetDataMode();
+    const session = await getSession();
+    expect(session?.source).toBe("demo");
+  });
+
+  it("no Supabase, placeholder database: still the demo administrator", async () => {
+    process.env.DATABASE_URL = "postgresql://username:password@localhost:5432/placeholder";
+    unconfigureSupabase();
+    resetDataMode();
+    expect((await getSession())?.source).toBe("demo");
+  });
+
+  it("no Supabase, real database: no session at all", async () => {
+    process.env.DATABASE_URL = REAL_DB;
+    unconfigureSupabase();
+    resetDataMode();
+    await expect(getSession()).resolves.toBeNull();
+    // And therefore every server action fails at the first gate in `runAction`.
+    await expect(requireSession()).rejects.toThrow(UnauthorizedError);
+  });
+
+  it("Supabase configured, real database: the Supabase identity decides", async () => {
+    process.env.DATABASE_URL = REAL_DB;
+    configureSupabase();
+    resetDataMode();
+    getUser.mockResolvedValue({ data: { user: null }, error: null });
+    await expect(getSession()).resolves.toBeNull();
+  });
+
+  it("Supabase configured, no database: the fixtures back the Supabase identity", async () => {
+    delete process.env.DATABASE_URL;
+    configureSupabase();
+    resetDataMode();
+    getUser.mockResolvedValue({
+      data: { user: { email: "admin@example.com" } },
+      error: null,
+    });
+    const session = await getSession();
+    expect(session?.source).toBe("supabase");
+    expect(session?.userId).toBe(DEMO_ADMIN_USER_ID);
+  });
+});
+
 describe("getSession with Supabase unconfigured", () => {
   it("returns the offline demo session so the app is navigable", async () => {
     const session = await getSession();

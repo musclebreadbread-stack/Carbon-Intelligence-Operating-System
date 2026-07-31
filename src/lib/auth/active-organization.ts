@@ -5,33 +5,41 @@
  * user is currently *looking at* is a UI preference, stored in a cookie by
  * `setActiveOrganizationAction`. Keeping it here rather than in `session.ts` means
  * `getSession()` stays free of `next/headers` and remains unit-testable, and the
- * validity check (the id must be one the deployment actually has) lives in exactly
- * one place so a forged cookie cannot select another tenant.
+ * validity check lives in exactly one place so a forged cookie cannot select another
+ * tenant.
+ *
+ * The check is **membership**, not existence. It used to be "is this id one the
+ * deployment has?", which any signed-in user could satisfy with any other tenant's
+ * id: setting the cookie by hand switched the whole dashboard, and the report export
+ * route, onto somebody else's data. A cookie naming an organisation the session user
+ * is not a member of is now ignored, and the user's own organisation is used instead.
  */
 
 import { cookies } from "next/headers";
 
 import { getSession } from "@/lib/auth/session";
-import {
-  getDefaultOrganizationId,
-  listOrganizations,
-} from "@/lib/data/repositories/organization";
+import { listOrganizationsForUser } from "@/lib/data/repositories/organization";
 
 export const ACTIVE_ORGANIZATION_COOKIE = "cios-active-organization";
 
 export type ActiveOrganization = {
   readonly id: string;
   readonly name: string;
-  /** Every organisation the deployment knows about, for the switcher. */
+  /** Organisations the *session user is a member of*, for the switcher. */
   readonly available: readonly { readonly id: string; readonly name: string }[];
 };
 
 /**
- * The organisation a page should read. Falls back to the session's organisation,
- * then to the first organisation the deployment has.
+ * The organisation a page should read.
+ *
+ * Resolution order: a cookie naming an organisation the user belongs to, then the
+ * session's own organisation, then the first membership. With no session at all the
+ * id is empty, which every repository read treats as "no rows" rather than as
+ * "somebody else's rows".
  */
 export async function resolveActiveOrganization(): Promise<ActiveOrganization> {
-  const [session, organizations] = await Promise.all([getSession(), listOrganizations()]);
+  const session = await getSession();
+  const organizations = session ? await listOrganizationsForUser(session.userId) : [];
   const available = organizations.map((organization) => ({
     id: organization.id,
     name: organization.name,
@@ -49,8 +57,13 @@ export async function resolveActiveOrganization(): Promise<ActiveOrganization> {
   );
   const id =
     candidates.find((candidate) => available.some((row) => row.id === candidate)) ??
+    // The session's own organisation stays usable even when the membership list
+    // could not be read — a database outage puts `listOrganizationsForUser` on the
+    // fixture fallback, and locking a real user out of their own tenant because the
+    // membership query failed would be a worse failure than a stale switcher.
+    session?.organizationId ??
     available[0]?.id ??
-    (await getDefaultOrganizationId());
+    "";
 
   return {
     id,

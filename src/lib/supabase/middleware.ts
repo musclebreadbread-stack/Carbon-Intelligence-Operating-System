@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { isDbConfigured } from "@/lib/data/db";
+
 import { isSupabaseConfigured } from "./client";
 
 /** Paths reachable without a session. */
@@ -20,13 +22,35 @@ export async function updateSession(request: NextRequest) {
     request,
   });
 
-  // With no Supabase project configured there is no identity provider to
-  // authenticate against, and `getUser()` would report "no user" for everyone —
-  // redirecting every route to a sign-in page that cannot work. Demo mode is
-  // explicitly navigable (decision 5), and `getSession()` supplies the demo
-  // administrator, so route protection is skipped rather than made unsatisfiable.
+  const isPublicPath =
+    request.nextUrl.pathname === "/" ||
+    PUBLIC_PATHS.some((path) => request.nextUrl.pathname.startsWith(path));
+
+  // With no Supabase project there is no identity provider to authenticate
+  // against, and `getUser()` would report "no user" for everyone — redirecting
+  // every route to a sign-in page that cannot work. Demo mode is explicitly
+  // navigable (decision 5) and `getSession()` supplies the read-only demo
+  // administrator, so route protection is skipped **only** in that mode.
+  //
+  // A real `DATABASE_URL` with missing Supabase credentials is a different
+  // deployment entirely: `canWrite()` would allow writes while nobody had
+  // authenticated, which turned every server action into an anonymous
+  // administrator API. That combination is a configuration error, so it fails
+  // closed here and `getSession()` refuses to mint a demo session for it.
+  // Redirecting to `/login` is not an option — the login form needs the same
+  // Supabase project that is missing — so the misconfiguration is stated instead.
   if (!isSupabaseConfigured()) {
-    return supabaseResponse;
+    if (!isDbConfigured() || isPublicPath) return supabaseResponse;
+    return NextResponse.json(
+      {
+        error: "AUTH_NOT_CONFIGURED",
+        message:
+          "This deployment has a database but no identity provider. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY, or unset DATABASE_URL to run the read-only demo.",
+        messageKo:
+          "데이터베이스는 구성되었으나 인증 공급자가 없습니다. NEXT_PUBLIC_SUPABASE_URL과 NEXT_PUBLIC_SUPABASE_ANON_KEY를 설정하거나, 읽기 전용 데모로 실행하려면 DATABASE_URL을 해제하세요.",
+      },
+      { status: 503, headers: { "Cache-Control": "no-store" } },
+    );
   }
 
   const supabase = createServerClient(
@@ -59,10 +83,6 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const isPublicPath =
-    request.nextUrl.pathname === "/" ||
-    PUBLIC_PATHS.some((path) => request.nextUrl.pathname.startsWith(path));
 
   if (!user && !isPublicPath) {
     // No user on a protected route, redirect to login page
