@@ -11,6 +11,8 @@
 
 import { z } from "zod";
 
+import { MAX_IMPORT_ROWS } from "@/lib/domain/import/mapping";
+
 import {
   dataQualityLevelSchema,
   dataSourceTypeSchema,
@@ -170,6 +172,79 @@ export const dataImportJobInputSchema = z.object({
   mappings: z.array(dataImportMappingInputSchema).default([]),
 });
 export type DataImportJobInput = z.infer<typeof dataImportJobInputSchema>;
+
+/**
+ * One projected CSV row.
+ *
+ * Separate from `activityDataEntryInputSchema` because the value types differ at the
+ * boundary, not because the rules do: a CSV cell is always a string, so `quantity`,
+ * `uncertainty` and `isEstimated` need coercion, while the form schema receives them
+ * already typed. The *constraints* are deliberately identical — positive quantity,
+ * registry unit, `endDate >= startDate`, uncertainty as a 0–1 fraction — so an
+ * imported row cannot enter the inventory under weaker validation than a hand-typed
+ * one. That equivalence is asserted in `activity-data.test.ts`.
+ */
+export const activityImportRowSchema = z
+  .object({
+    quantity: z.coerce
+      .number({ invalid_type_error: "quantity must be a number" })
+      .finite("quantity must be a finite number")
+      .positive("quantity must be greater than zero"),
+    unit: registryUnitSchema,
+    startDate: dateSchema,
+    endDate: dateSchema,
+    emissionSourceId: idSchema.optional(),
+    notes: descriptionSchema.optional(),
+    evidenceUrl: urlSchema.optional(),
+    // CSV has no booleans. Accepting the spellings a spreadsheet actually produces
+    // is friendlier than rejecting the row, but anything else is an error rather
+    // than a silent `false`.
+    isEstimated: z
+      .string()
+      .trim()
+      .transform((value) => value.toLowerCase())
+      .refine(
+        (value) => ["true", "false", "yes", "no", "y", "n", "1", "0"].includes(value),
+        { message: 'isEstimated must be one of true/false, yes/no, y/n, 1/0' },
+      )
+      .transform((value) => ["true", "yes", "y", "1"].includes(value))
+      .optional(),
+    uncertainty: z.coerce
+      .number({ invalid_type_error: "uncertainty must be a number" })
+      .min(0, "uncertainty is a 0–1 fraction")
+      .max(1, "uncertainty is a 0–1 fraction")
+      .optional(),
+  })
+  .refine((value) => value.endDate.getTime() >= value.startDate.getTime(), {
+    message: "endDate must be on or after startDate",
+    path: ["endDate"],
+  });
+export type ActivityImportRow = z.infer<typeof activityImportRowSchema>;
+
+/**
+ * The CSV import commit payload.
+ *
+ * `rows` carries the *raw* cells rather than pre-validated entries, so the server
+ * re-derives everything from the mapping the user confirmed. Trusting a client-parsed
+ * entry list would make the row-level validation advisory, and this action is
+ * reachable by direct POST.
+ */
+export const activityDataImportInputSchema = z.object({
+  organizationId: idSchema,
+  /** The `ActivityData` header the imported entries attach to. */
+  activityDataId: idSchema,
+  name: nameSchema,
+  fileName: z.string().trim().max(300).nullish(),
+  fileType: z.enum(["csv", "xlsx", "json"]).default("csv"),
+  mappings: z
+    .array(dataImportMappingInputSchema)
+    .min(1, "Map at least one column before committing the import"),
+  rows: z
+    .array(z.record(z.string(), z.string()))
+    .min(1, "The file has a header row but no data rows")
+    .max(MAX_IMPORT_ROWS, `An import is limited to ${MAX_IMPORT_ROWS} rows`),
+});
+export type ActivityDataImportInput = z.infer<typeof activityDataImportInputSchema>;
 
 /** `MeterReading` / `IoTReading` payload. */
 export const meterReadingInputSchema = z

@@ -22,7 +22,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/shared/empty-state";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { PageHeader } from "@/components/shared/page-header";
-import { createActivityEntryAction } from "@/lib/actions/activity-data";
+import {
+  createActivityEntryAction,
+  importActivityDataAction,
+} from "@/lib/actions/activity-data";
 import { executeRuleSetAction } from "@/lib/actions/rules";
 import { activeOrganizationId } from "@/lib/auth/active-organization";
 import { isDbConfigured } from "@/lib/data/db";
@@ -228,7 +231,14 @@ export default async function ActivityDataPage() {
             </TabsContent>
 
             <TabsContent value="import" className="pt-3">
-              <CsvImport databaseConfigured={isDbConfigured()} />
+              <CsvImport
+                databaseConfigured={isDbConfigured()}
+                activityDataOptions={headers.map((header) => ({
+                  value: header.id,
+                  label: `${header.name} (${header.reportingYear})`,
+                }))}
+                importActivityData={importActivityDataAction}
+              />
             </TabsContent>
 
             <TabsContent value="rules" className="space-y-4 pt-3">

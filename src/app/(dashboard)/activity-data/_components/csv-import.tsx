@@ -1,16 +1,23 @@
 "use client";
 
 /**
- * CSV import column mapping.
+ * CSV import: parse, map, preview, commit.
  *
- * Mirrors the `DataImportJob` / `DataImportMapping` models: the user pastes (or
- * selects) a file, the header row is parsed, and each source column is mapped to a
- * target `ActivityDataEntry` field. The mapping and the row preview are exactly what
- * a persisted `DataImportJob` would carry.
+ * Mirrors the `DataImportJob` / `DataImportMapping` models. The user pastes or selects
+ * a file, the header row is parsed, each source column is mapped to a target
+ * `ActivityDataEntry` field, and the confirmed mapping plus the raw rows are handed to
+ * `importActivityDataAction`.
  *
- * Parsing and mapping happen entirely client-side; committing the job needs a
- * database, so with none configured the panel says so instead of pretending to
- * enqueue an import.
+ * Parsing and mapping use the *same* pure functions the server uses
+ * (`src/lib/domain/import/mapping.ts`), so the preview cannot disagree with what is
+ * committed. The rows sent are the raw cells, not client-built entries: the server
+ * re-derives and re-validates every row, because the action is reachable by direct
+ * POST and a client-side check would be advisory only.
+ *
+ * The commit button used to be permanently disabled because no action existed. It is
+ * now gated on the mapping being complete and a header being selected; demo mode is
+ * *not* a reason to disable it — the action returns `DEMO_MODE` and the user gets a
+ * real explanation rather than a dead control.
  */
 
 import * as React from "react";
@@ -22,115 +29,117 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { SETUP_GUIDE_PATH } from "@/lib/i18n/messages";
+import { ActionError } from "@/components/shared/form/action-error";
+import { IDLE_ACTION_STATE, type ActionState } from "@/lib/actions/types";
+import type { ImportActivityDataResult } from "@/lib/actions/activity-data";
+import {
+  IMPORT_TARGET_FIELDS,
+  MAX_IMPORT_ROWS,
+  guessTargetField,
+  missingRequiredTargets,
+  parseCsv,
+  parseCsvLine,
+} from "@/lib/domain/import/mapping";
 
-/** Target fields an imported column can be mapped onto. */
-export const IMPORT_TARGET_FIELDS = [
+/** The select options: the shared target list plus an explicit "ignore". */
+const TARGET_OPTIONS = [
   { value: "", label: "— ignore —", required: false },
-  { value: "quantity", label: "quantity", required: true },
-  { value: "unit", label: "unit", required: true },
-  { value: "startDate", label: "startDate", required: true },
-  { value: "endDate", label: "endDate", required: true },
-  { value: "emissionSourceId", label: "emissionSourceId", required: false },
-  { value: "notes", label: "notes", required: false },
-  { value: "evidenceUrl", label: "evidenceUrl", required: false },
-  { value: "isEstimated", label: "isEstimated", required: false },
-  { value: "uncertainty", label: "uncertainty", required: false },
+  ...IMPORT_TARGET_FIELDS,
 ] as const;
 
-const REQUIRED_TARGETS = IMPORT_TARGET_FIELDS.filter((field) => field.required).map(
-  (field) => field.value,
-);
-
-/** Minimal RFC-4180-ish split: quoted fields with embedded commas are honoured. */
-export function parseCsvLine(line: string): string[] {
-  const cells: string[] = [];
-  let current = "";
-  let quoted = false;
-  for (let index = 0; index < line.length; index += 1) {
-    const char = line[index];
-    if (quoted) {
-      if (char === '"' && line[index + 1] === '"') {
-        current += '"';
-        index += 1;
-      } else if (char === '"') {
-        quoted = false;
-      } else {
-        current += char;
-      }
-    } else if (char === '"') {
-      quoted = true;
-    } else if (char === ",") {
-      cells.push(current.trim());
-      current = "";
-    } else {
-      current += char;
-    }
-  }
-  cells.push(current.trim());
-  return cells;
-}
+/** Re-exported so existing callers and tests keep one import site. */
+export { parseCsvLine };
+export const IMPORT_TARGET_FIELD_OPTIONS = TARGET_OPTIONS;
 
 /** Guesses the target field for a source column by name. */
 export function guessTarget(header: string): string {
-  const key = header.toLowerCase().replace(/[^a-z]/g, "");
-  const table: Readonly<Record<string, string>> = {
-    quantity: "quantity",
-    amount: "quantity",
-    value: "quantity",
-    consumption: "quantity",
-    unit: "unit",
-    uom: "unit",
-    startdate: "startDate",
-    periodstart: "startDate",
-    from: "startDate",
-    enddate: "endDate",
-    periodend: "endDate",
-    to: "endDate",
-    source: "emissionSourceId",
-    emissionsource: "emissionSourceId",
-    notes: "notes",
-    memo: "notes",
-    evidence: "evidenceUrl",
-    evidenceurl: "evidenceUrl",
-    estimated: "isEstimated",
-    isestimated: "isEstimated",
-    uncertainty: "uncertainty",
-  };
-  return table[key] ?? "";
+  return guessTargetField(header);
 }
 
-export function CsvImport({ databaseConfigured }: { readonly databaseConfigured: boolean }) {
+export type CsvImportProps = {
+  readonly databaseConfigured: boolean;
+  /** Activity-data headers the imported entries can attach to. */
+  readonly activityDataOptions: readonly {
+    readonly value: string;
+    readonly label: string;
+  }[];
+  readonly importActivityData: (
+    input: unknown,
+  ) => Promise<ActionState<ImportActivityDataResult>>;
+};
+
+export function CsvImport({
+  databaseConfigured,
+  activityDataOptions,
+  importActivityData,
+}: CsvImportProps) {
   const [raw, setRaw] = React.useState("");
   const [jobName, setJobName] = React.useState("");
+  const [activityDataId, setActivityDataId] = React.useState(
+    activityDataOptions[0]?.value ?? "",
+  );
   /**
    * Only the user's *overrides* are held in state; the effective mapping is derived
    * from the current header row on every render, so pasting a different CSV cannot
    * leave a stale mapping behind and no effect has to reset anything.
    */
   const [overrides, setOverrides] = React.useState<Record<string, string>>({});
+  const [state, setState] = React.useState<ActionState<ImportActivityDataResult>>(
+    IDLE_ACTION_STATE,
+  );
+  const [pending, startTransition] = React.useTransition();
 
-  const lines = raw
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-  const headers = lines.length > 0 ? parseCsvLine(lines[0]) : [];
-  const rows = lines.slice(1, 6).map(parseCsvLine);
+  const { headers, rows: allRows } = parseCsv(raw);
+  const previewRows = allRows.slice(0, 5);
 
   const mapping: Record<string, string> = Object.fromEntries(
-    headers.map((header) => [header, overrides[header] ?? guessTarget(header)]),
+    headers.map((header) => [header, overrides[header] ?? guessTargetField(header)]),
   );
   const setMapping = setOverrides;
 
-  const mapped = Object.values(mapping).filter((target) => target.length > 0);
-  const missing = REQUIRED_TARGETS.filter((target) => !mapped.includes(target));
+  const mappings = headers
+    .filter((header) => (mapping[header] ?? "").length > 0)
+    .map((header) => ({
+      sourceColumn: header,
+      targetField: mapping[header],
+      isRequired: IMPORT_TARGET_FIELDS.some(
+        (field) => field.value === mapping[header] && field.required,
+      ),
+    }));
+  const missing = missingRequiredTargets(mappings);
+  const tooManyRows = allRows.length > MAX_IMPORT_ROWS;
+
+  const canCommit =
+    headers.length > 0 &&
+    allRows.length > 0 &&
+    !tooManyRows &&
+    missing.length === 0 &&
+    activityDataId.length > 0 &&
+    !pending;
 
   async function onFile(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
     setJobName(file.name);
     setRaw(await file.text());
+    setState(IDLE_ACTION_STATE);
   }
+
+  function onCommit() {
+    startTransition(async () => {
+      const result = await importActivityData({
+        activityDataId,
+        name: jobName.trim().length > 0 ? jobName.trim() : "CSV import",
+        fileName: jobName.trim().length > 0 ? jobName.trim() : null,
+        fileType: "csv",
+        mappings,
+        rows: allRows,
+      });
+      setState(result);
+    });
+  }
+
+  const result = state.status === "success" ? state.data : null;
 
   return (
     <div className="space-y-4" data-testid="csv-import">
@@ -154,12 +163,36 @@ export function CsvImport({ databaseConfigured }: { readonly databaseConfigured:
       </div>
 
       <div className="space-y-1.5">
+        <Label htmlFor="csv-activity-data">Attach imported entries to</Label>
+        <select
+          id="csv-activity-data"
+          value={activityDataId}
+          onChange={(event) => setActivityDataId(event.target.value)}
+          className="h-9 w-full rounded-lg border border-input bg-background px-2 text-sm"
+        >
+          {activityDataOptions.length === 0 && <option value="">No activity data set</option>}
+          {activityDataOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <p className="text-xs text-muted-foreground">
+          Every imported row becomes an <code>ActivityDataEntry</code> on this set, so its
+          scope and reporting year apply to the whole file.
+        </p>
+      </div>
+
+      <div className="space-y-1.5">
         <Label htmlFor="csv-paste">Or paste CSV</Label>
         <Textarea
           id="csv-paste"
           rows={4}
           value={raw}
-          onChange={(event) => setRaw(event.target.value)}
+          onChange={(event) => {
+            setRaw(event.target.value);
+            setState(IDLE_ACTION_STATE);
+          }}
           placeholder="quantity,unit,startDate,endDate&#10;12500,kWh,2024-01-01,2024-01-31"
           className="font-mono text-xs"
         />
@@ -187,7 +220,7 @@ export function CsvImport({ databaseConfigured }: { readonly databaseConfigured:
                     }
                     className="h-8 flex-1 rounded-lg border border-input bg-background px-2 text-sm"
                   >
-                    {IMPORT_TARGET_FIELDS.map((field) => (
+                    {TARGET_OPTIONS.map((field) => (
                       <option key={field.value} value={field.value}>
                         {field.label}
                         {field.required ? " *" : ""}
@@ -201,8 +234,8 @@ export function CsvImport({ databaseConfigured }: { readonly databaseConfigured:
 
           <div className="space-y-2">
             <p className="text-sm font-medium">
-              Preview — first {rows.length} data row{rows.length === 1 ? "" : "s"} of{" "}
-              {lines.length - 1}
+              Preview — first {previewRows.length} data row
+              {previewRows.length === 1 ? "" : "s"} of {allRows.length}
             </p>
             <div className="overflow-x-auto rounded-lg border">
               <table className="w-full text-xs">
@@ -216,11 +249,11 @@ export function CsvImport({ databaseConfigured }: { readonly databaseConfigured:
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((row, rowIndex) => (
+                  {previewRows.map((row, rowIndex) => (
                     <tr key={rowIndex} className="border-t">
-                      {headers.map((header, columnIndex) => (
+                      {headers.map((header) => (
                         <td key={header} className="px-2 py-1 font-mono">
-                          {row[columnIndex] ?? ""}
+                          {row[header] ?? ""}
                         </td>
                       ))}
                     </tr>
@@ -230,7 +263,16 @@ export function CsvImport({ databaseConfigured }: { readonly databaseConfigured:
             </div>
           </div>
 
-          {missing.length > 0 ? (
+          {tooManyRows ? (
+            <Alert variant="destructive">
+              <FileSpreadsheet />
+              <AlertTitle>Too many rows</AlertTitle>
+              <AlertDescription>
+                {allRows.length} rows exceeds the {MAX_IMPORT_ROWS}-row limit for one job.
+                Split the file and import it in parts.
+              </AlertDescription>
+            </Alert>
+          ) : missing.length > 0 ? (
             <Alert variant="destructive">
               <FileSpreadsheet />
               <AlertTitle>Mapping incomplete</AlertTitle>
@@ -248,25 +290,85 @@ export function CsvImport({ databaseConfigured }: { readonly databaseConfigured:
               <FileSpreadsheet className="text-emerald-600" />
               <AlertTitle>Mapping complete</AlertTitle>
               <AlertDescription>
-                {lines.length - 1} row{lines.length - 1 === 1 ? "" : "s"} ready, mapped onto{" "}
-                {mapped.length} field{mapped.length === 1 ? "" : "s"}. Each row will be validated
-                by <code>activityDataEntryInputSchema</code> and run through the active rule
-                sets, exactly as a manually entered row is.
+                {allRows.length} row{allRows.length === 1 ? "" : "s"} ready, mapped onto{" "}
+                {mappings.length} field{mappings.length === 1 ? "" : "s"}. Each row is
+                re-derived from this mapping on the server and validated by{" "}
+                <code>activityImportRowSchema</code>, which enforces the same rules as a
+                manually entered row.
               </AlertDescription>
             </Alert>
           )}
         </>
       )}
 
+      <ActionError
+        state={state}
+        showSuccess={false}
+        handledFields={["rows", "mappings", "activityDataId"]}
+      />
+
+      {result !== null && (
+        <Alert
+          className={result.failedRows === 0 ? "border-emerald-500/40" : "border-amber-400/60"}
+          data-testid="csv-import-result"
+        >
+          <FileSpreadsheet
+            className={result.failedRows === 0 ? "text-emerald-600" : "text-amber-600"}
+          />
+          <AlertTitle>
+            {result.status} — {result.importedRows} of {result.totalRows} row(s) imported
+          </AlertTitle>
+          <AlertDescription className="space-y-2">
+            <p className="text-xs">
+              Import job <code>{result.jobId}</code>.
+              {result.failedRows > 0
+                ? ` ${result.failedRows} row(s) failed validation and were not imported.`
+                : " Every row passed validation."}
+            </p>
+            {result.failures.length > 0 && (
+              <div className="overflow-x-auto rounded-md border">
+                <table className="w-full text-xs">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      <th className="px-2 py-1.5 text-left font-medium">Row</th>
+                      <th className="px-2 py-1.5 text-left font-medium">Field</th>
+                      <th className="px-2 py-1.5 text-left font-medium">Problem</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.failures.flatMap((failure) =>
+                      Object.entries(failure.fieldErrors).map(([field, messages]) => (
+                        <tr key={`${failure.rowNumber}-${field}`} className="border-t">
+                          <td className="px-2 py-1 font-mono">{failure.rowNumber}</td>
+                          <td className="px-2 py-1 font-mono">{field}</td>
+                          <td className="px-2 py-1">{messages.join(" ")}</td>
+                        </tr>
+                      )),
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {result.truncatedFailures && (
+              <p className="text-xs text-muted-foreground">
+                Only the first failures are listed; the full list is stored on the import
+                job&apos;s <code>errorLog</code>.
+              </p>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" disabled={!databaseConfigured || missing.length > 0 || headers.length === 0}>
+        <Button size="sm" disabled={!canCommit} onClick={onCommit}>
           <Upload className="size-3.5" />
-          Commit import job
+          {pending ? "Committing…" : "Commit import job"}
         </Button>
         {!databaseConfigured && (
           <span className="text-xs text-muted-foreground">
-            Committing an import writes a <code>DataImportJob</code> plus one entry per row, so it
-            needs <code>DATABASE_URL</code>. See <code>{SETUP_GUIDE_PATH}</code>.
+            Committing writes a <code>DataImportJob</code> plus one entry per row, so with no{" "}
+            <code>DATABASE_URL</code> it is refused with <code>DEMO_MODE</code> rather than
+            faked.
           </span>
         )}
       </div>

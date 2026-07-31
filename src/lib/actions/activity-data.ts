@@ -13,12 +13,19 @@
 import { NotFoundError, ValidationError } from "@/lib/core/errors";
 import { evaluateRuleSet } from "@/lib/domain/rules/evaluate";
 import { applyRuleSetActions } from "@/lib/domain/rules/actions";
+import {
+  missingRequiredTargets,
+  projectImportRow,
+} from "@/lib/domain/import/mapping";
 import { listRuleSets } from "@/lib/data/repositories/rules";
 import { prisma } from "@/lib/prisma";
 import {
   activityDataEntryInputSchema,
   activityDataEntryUpdateSchema,
+  activityDataImportInputSchema,
   activityDataInputSchema,
+  activityImportRowSchema,
+  fieldErrors,
   meterReadingInputSchema,
 } from "@/lib/validation";
 
@@ -186,6 +193,198 @@ export async function createActivityEntryAction(
                 isEstimated: input.isEstimated,
               },
               reason: flags.length > 0 ? flags.join("; ") : null,
+            }),
+          ],
+        };
+      },
+    },
+    rawInput,
+  );
+}
+
+export type ImportRowFailure = {
+  /** 1-based index within the data rows, matching what the preview numbers. */
+  readonly rowNumber: number;
+  /** Messages keyed by target field, so the UI can point at the offending column. */
+  readonly fieldErrors: Readonly<Record<string, readonly string[]>>;
+};
+
+export type ImportActivityDataResult = {
+  readonly jobId: string;
+  readonly status: string;
+  readonly totalRows: number;
+  readonly importedRows: number;
+  readonly failedRows: number;
+  /** Capped so a 5,000-row paste cannot return a 5,000-entry payload. */
+  readonly failures: readonly ImportRowFailure[];
+  readonly truncatedFailures: boolean;
+};
+
+/** How many row failures are returned to the UI; the rest live in `errorLog`. */
+const MAX_REPORTED_FAILURES = 50;
+
+/**
+ * Commits a CSV import as a `DataImportJob` plus one `ActivityDataEntry` per valid
+ * row.
+ *
+ * Design notes, because this action is the one the import UI was missing entirely:
+ *
+ *  - **The rows are re-derived server-side.** The payload carries raw cells and the
+ *    mapping, not pre-built entries, so the row-level validation is authoritative
+ *    rather than advisory. This action is reachable by direct POST.
+ *  - **Partial success is a real outcome.** A file where 98 of 100 rows are good is
+ *    the normal case, so valid rows are imported and the two failures are reported
+ *    per row with the offending field, mirroring `ImportStatus.PARTIALLY_COMPLETED`.
+ *    An import where *every* row fails writes a `FAILED` job and no entries, so the
+ *    user still has a record of the attempt and the reasons.
+ *  - **The job and its entries are one transaction.** A job that claims to have
+ *    imported rows it did not, or entries with no job to trace them to, would both
+ *    break lineage.
+ *  - **Rule sets are not run per row.** `createActivityEntryAction` runs them for a
+ *    single interactive entry; doing it per row would multiply rule evaluations by
+ *    the row count inside a transaction. Imported rows are validated by the same
+ *    schema and are picked up by the next rule-set execution, which the
+ *    `/activity-data` page can trigger explicitly.
+ */
+export async function importActivityDataAction(
+  rawInput: unknown,
+): Promise<ActionState<ImportActivityDataResult>> {
+  return runAction(
+    {
+      name: "importActivityData",
+      resource: "activity_data",
+      action: "create",
+      schema: activityDataImportInputSchema,
+      revalidate: [...PATHS],
+      handler: async ({ session, input, organizationId }) => {
+        // Re-read the header from a trusted source: the id came from the client.
+        const header = await prisma.activityData.findUnique({
+          where: { id: input.activityDataId },
+          select: { id: true, organizationId: true },
+        });
+        if (!header || header.organizationId !== organizationId) {
+          throw new NotFoundError(`Activity data set ${input.activityDataId} was not found`);
+        }
+
+        // The mapping is re-checked rather than trusted: the client disables the
+        // button on an incomplete mapping, but a direct POST does not.
+        const missing = missingRequiredTargets(input.mappings);
+        if (missing.length > 0) {
+          throw new ValidationError(
+            `The column mapping does not cover ${missing.join(", ")}`,
+            { missing },
+          );
+        }
+
+        const valid: {
+          readonly rowNumber: number;
+          readonly entry: ReturnType<typeof activityImportRowSchema.parse>;
+        }[] = [];
+        const failures: ImportRowFailure[] = [];
+
+        input.rows.forEach((row, index) => {
+          const projected = projectImportRow(input.mappings, row);
+          const parsed = activityImportRowSchema.safeParse(projected);
+          if (parsed.success) {
+            valid.push({ rowNumber: index + 1, entry: parsed.data });
+          } else {
+            failures.push({ rowNumber: index + 1, fieldErrors: fieldErrors(parsed.error) });
+          }
+        });
+
+        const totalRows = input.rows.length;
+        const status =
+          failures.length === 0
+            ? "COMPLETED"
+            : valid.length === 0
+              ? "FAILED"
+              : "PARTIALLY_COMPLETED";
+        const startedAt = new Date();
+
+        const jobId = await prisma.$transaction(async (tx) => {
+          const job = await tx.dataImportJob.create({
+            data: {
+              organizationId,
+              name: input.name,
+              fileName: input.fileName ?? null,
+              fileType: input.fileType,
+              status,
+              totalRows,
+              processedRows: valid.length,
+              errorRows: failures.length,
+              // The full failure list is persisted even though the response caps
+              // it, so nothing is lost when a large import goes wrong. A clean
+              // import leaves the column absent rather than writing JSON `null`,
+              // which Prisma distinguishes from "not set".
+              ...(failures.length > 0 ? { errorLog: failures as never } : {}),
+              startedAt,
+              completedAt: new Date(),
+              mappings: {
+                create: input.mappings.map((mapping) => ({
+                  sourceColumn: mapping.sourceColumn,
+                  targetField: mapping.targetField,
+                  transformation: mapping.transformation ?? null,
+                  defaultValue: mapping.defaultValue ?? null,
+                  isRequired: mapping.isRequired,
+                })),
+              },
+            },
+            select: { id: true },
+          });
+
+          if (valid.length > 0) {
+            await tx.activityDataEntry.createMany({
+              data: valid.map(({ entry }) => ({
+                activityDataId: header.id,
+                quantity: entry.quantity,
+                unit: entry.unit,
+                startDate: entry.startDate,
+                endDate: entry.endDate,
+                notes: entry.notes ?? null,
+                evidenceUrl: entry.evidenceUrl ?? null,
+                isEstimated: entry.isEstimated ?? false,
+                uncertainty: entry.uncertainty ?? null,
+                emissionSourceId: entry.emissionSourceId ?? null,
+              })),
+            });
+          }
+
+          return job.id;
+        });
+
+        return {
+          data: {
+            jobId,
+            status,
+            totalRows,
+            importedRows: valid.length,
+            failedRows: failures.length,
+            failures: failures.slice(0, MAX_REPORTED_FAILURES),
+            truncatedFailures: failures.length > MAX_REPORTED_FAILURES,
+          },
+          message:
+            failures.length === 0
+              ? `Imported ${valid.length} of ${totalRows} row(s).`
+              : `Imported ${valid.length} of ${totalRows} row(s); ${failures.length} row(s) failed validation.`,
+          messageKey: "action.success.importActivityData",
+          audit: [
+            auditEntry(session, {
+              entityType: "DataImportJob",
+              entityId: jobId,
+              action: "create",
+              after: {
+                name: input.name,
+                fileName: input.fileName ?? null,
+                status,
+                totalRows,
+                processedRows: valid.length,
+                errorRows: failures.length,
+                activityDataId: header.id,
+              },
+              reason:
+                failures.length > 0
+                  ? `${failures.length} row(s) rejected by activityImportRowSchema`
+                  : null,
             }),
           ],
         };

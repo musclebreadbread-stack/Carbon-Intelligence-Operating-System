@@ -19,8 +19,10 @@ const listRuleSets = vi.fn();
 const activityDataCreate = vi.fn();
 const activityDataFindUnique = vi.fn();
 const activityDataEntryCreate = vi.fn();
+const activityDataEntryCreateMany = vi.fn();
 const activityDataEntryFindUnique = vi.fn();
 const activityDataEntryUpdate = vi.fn();
+const dataImportJobCreate = vi.fn();
 const auditCreateMany = vi.fn();
 
 vi.mock("@/lib/prisma", () => ({
@@ -31,11 +33,22 @@ vi.mock("@/lib/prisma", () => ({
     },
     activityDataEntry: {
       create: (...args: unknown[]) => activityDataEntryCreate(...args),
+      createMany: (...args: unknown[]) => activityDataEntryCreateMany(...args),
       findUnique: (...args: unknown[]) => activityDataEntryFindUnique(...args),
       update: (...args: unknown[]) => activityDataEntryUpdate(...args),
     },
+    dataImportJob: { create: (...args: unknown[]) => dataImportJobCreate(...args) },
     meterReading: { create: vi.fn(async () => ({ id: "meter-1" })) },
     auditTrail: { createMany: (...args: unknown[]) => auditCreateMany(...args) },
+    // The import action writes the job and its entries in one transaction; the
+    // callback is invoked with the same mock client so both writes are observable.
+    $transaction: (callback: (tx: unknown) => Promise<unknown>) =>
+      callback({
+        dataImportJob: { create: (...args: unknown[]) => dataImportJobCreate(...args) },
+        activityDataEntry: {
+          createMany: (...args: unknown[]) => activityDataEntryCreateMany(...args),
+        },
+      }),
   },
 }));
 
@@ -59,6 +72,7 @@ import { DEMO_CURRENT_YEAR, DEMO_ORGANIZATION_ID } from "@/lib/data/demo";
 import {
   createActivityDataAction,
   createActivityEntryAction,
+  importActivityDataAction,
   updateActivityEntryAction,
 } from "./activity-data";
 
@@ -151,8 +165,10 @@ beforeEach(() => {
   activityDataCreate.mockReset();
   activityDataFindUnique.mockReset();
   activityDataEntryCreate.mockReset();
+  activityDataEntryCreateMany.mockReset();
   activityDataEntryFindUnique.mockReset();
   activityDataEntryUpdate.mockReset();
+  dataImportJobCreate.mockReset();
   auditCreateMany.mockReset();
 
   requireSession.mockResolvedValue(SESSION);
@@ -166,6 +182,8 @@ beforeEach(() => {
     facilityId: "fac-1",
   });
   activityDataEntryCreate.mockResolvedValue({ id: "entry-1" });
+  activityDataEntryCreateMany.mockResolvedValue({ count: 0 });
+  dataImportJobCreate.mockResolvedValue({ id: "job-1" });
 });
 
 afterEach(() => {
@@ -347,5 +365,282 @@ describe("updateActivityEntryAction", () => {
     if (state.status !== "error") throw new Error("expected an error state");
     expect(state.code).toBe("NOT_FOUND");
     expect(activityDataEntryUpdate).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * `importActivityDataAction` (defect 2).
+ *
+ * The action did not exist: the CSV import UI parsed, mapped and previewed a file but
+ * its commit button was permanently disabled because nothing wrote a `DataImportJob`.
+ *
+ * The properties worth pinning are the ones that make an import trustworthy: the rows
+ * are re-derived server-side from the mapping (so a crafted POST cannot bypass row
+ * validation), partial success is a real reported outcome rather than an all-or-nothing
+ * failure, the job and its entries are written together, and the tenant boundary holds.
+ */
+describe("importActivityDataAction", () => {
+  const IMPORT_INPUT = {
+    organizationId: DEMO_ORGANIZATION_ID,
+    activityDataId: "ad-1",
+    name: "2024 Q1 gas meters",
+    fileName: "2024-q1.csv",
+    mappings: [
+      { sourceColumn: "Amount", targetField: "quantity" },
+      { sourceColumn: "UoM", targetField: "unit" },
+      { sourceColumn: "From", targetField: "startDate" },
+      { sourceColumn: "To", targetField: "endDate" },
+    ],
+    rows: [
+      { Amount: "1200", UoM: "kWh", From: "2024-01-01", To: "2024-01-31" },
+      { Amount: "1350", UoM: "kWh", From: "2024-02-01", To: "2024-02-29" },
+    ],
+  };
+
+  it("writes a COMPLETED job and one entry per row when every row is valid", async () => {
+    const state = await importActivityDataAction(IMPORT_INPUT);
+
+    expect(state.status).toBe("success");
+    if (state.status !== "success") throw new Error(state.message);
+    expect(state.data.status).toBe("COMPLETED");
+    expect(state.data.totalRows).toBe(2);
+    expect(state.data.importedRows).toBe(2);
+    expect(state.data.failedRows).toBe(0);
+    expect(state.data.failures).toEqual([]);
+    expect(state.data.jobId).toBe("job-1");
+  });
+
+  it("derives the entries from the mapping rather than trusting the client", async () => {
+    await importActivityDataAction(IMPORT_INPUT);
+
+    const [{ data }] = activityDataEntryCreateMany.mock.calls[0] as [
+      { data: readonly Record<string, unknown>[] },
+    ];
+    expect(data).toHaveLength(2);
+    expect(data[0].quantity).toBe(1200);
+    expect(data[0].unit).toBe("kWh");
+    expect(data[0].activityDataId).toBe("ad-1");
+    expect(data[0].startDate).toBeInstanceOf(Date);
+    expect(data[0].isEstimated).toBe(false);
+  });
+
+  it("persists the confirmed mapping alongside the job", async () => {
+    await importActivityDataAction(IMPORT_INPUT);
+
+    const [{ data }] = dataImportJobCreate.mock.calls[0] as [
+      { data: Record<string, unknown> },
+    ];
+    expect(data.totalRows).toBe(2);
+    expect(data.processedRows).toBe(2);
+    expect(data.errorRows).toBe(0);
+    expect(data.fileName).toBe("2024-q1.csv");
+    const mappings = data.mappings as { create: readonly Record<string, unknown>[] };
+    expect(mappings.create).toHaveLength(4);
+    expect(mappings.create[0].sourceColumn).toBe("Amount");
+    expect(mappings.create[0].targetField).toBe("quantity");
+  });
+
+  it("imports the good rows and reports the bad ones per row and field", async () => {
+    // Partial success is the normal case for a real file.
+    const state = await importActivityDataAction({
+      ...IMPORT_INPUT,
+      rows: [
+        ...IMPORT_INPUT.rows,
+        { Amount: "-5", UoM: "kWh", From: "2024-03-01", To: "2024-03-31" },
+        { Amount: "10", UoM: "bananas", From: "2024-04-01", To: "2024-04-30" },
+      ],
+    });
+
+    expect(state.status).toBe("success");
+    if (state.status !== "success") throw new Error(state.message);
+    expect(state.data.status).toBe("PARTIALLY_COMPLETED");
+    expect(state.data.importedRows).toBe(2);
+    expect(state.data.failedRows).toBe(2);
+    expect(state.data.failures.map((failure) => failure.rowNumber)).toEqual([3, 4]);
+    expect(state.data.failures[0].fieldErrors.quantity).toBeDefined();
+    expect(state.data.failures[1].fieldErrors.unit).toBeDefined();
+    // Only the two valid rows are written.
+    const [{ data }] = activityDataEntryCreateMany.mock.calls[0] as [
+      { data: readonly unknown[] },
+    ];
+    expect(data).toHaveLength(2);
+  });
+
+  it("writes a FAILED job and no entries when every row is rejected", async () => {
+    const state = await importActivityDataAction({
+      ...IMPORT_INPUT,
+      rows: [{ Amount: "0", UoM: "kWh", From: "2024-01-01", To: "2024-01-31" }],
+    });
+
+    expect(state.status).toBe("success");
+    if (state.status !== "success") throw new Error(state.message);
+    expect(state.data.status).toBe("FAILED");
+    expect(state.data.importedRows).toBe(0);
+    // The job is still recorded, so the user has the attempt and the reasons.
+    expect(dataImportJobCreate).toHaveBeenCalledTimes(1);
+    expect(activityDataEntryCreateMany).not.toHaveBeenCalled();
+  });
+
+  it("stores the full failure list on the job's errorLog", async () => {
+    await importActivityDataAction({
+      ...IMPORT_INPUT,
+      rows: [{ Amount: "0", UoM: "kWh", From: "2024-01-01", To: "2024-01-31" }],
+    });
+
+    const [{ data }] = dataImportJobCreate.mock.calls[0] as [
+      { data: Record<string, unknown> },
+    ];
+    expect(Array.isArray(data.errorLog)).toBe(true);
+    expect((data.errorLog as readonly unknown[]).length).toBe(1);
+  });
+
+  it("leaves errorLog unset for a clean import", async () => {
+    await importActivityDataAction(IMPORT_INPUT);
+
+    const [{ data }] = dataImportJobCreate.mock.calls[0] as [
+      { data: Record<string, unknown> },
+    ];
+    expect("errorLog" in data).toBe(false);
+  });
+
+  it("rejects a mapping that does not cover the required fields", async () => {
+    // The UI disables the button for this, but a direct POST does not.
+    const state = await importActivityDataAction({
+      ...IMPORT_INPUT,
+      mappings: IMPORT_INPUT.mappings.slice(0, 2),
+    });
+
+    expect(state.status).toBe("error");
+    if (state.status !== "error") throw new Error("expected a refusal");
+    expect(state.code).toBe("VALIDATION_ERROR");
+    expect(dataImportJobCreate).not.toHaveBeenCalled();
+  });
+
+  it("ignores a mapping that targets a field outside the import surface", async () => {
+    // A crafted mapping must not be able to set arbitrary columns; the target is
+    // dropped, so the required-field check then refuses the import.
+    const state = await importActivityDataAction({
+      ...IMPORT_INPUT,
+      mappings: [
+        ...IMPORT_INPUT.mappings.slice(0, 3),
+        { sourceColumn: "To", targetField: "activityDataId" },
+      ],
+    });
+
+    expect(state.status).toBe("error");
+    if (state.status !== "error") throw new Error("expected a refusal");
+    expect(state.code).toBe("VALIDATION_ERROR");
+    expect(activityDataEntryCreateMany).not.toHaveBeenCalled();
+  });
+
+  it("does not import into another organisation's activity data set", async () => {
+    activityDataFindUnique.mockResolvedValue({
+      id: "ad-1",
+      organizationId: "another-company",
+      facilityId: null,
+    });
+
+    const state = await importActivityDataAction(IMPORT_INPUT);
+
+    expect(state.status).toBe("error");
+    if (state.status !== "error") throw new Error("expected a refusal");
+    expect(state.code).toBe("NOT_FOUND");
+    expect(dataImportJobCreate).not.toHaveBeenCalled();
+  });
+
+  it("refuses with DEMO_MODE instead of faking an import", async () => {
+    canWrite.mockResolvedValue(false);
+
+    const state = await importActivityDataAction(IMPORT_INPUT);
+
+    expect(state.status).toBe("error");
+    if (state.status !== "error") throw new Error("expected a refusal");
+    expect(state.code).toBe("DEMO_MODE");
+    expect(dataImportJobCreate).not.toHaveBeenCalled();
+  });
+
+  it("returns UNAUTHORIZED without writing when there is no session", async () => {
+    requireSession.mockRejectedValue(new UnauthorizedError("No session"));
+
+    const state = await importActivityDataAction(IMPORT_INPUT);
+
+    expect(state.status).toBe("error");
+    if (state.status !== "error") throw new Error("expected a refusal");
+    expect(state.code).toBe("UNAUTHORIZED");
+    expect(dataImportJobCreate).not.toHaveBeenCalled();
+  });
+
+  it("returns field errors for a payload with no rows", async () => {
+    const state = await importActivityDataAction({ ...IMPORT_INPUT, rows: [] });
+
+    expect(state.status).toBe("error");
+    if (state.status !== "error") throw new Error("expected a refusal");
+    expect(state.code).toBe("VALIDATION_ERROR");
+    expect(state.fieldErrors?.rows).toBeDefined();
+    expect(dataImportJobCreate).not.toHaveBeenCalled();
+  });
+
+  it("audits the job and revalidates the pages that show the entries", async () => {
+    await importActivityDataAction(IMPORT_INPUT);
+
+    expect(auditCreateMany).toHaveBeenCalledTimes(1);
+    const [{ data }] = auditCreateMany.mock.calls[0] as [
+      { data: readonly Record<string, unknown>[] },
+    ];
+    expect(data[0].entityType).toBe("DataImportJob");
+    expect(data[0].entityId).toBe("job-1");
+    expect(revalidatePath).toHaveBeenCalledWith("/activity-data");
+    expect(revalidatePath).toHaveBeenCalledWith("/emission-engine");
+  });
+
+  it("caps the failures it returns while still counting them all", async () => {
+    const state = await importActivityDataAction({
+      ...IMPORT_INPUT,
+      rows: [
+        ...IMPORT_INPUT.rows,
+        ...Array.from({ length: 60 }, () => ({
+          Amount: "-1",
+          UoM: "kWh",
+          From: "2024-01-01",
+          To: "2024-01-31",
+        })),
+      ],
+    });
+
+    expect(state.status).toBe("success");
+    if (state.status !== "success") throw new Error(state.message);
+    expect(state.data.failedRows).toBe(60);
+    expect(state.data.failures).toHaveLength(50);
+    expect(state.data.truncatedFailures).toBe(true);
+  });
+
+  it("applies optional columns when they are mapped", async () => {
+    await importActivityDataAction({
+      ...IMPORT_INPUT,
+      mappings: [
+        ...IMPORT_INPUT.mappings,
+        { sourceColumn: "Est", targetField: "isEstimated" },
+        { sourceColumn: "Unc", targetField: "uncertainty" },
+        { sourceColumn: "Note", targetField: "notes" },
+      ],
+      rows: [
+        {
+          Amount: "1200",
+          UoM: "kWh",
+          From: "2024-01-01",
+          To: "2024-01-31",
+          Est: "yes",
+          Unc: "0.05",
+          Note: "Meter replaced mid-month",
+        },
+      ],
+    });
+
+    const [{ data }] = activityDataEntryCreateMany.mock.calls[0] as [
+      { data: readonly Record<string, unknown>[] },
+    ];
+    expect(data[0].isEstimated).toBe(true);
+    expect(data[0].uncertainty).toBe(0.05);
+    expect(data[0].notes).toBe("Meter replaced mid-month");
   });
 });
