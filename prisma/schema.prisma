@@ -3,15 +3,23 @@
 // Climate Decision Intelligence, AI Agents, and MCP Platform
 
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["postgresqlExtensions"]
+  provider = "prisma-client-js"
 }
 
+// `extensions = [vector]` was declared here for a semantic-search feature that was
+// never built. With `postgresqlExtensions` enabled, Prisma emitted
+// `CREATE EXTENSION IF NOT EXISTS "vector"` as the *first* statement of the
+// baseline migration, which made pgvector a hard prerequisite of
+// `prisma migrate deploy`: on any PostgreSQL where the extension is not installed
+// or the migration role is not a superuser, the very first deploy fails before a
+// single table is created — for a capability nothing in the codebase uses. No model
+// has a vector column, so declaring the extension bought nothing and cost the
+// ability to deploy. It is removed until semantic search is actually implemented,
+// at which point re-adding it is a one-line schema change plus its own migration.
 datasource db {
-  provider   = "postgresql"
-  url        = env("DATABASE_URL")
-  directUrl  = env("DIRECT_URL")
-  extensions = [vector]
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ============================================================================
@@ -441,6 +449,12 @@ model APIKey {
   keyHash    String    @unique
   prefix     String
   scopes     String[]
+  /// Requests per minute allowed for this key. `null` falls back to
+  /// `API_RATE_LIMIT_PER_MINUTE` (default 60). Without this column a per-key
+  /// quota was impossible: every key shared one process-wide ceiling, so a batch
+  /// integration could not be given more headroom than a dashboard widget and a
+  /// misbehaving key could not be throttled without throttling everyone.
+  rateLimit  Int?
   lastUsedAt DateTime?
   expiresAt  DateTime?
   isActive   Boolean   @default(true)
@@ -706,8 +720,9 @@ model EmissionSource {
   equipmentId      String?
   equipment        Equipment?      @relation(fields: [equipmentId], references: [id])
 
-  activityDataEntries ActivityDataEntry[]
-  emissionResults     EmissionResult[]
+  activityDataEntries  ActivityDataEntry[]
+  emissionResults      EmissionResult[]
+  monitoringParameters MonitoringParameter[]
 
   @@index([facilityId])
   @@index([scope])
@@ -1292,6 +1307,9 @@ model EmissionInventory {
   totalEmissions Float?    @default(0)
   unit           String    @default("tCO2e")
   status         String    @default("draft")
+  lockedAt       DateTime?
+  lockedBy       String?
+  lockReason     String?
   verifiedAt     DateTime?
   publishedAt    DateTime?
   createdAt      DateTime  @default(now())
@@ -2076,9 +2094,17 @@ model MonitoringParameter {
   updatedAt     DateTime              @updatedAt
 
   monitoringPlanId String
-  monitoringPlan   MonitoringPlan @relation(fields: [monitoringPlanId], references: [id])
+  monitoringPlan   MonitoringPlan  @relation(fields: [monitoringPlanId], references: [id])
+  /// The source this parameter monitors. `null` means "not yet assigned", which
+  /// `monitoringPlanCoverage()` correctly reports as a coverage gap. Before this
+  /// column existed the data layer *guessed* the association from a substring match
+  /// between the parameter name and the source name, so a plan could be reported as
+  /// covering a source it did not monitor — a false assurance statement.
+  emissionSourceId String?
+  emissionSource   EmissionSource? @relation(fields: [emissionSourceId], references: [id])
 
   @@index([monitoringPlanId])
+  @@index([emissionSourceId])
 }
 
 // ============================================================================
@@ -2154,6 +2180,9 @@ model AuditEvidence {
   title       String
   description String?
   fileUrl     String?
+  storageUrl  String?
+  fileName    String?
+  mimeType    String?
   fileType    String?
   fileSize    Int?
   hash        String?
@@ -2163,26 +2192,40 @@ model AuditEvidence {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  organizationId String?
+  userId         String?
+
   auditTrailId String?
   auditTrail   AuditTrail? @relation(fields: [auditTrailId], references: [id])
 
   @@index([auditTrailId])
   @@index([type])
+  @@index([organizationId])
 }
 
 model VerificationFinding {
-  id             String    @id @default(cuid())
-  type           String
-  severity       String
-  title          String
-  description    String?
-  recommendation String?
-  response       String?
-  status         String    @default("open")
-  dueDate        DateTime?
-  resolvedAt     DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id                 String    @id @default(cuid())
+  type               String
+  severity           String
+  title              String
+  description        String?
+  recommendation     String?
+  response           String?
+  status             String    @default("open")
+  /// Quantified misstatement in tCO2e, signed: positive overstates the inventory,
+  /// negative understates it. `null` means the verifier could not size the finding.
+  /// This drives `aggregateMisstatements()` and therefore the assurance
+  /// `opinionType`, so it is a first-class column: it was previously smuggled
+  /// inside `description` behind a `[misstatement:N]` marker, which let a verifier
+  /// silently change an audit opinion by editing prose, and which the read path
+  /// never decoded at all.
+  misstatementAmount Float?
+  /// JSON array of AuditEvidence IDs linked to this finding.
+  evidenceIds        Json?
+  dueDate            DateTime?
+  resolvedAt         DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   engagementId String
   engagement   VerificationEngagement @relation(fields: [engagementId], references: [id])
@@ -2482,16 +2525,16 @@ model DisclosureFramework {
 }
 
 model DisclosureRequirement {
-  id           String   @id @default(cuid())
-  code         String
-  name         String
-  description  String?
-  category     String?
-  isMandatory  Boolean  @default(false)
-  dataType     String?
-  guidance     String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String   @id @default(cuid())
+  code        String
+  name        String
+  description String?
+  category    String?
+  isMandatory Boolean  @default(false)
+  dataType    String?
+  guidance    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   frameworkId String
   framework   DisclosureFramework @relation(fields: [frameworkId], references: [id])

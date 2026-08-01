@@ -1,49 +1,182 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
-import {
-  Building2,
-  Search,
-  Bell,
-  ChevronDown,
-} from "lucide-react";
+/**
+ * Application header: tenant switcher, configuration badges, language switcher
+ * and the user menu.
+ */
 
-export function Header() {
+import Link from "next/link";
+import { Bell, LogOut, Settings, ShieldAlert, Sparkles, User } from "lucide-react";
+
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
+import { OrganizationSwitcher } from "@/components/layout/organization-switcher";
+import { MobileDrawer } from "@/components/layout/mobile-drawer";
+import { LanguageSwitcher } from "@/components/layout/language-switcher";
+import { useSession } from "@/components/providers/session-provider";
+import { useT } from "@/components/providers/locale-provider";
+import { cn } from "@/lib/utils";
+
+export type HeaderProps = {
+  readonly signOut: () => void | Promise<void>;
+  readonly setLocale: (locale: string) => Promise<void>;
+  readonly llmLabel: string;
+  readonly llmConfigured: boolean;
+  readonly openFindings: number;
+  readonly unreadNotifications?: number;
+};
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
+export function Header({
+  signOut,
+  setLocale,
+  llmLabel,
+  llmConfigured,
+  openFindings,
+  unreadNotifications = 0,
+}: HeaderProps) {
+  const { session, dataMode } = useSession();
+  const t = useT();
+  const outstanding = openFindings + unreadNotifications;
+
   return (
     <header className="flex h-14 items-center justify-between border-b bg-background px-4">
-      {/* Left: Organization Switcher */}
       <div className="flex items-center gap-3">
-        <Button variant="outline" size="sm" className="gap-2">
-          <Building2 className="size-4" />
-          <span className="hidden sm:inline">Acme Corporation</span>
-          <ChevronDown className="size-3 text-muted-foreground" />
-        </Button>
+        <MobileDrawer>
+          <nav className="flex flex-col gap-1">
+            <Link href="/dashboard" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.dashboard")}</Link>
+            <Link href="/organization" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.organization")}</Link>
+            <Link href="/master-data" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.masterData")}</Link>
+            <Link href="/activity-data" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.activityData")}</Link>
+            <Link href="/emission-engine" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.emissionEngine")}</Link>
+            <Link href="/emission-factors" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.emissionFactors")}</Link>
+            <Link href="/ai-engine" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.aiEngine")}</Link>
+            <Link href="/ai-roadmap" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.aiRoadmap")}</Link>
+            <Link href="/ai-simulator" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.aiSimulator")}</Link>
+            <Link href="/ai-agents" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.aiAgents")}</Link>
+            <Link href="/digital-mrv" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.digitalMrv")}</Link>
+            <Link href="/verification" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.verification")}</Link>
+            <Link href="/esg-disclosure" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.esgDisclosure")}</Link>
+            <Link href="/carbon-finance" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.carbonFinance")}</Link>
+            <Link href="/analytics" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.analytics")}</Link>
+            <Link href="/notifications" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.notifications")}</Link>
+            <Link href="/api-gateway" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.apiGateway")}</Link>
+            <Link href="/security" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.security")}</Link>
+            <Link href="/settings" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.settings")}</Link>
+          </nav>
+        </MobileDrawer>
+        <OrganizationSwitcher />
+        <Badge
+          variant={dataMode === "demo" ? "outline" : "secondary"}
+          title={dataMode === "demo" ? t("shell.demoBadgeTitle") : t("shell.liveBadgeTitle")}
+        >
+          {dataMode === "demo" ? t("shell.demoData") : t("shell.liveDatabase")}
+        </Badge>
       </div>
 
-      {/* Right: Search, Notifications, User */}
       <div className="flex items-center gap-2">
-        {/* Search Trigger */}
-        <Button variant="ghost" size="icon-sm" aria-label="Search">
-          <Search className="size-4" />
-        </Button>
+        <Badge
+          variant="outline"
+          className="hidden items-center gap-1 lg:inline-flex"
+          title={llmLabel}
+        >
+          <Sparkles className="size-3" />
+          {llmConfigured ? t("shell.llmOpenAI") : t("shell.llmDeterministic")}
+        </Badge>
 
-        {/* Notifications */}
-        <Button variant="ghost" size="icon-sm" className="relative" aria-label="Notifications">
+        <LanguageSwitcher setLocale={setLocale} />
+
+        <Link
+          href="/notifications"
+          aria-label={`${t("shell.notifications")} (${unreadNotifications})`}
+          className={cn(
+            buttonVariants({ variant: "ghost", size: "icon-sm" }),
+            "relative",
+          )}
+        >
           <Bell className="size-4" />
-          <span className="absolute top-1 right-1 size-2 rounded-full bg-emerald-500" />
-        </Button>
+          {outstanding > 0 && (
+            <span className="absolute top-0.5 right-0.5 flex size-3.5 items-center justify-center rounded-full bg-amber-500 text-[9px] font-semibold text-white">
+              {outstanding > 9 ? "9+" : outstanding}
+            </span>
+          )}
+        </Link>
 
         <Separator orientation="vertical" className="mx-1 h-6" />
 
-        {/* User Avatar */}
-        <Button variant="ghost" size="sm" className="gap-2">
-          <Avatar className="size-6">
-            <AvatarFallback className="text-xs">JD</AvatarFallback>
-          </Avatar>
-          <span className="hidden text-sm sm:inline">John Doe</span>
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button variant="ghost" size="sm" className="gap-2">
+                <Avatar className="size-6">
+                  <AvatarFallback className="text-xs">
+                    {initials(session?.name ?? t("shell.guest"))}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="hidden text-sm sm:inline">
+                  {session?.name ?? t("shell.guest")}
+                </span>
+              </Button>
+            }
+          />
+          <DropdownMenuContent align="end" className="w-72">
+            <DropdownMenuLabel className="space-y-1">
+              <span className="block text-sm font-medium">
+                {session?.name ?? t("shell.guest")}
+              </span>
+              <span className="block text-xs font-normal text-muted-foreground">
+                {session?.email ?? t("shell.notSignedIn")}
+              </span>
+              <span className="block text-xs font-normal text-muted-foreground">
+                {session?.roles.length ? session.roles.join(", ") : t("shell.noRoles")}
+              </span>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {session?.source === "demo" && (
+              <>
+                <div className="flex items-start gap-2 px-2 py-1.5 text-xs text-muted-foreground">
+                  <ShieldAlert className="mt-0.5 size-3.5 shrink-0" />
+                  <span>{t("shell.demoSession")}</span>
+                </div>
+                <DropdownMenuSeparator />
+              </>
+            )}
+            <DropdownMenuItem render={<Link href="/settings" />}>
+              <Settings className="size-3.5" />
+              {t("shell.settings")}
+            </DropdownMenuItem>
+            <DropdownMenuItem render={<Link href="/security" />}>
+              <User className="size-3.5" />
+              {t("shell.usersAndRoles")}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <form action={signOut}>
+              <button
+                type="submit"
+                className="flex w-full cursor-default items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-none hover:bg-muted"
+              >
+                <LogOut className="size-3.5" />
+                {t("shell.signOut")}
+              </button>
+            </form>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );

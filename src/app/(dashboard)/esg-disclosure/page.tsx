@@ -1,3 +1,16 @@
+/**
+ * ESG disclosure module.
+ *
+ * Framework cards show the *real* completeness from `completeness()` over the
+ * auto-populated numeric datapoints plus the authored narrative, so a percentage
+ * here is always the truth about the current inventory rather than a stored figure
+ * that has drifted.
+ */
+
+import { connection } from "next/server";
+import { FileText, ListChecks, Percent, Send } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -5,199 +18,540 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { FileText, ExternalLink } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EmptyState } from "@/components/shared/empty-state";
+import { KpiCard } from "@/components/shared/kpi-card";
+import { PageHeader } from "@/components/shared/page-header";
+import { ActionForm } from "@/components/shared/form/action-form";
+import {
+  generateDisclosureReportAction,
+  saveDisclosureResponseAction,
+} from "@/lib/actions/disclosure";
+import { activeOrganizationId } from "@/lib/auth/active-organization";
+import { DISCLOSURE_STATUSES } from "@/lib/core/enums";
+import { listReportingYears } from "@/lib/data/repositories/activity-data";
+import {
+  getAssembledReport,
+  isMappableFramework,
+  listDisclosureFrameworks,
+  listDisclosureReports,
+  listFrameworkCompleteness,
+} from "@/lib/data/repositories/disclosure";
+import { requirementsFor } from "@/lib/domain/disclosure/requirements";
+import {
+  formatDate,
+  formatNumber,
+  formatPercent,
+  humaniseEnum,
+} from "@/lib/format";
+import { getDictionary, getLocale } from "@/lib/i18n/server";
 
-const frameworks = [
-  {
-    name: "ISSB",
-    fullName: "International Sustainability Standards Board",
-    standards: ["IFRS S1", "IFRS S2"],
-    status: "in_progress" as const,
-    completion: 65,
-    dueDate: "2024-12-31",
-    description: "Climate-related financial disclosures under IFRS S2",
-  },
-  {
-    name: "CDP",
-    fullName: "Carbon Disclosure Project",
-    standards: ["Climate Change 2024"],
-    status: "in_progress" as const,
-    completion: 45,
-    dueDate: "2024-07-31",
-    description: "Annual climate disclosure questionnaire",
-  },
-  {
-    name: "CSRD",
-    fullName: "Corporate Sustainability Reporting Directive",
-    standards: ["ESRS E1", "ESRS E2"],
-    status: "not_started" as const,
-    completion: 10,
-    dueDate: "2025-01-01",
-    description: "EU mandatory sustainability reporting",
-  },
-  {
-    name: "ESRS",
-    fullName: "European Sustainability Reporting Standards",
-    standards: ["E1 Climate", "E2 Pollution", "E3 Water"],
-    status: "not_started" as const,
-    completion: 8,
-    dueDate: "2025-01-01",
-    description: "Detailed reporting standards under CSRD",
-  },
-  {
-    name: "TCFD",
-    fullName: "Task Force on Climate-related Financial Disclosures",
-    standards: ["Governance", "Strategy", "Risk Management", "Metrics"],
-    status: "submitted" as const,
-    completion: 100,
-    dueDate: "2024-03-31",
-    description: "Climate-related risk and opportunity disclosure",
-  },
-];
+export default async function EsgDisclosurePage() {
+  await connection();
+  const dict = await getDictionary();
+  const locale = await getLocale();
 
-function getStatusColor(status: string) {
-  switch (status) {
-    case "submitted":
-      return "bg-emerald-100 text-emerald-700";
-    case "in_progress":
-      return "bg-blue-100 text-blue-700";
-    case "not_started":
-      return "bg-slate-100 text-slate-700";
-    default:
-      return "";
-  }
-}
+  const organizationId = await activeOrganizationId();
+  const years = await listReportingYears(organizationId);
+  const reportingYear = years[0] ?? new Date().getUTCFullYear();
 
-function getStatusLabel(status: string) {
-  switch (status) {
-    case "submitted":
-      return "Submitted";
-    case "in_progress":
-      return "In Progress";
-    case "not_started":
-      return "Not Started";
-    default:
-      return status;
-  }
-}
+  const [frameworks, views, reports] = await Promise.all([
+    listDisclosureFrameworks(),
+    listFrameworkCompleteness(organizationId, reportingYear),
+    listDisclosureReports(organizationId),
+  ]);
 
-export default function ESGDisclosurePage() {
+  const primary = views[0] ?? null;
+  const assembled = primary
+    ? await getAssembledReport(organizationId, primary.framework, reportingYear)
+    : null;
+
+  const unmappable = frameworks.filter((framework) => !isMappableFramework(framework.code));
+  const overallAnswered = views.reduce((total, view) => total + view.completeness.answered, 0);
+  const overallTotal = views.reduce((total, view) => total + view.completeness.total, 0);
+  const autoPopulated = views.reduce(
+    (total, view) => total + view.mapping.populatedCodes.length,
+    0,
+  );
+
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">ESG Disclosure</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage compliance with global ESG reporting frameworks and standards.
-          </p>
-        </div>
-        <Button variant="outline" size="sm">
-          <FileText className="size-4" />
-          Generate Report
-        </Button>
+      <PageHeader
+        title={dict["disclosure.title"]}
+        description={dict["disclosure.desc"]}
+        meta={[
+          { label: dict["disclosure.meta.reportingYear"], value: String(reportingYear) },
+          { label: dict["disclosure.meta.mappedFrameworks"], value: formatNumber(views.length) },
+          { label: dict["disclosure.meta.reports"], value: formatNumber(reports.length) },
+        ]}
+        actions={
+          reports.length > 0 ? (
+            <>
+              <a
+                href={`/api/reports/${reports[0].id}/export?format=xlsx&locale=${locale}`}
+                className="inline-flex items-center rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+                download
+              >
+                XLSX
+              </a>
+              <a
+                href={`/api/reports/${reports[0].id}/export?format=pdf&locale=${locale}`}
+                className="inline-flex items-center rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+                download
+              >
+                PDF
+              </a>
+              <a
+                href={`/api/reports/${reports[0].id}/export?format=docx&locale=${locale}`}
+                className="inline-flex items-center rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+                download
+              >
+                DOCX
+              </a>
+            </>
+          ) : undefined
+        }
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiCard
+          title={dict["disclosure.kpi.overallCompleteness"]}
+          value={formatPercent(overallTotal === 0 ? 0 : (overallAnswered / overallTotal) * 100)}
+          icon={Percent}
+          description={`${overallAnswered} of ${overallTotal} ${dict["disclosure.kpi.overallCompletenessDesc"]}`}
+          source="completeness()"
+          goodDirection="up"
+        />
+        <KpiCard
+          title={dict["disclosure.kpi.autoPopulated"]}
+          value={formatNumber(autoPopulated)}
+          icon={ListChecks}
+          description={dict["disclosure.kpi.autoPopulatedDesc"]}
+          source="mapInventoryToRequirements()"
+          goodDirection="up"
+        />
+        <KpiCard
+          title={dict["disclosure.kpi.frameworksMapped"]}
+          value={`${views.length} / ${frameworks.length}`}
+          icon={FileText}
+          description={
+            unmappable.length > 0
+              ? `${unmappable.map((framework) => framework.code).join(", ")} ${dict["disclosure.kpi.noRequirementCatalogue"]}`
+              : dict["disclosure.kpi.allFrameworksMapped"]
+          }
+          source="requirementsFor()"
+        />
+        <KpiCard
+          title={dict["disclosure.kpi.reports"]}
+          value={formatNumber(reports.length)}
+          icon={Send}
+          description={`${reports.filter((report) => report.submittedAt !== null).length} ${dict["disclosure.kpi.submitted"]}`}
+          source="listDisclosureReports()"
+        />
       </div>
 
-      {/* Overview */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Frameworks Tracked</CardDescription>
-            <CardTitle className="text-2xl">5</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">ISSB, CDP, CSRD, ESRS, TCFD</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Overall Completion</CardDescription>
-            <CardTitle className="text-2xl">46%</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Progress value={46} className="h-1.5" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Next Deadline</CardDescription>
-            <CardTitle className="text-2xl">Jul 31</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">CDP Climate Change submission</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Framework Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {frameworks.map((framework) => (
-          <Card key={framework.name} className="flex flex-col">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">{framework.name}</CardTitle>
-                <Badge className={`text-xs ${getStatusColor(framework.status)}`}>
-                  {getStatusLabel(framework.status)}
+        {views.map((view) => (
+          <Card key={view.framework} data-testid={`framework-card-${view.framework}`}>
+            <CardHeader className="pb-2">
+              <div className="flex items-start justify-between gap-2">
+                <CardTitle className="text-base">{view.framework}</CardTitle>
+                <Badge variant={view.completeness.isComplete ? "secondary" : "outline"}>
+                  {view.completeness.isComplete ? "complete" : "in progress"}
                 </Badge>
               </div>
-              <CardDescription className="text-xs">
-                {framework.fullName}
+              <CardDescription>
+                {view.completeness.answered} of {view.completeness.total} datapoints ·{" "}
+                {view.completeness.mandatoryAnswered} of {view.completeness.mandatoryTotal}{" "}
+                mandatory
               </CardDescription>
             </CardHeader>
-            <CardContent className="flex-1">
-              <p className="text-sm text-muted-foreground">{framework.description}</p>
-
-              <div className="mt-4 space-y-3">
-                <div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">Completion</span>
-                    <span className="font-medium">{framework.completion}%</span>
-                  </div>
-                  <Progress value={framework.completion} className="mt-1 h-1.5" />
+            <CardContent className="space-y-2">
+              <div className="space-y-1">
+                <div className="flex items-baseline justify-between text-xs">
+                  <span className="text-muted-foreground">Overall</span>
+                  <span className="font-mono">{formatPercent(view.completeness.percent)}</span>
                 </div>
-
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Due Date</span>
-                  <span className="font-medium">{framework.dueDate}</span>
+                <span className="block h-1.5 overflow-hidden rounded-full bg-muted">
+                  <span
+                    className="block h-full rounded-full bg-primary"
+                    style={{ width: `${Math.min(100, view.completeness.percent)}%` }}
+                  />
+                </span>
+                <div className="flex items-baseline justify-between text-xs">
+                  <span className="text-muted-foreground">Mandatory</span>
+                  <span className="font-mono">
+                    {formatPercent(view.completeness.mandatoryPercent)}
+                  </span>
                 </div>
-
-                <div>
-                  <p className="text-xs text-muted-foreground">Standards:</p>
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {framework.standards.map((std) => (
-                      <Badge key={std} variant="outline" className="text-xs">
-                        {std}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
+                <span className="block h-1.5 overflow-hidden rounded-full bg-muted">
+                  <span
+                    className="block h-full rounded-full bg-emerald-500"
+                    style={{ width: `${Math.min(100, view.completeness.mandatoryPercent)}%` }}
+                  />
+                </span>
               </div>
+              <p className="text-[11px] text-muted-foreground">
+                {view.mapping.populatedCodes.length} auto-populated ·{" "}
+                {view.mapping.narrativeCodes.length} narrative ·{" "}
+                {view.mapping.unavailableCodes.length} awaiting an input
+              </p>
+              {view.completeness.unansweredMandatory.length > 0 && (
+                <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                  Mandatory gaps:{" "}
+                  {view.completeness.unansweredMandatory
+                    .slice(0, 3)
+                    .map((gap) => gap.code)
+                    .join(", ")}
+                  {view.completeness.unansweredMandatory.length > 3
+                    ? ` +${view.completeness.unansweredMandatory.length - 3} more`
+                    : ""}
+                </p>
+              )}
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Disclosure Timeline Placeholder */}
+      {primary && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{primary.framework} {dict["disclosure.tab.requirements"]}</CardTitle>
+            <CardDescription>
+              Auto-populated values are marked; the rest need authoring. Saving a response goes
+              through `saveDisclosureResponseAction`, which validates the requirement code
+              against the catalogue so a typo cannot create an orphan row.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="requirements">
+              <TabsList className="flex-wrap" variant="line">
+                <TabsTrigger value="requirements">{dict["disclosure.tab.requirements"]}</TabsTrigger>
+                <TabsTrigger value="categories">{dict["disclosure.tab.byCategory"]}</TabsTrigger>
+                <TabsTrigger value="editor">{dict["disclosure.tab.responseEditor"]}</TabsTrigger>
+                <TabsTrigger value="report">{dict["disclosure.tab.assembledReport"]}</TabsTrigger>
+                <TabsTrigger value="generate">{dict["disclosure.tab.generate"]}</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="requirements" className="pt-3">
+                <div className="overflow-x-auto rounded-lg border">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="px-2 py-1.5 text-left font-medium">{dict["disclosure.table.code"]}</th>
+                        <th className="px-2 py-1.5 text-left font-medium">{dict["disclosure.table.requirement"]}</th>
+                        <th className="px-2 py-1.5 text-left font-medium">{dict["disclosure.table.category"]}</th>
+                        <th className="px-2 py-1.5 text-left font-medium">{dict["disclosure.table.value"]}</th>
+                        <th className="px-2 py-1.5 text-left font-medium">{dict["disclosure.table.status"]}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {requirementsFor(primary.framework).map((requirement) => {
+                        const response = primary.mapping.responses.find(
+                          (row) => row.requirementCode === requirement.code,
+                        );
+                        return (
+                          <tr key={requirement.code} className="border-t">
+                            <td className="px-2 py-1 font-mono">{requirement.code}</td>
+                            <td className="px-2 py-1">
+                              <p>{requirement.name}</p>
+                              <p className="text-[11px] text-muted-foreground">
+                                {requirement.nameKo}
+                              </p>
+                            </td>
+                            <td className="px-2 py-1">{requirement.category}</td>
+                            <td className="px-2 py-1 font-mono">
+                              {response?.numericValue !== null &&
+                              response?.numericValue !== undefined
+                                ? `${formatNumber(response.numericValue, 2)} ${response.unit ?? ""}`
+                                : (response?.value ?? "—")}
+                            </td>
+                            <td className="px-2 py-1">
+                              <div className="flex flex-wrap gap-1">
+                                {requirement.isMandatory && (
+                                  <Badge variant="outline">mandatory</Badge>
+                                )}
+                                {response?.isAutoPopulated && (
+                                  <Badge variant="secondary">auto</Badge>
+                                )}
+                                <Badge variant="outline">
+                                  {humaniseEnum(response?.status ?? "NOT_STARTED")}
+                                </Badge>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="categories" className="pt-3">
+                <table className="w-full text-xs">
+                  <thead className="text-muted-foreground">
+                    <tr>
+                      <th className="text-left font-medium">{dict["disclosure.table.category"]}</th>
+                      <th className="text-right font-medium">{dict["disclosure.table.answered"]}</th>
+                      <th className="text-right font-medium">{dict["disclosure.table.totalCol"]}</th>
+                      <th className="text-right font-medium">{dict["disclosure.table.overall"]}</th>
+                      <th className="text-right font-medium">{dict["disclosure.table.mandatory"]}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {primary.completeness.byCategory.map((category) => (
+                      <tr key={category.category} className="border-t">
+                        <td className="py-1">{category.category}</td>
+                        <td className="py-1 text-right font-mono">{category.answered}</td>
+                        <td className="py-1 text-right font-mono">{category.total}</td>
+                        <td className="py-1 text-right font-mono">
+                          {formatPercent(category.percent)}
+                        </td>
+                        <td className="py-1 text-right font-mono">
+                          {formatPercent(category.mandatoryPercent)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </TabsContent>
+
+              <TabsContent value="editor" className="pt-3">
+                <ActionForm
+                  action={saveDisclosureResponseAction}
+                  submitLabel="Save response"
+                  fields={[
+                    {
+                      name: "framework",
+                      label: "Framework",
+                      type: "select",
+                      required: true,
+                      defaultValue: primary.framework,
+                      options: views.map((view) => ({
+                        value: view.framework,
+                        label: view.framework,
+                      })),
+                    },
+                    {
+                      name: "requirementCode",
+                      label: "Requirement",
+                      type: "select",
+                      required: true,
+                      options: requirementsFor(primary.framework).map((requirement) => ({
+                        value: requirement.code,
+                        label: `${requirement.code} — ${requirement.name}`,
+                      })),
+                    },
+                    {
+                      name: "numericValue",
+                      label: "Numeric value",
+                      type: "number",
+                      step: "any",
+                      description: "Leave blank for a narrative answer.",
+                    },
+                    {
+                      name: "status",
+                      label: "Status",
+                      type: "select",
+                      defaultValue: "IN_PROGRESS",
+                      options: DISCLOSURE_STATUSES.map((status) => ({
+                        value: status,
+                        label: humaniseEnum(status),
+                      })),
+                    },
+                    { name: "value", label: "Narrative answer", type: "textarea", wide: true },
+                    { name: "notes", label: "Notes", type: "textarea", wide: true },
+                    { name: "evidenceUrl", label: "Evidence URL", type: "url", wide: true },
+                  ]}
+                />
+              </TabsContent>
+
+              <TabsContent value="report" className="space-y-2 pt-3">
+                {assembled ? (
+                  <>
+                    <p className="text-xs text-muted-foreground">
+                      {assembled.name} — {assembled.sections.length} sections,{" "}
+                      {formatPercent(assembled.completeness.percent)} complete
+                    </p>
+                    {assembled.sections.map((section) => (
+                      <div key={section.code} className="rounded-md border p-2.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-medium">{section.title}</span>
+                          <Badge variant="outline">{section.code}</Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {section.requirements.length} datapoint
+                            {section.requirements.length === 1 ? "" : "s"}
+                          </span>
+                        </div>
+                        <ul className="mt-1 space-y-0.5">
+                          {section.requirements.map((datapoint) => (
+                            <li key={datapoint.code} className="flex gap-2 text-[11px]">
+                              <span className="w-24 shrink-0 font-mono">{datapoint.code}</span>
+                              <span className="flex-1 truncate">{datapoint.name}</span>
+                              <span className="font-mono">
+                                {datapoint.numericValue !== null
+                                  ? `${formatNumber(datapoint.numericValue, 2)} ${datapoint.unit ?? ""}`
+                                  : (datapoint.value ?? "—")}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </>
+                ) : (
+                  <EmptyState title={dict["disclosure.empty.noAssembledReport"]} />
+                )}
+              </TabsContent>
+
+              <TabsContent value="generate" className="pt-3">
+                <ActionForm
+                  action={generateDisclosureReportAction}
+                  hidden={{ organizationId }}
+                  submitLabel="Generate report"
+                  pendingLabel="Generating…"
+                  fields={[
+                    {
+                      name: "framework",
+                      label: "Framework",
+                      type: "select",
+                      required: true,
+                      defaultValue: primary.framework,
+                      options: views.map((view) => ({
+                        value: view.framework,
+                        label: view.framework,
+                      })),
+                    },
+                    {
+                      name: "reportingYear",
+                      label: "Reporting year",
+                      type: "select",
+                      required: true,
+                      defaultValue: String(reportingYear),
+                      options: (years.length > 0 ? years : [reportingYear]).map((year) => ({
+                        value: String(year),
+                        label: String(year),
+                      })),
+                    },
+                    {
+                      name: "revenue",
+                      label: "Revenue",
+                      type: "number",
+                      step: "any",
+                      description: "Needed for intensity datapoints.",
+                    },
+                    { name: "revenueUnit", label: "Revenue unit", placeholder: "MUSD" },
+                    {
+                      name: "energyConsumption",
+                      label: "Energy consumption (MWh)",
+                      type: "number",
+                      step: "any",
+                    },
+                    {
+                      name: "renewableShare",
+                      label: "Renewable share (0–1)",
+                      type: "number",
+                      step: "any",
+                      min: 0,
+                      max: 1,
+                    },
+                    { name: "baseYear", label: "Base year", type: "number" },
+                    {
+                      name: "baseYearEmissions",
+                      label: "Base-year emissions",
+                      type: "number",
+                      step: "any",
+                    },
+                    {
+                      name: "format",
+                      label: "Format",
+                      type: "select",
+                      defaultValue: "pdf",
+                      options: ["pdf", "xlsx", "json", "html"].map((format) => ({
+                        value: format,
+                        label: format,
+                      })),
+                    },
+                  ]}
+                />
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Disclosure Calendar</CardTitle>
-            <Button variant="ghost" size="sm">
-              <ExternalLink className="size-4" />
-              View Full Calendar
-            </Button>
-          </div>
-          <CardDescription>Upcoming submission deadlines and milestones</CardDescription>
+          <CardTitle>{dict["disclosure.card.reportsAndDeadlines"]}</CardTitle>
+          <CardDescription>
+            {dict["disclosure.card.reportsAndDeadlinesDesc"]}
+          </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="flex h-48 items-center justify-center rounded-md border border-dashed bg-muted/50">
-            <p className="text-sm text-muted-foreground">Disclosure timeline calendar placeholder</p>
-          </div>
+        <CardContent className="space-y-1.5">
+          {reports.length === 0 ? (
+            <EmptyState title={dict["disclosure.empty.noReports"]} />
+          ) : (
+            reports.map((report) => (
+              <div
+                key={report.id}
+                className="flex flex-wrap items-center gap-2 rounded-md border p-2.5 text-sm"
+              >
+                <span className="font-medium">{report.name}</span>
+                <Badge variant="secondary">{report.framework}</Badge>
+                <Badge variant="outline">{humaniseEnum(report.status)}</Badge>
+                <span className="text-xs text-muted-foreground">
+                  {report.reportingYear} · due {formatDate(report.dueDate)}
+                  {report.submittedAt ? ` · submitted ${formatDate(report.submittedAt)}` : ""}
+                </span>
+                <span className="ml-auto flex gap-1">
+                  <a
+                    href={`/api/reports/${report.id}/export?format=xlsx&locale=${locale}`}
+                    className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium hover:bg-muted"
+                    download
+                  >
+                    XLSX
+                  </a>
+                  <a
+                    href={`/api/reports/${report.id}/export?format=pdf&locale=${locale}`}
+                    className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium hover:bg-muted"
+                    download
+                  >
+                    PDF
+                  </a>
+                  <a
+                    href={`/api/reports/${report.id}/export?format=docx&locale=${locale}`}
+                    className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium hover:bg-muted"
+                    download
+                  >
+                    DOCX
+                  </a>
+                </span>
+                {report.notes && (
+                  <p className="w-full text-xs text-muted-foreground">{report.notes}</p>
+                )}
+              </div>
+            ))
+          )}
         </CardContent>
       </Card>
+
+      {unmappable.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{dict["disclosure.card.frameworksWithoutCatalogue"]}</CardTitle>
+            <CardDescription>
+              {dict["disclosure.card.frameworksWithoutCatalogueDesc"]}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-1.5">
+            {unmappable.map((framework) => (
+              <Badge key={framework.code} variant="outline">
+                {framework.code} — {framework.name}
+              </Badge>
+            ))}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

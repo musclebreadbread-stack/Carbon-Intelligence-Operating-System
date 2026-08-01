@@ -1,3 +1,16 @@
+/**
+ * Emission-factor library.
+ *
+ * Reads the versioned factor set, its sources and its versions from the repository,
+ * and exposes the two read-only actions that make the library auditable: the
+ * `resolveFactor()` explainer and the unit converter. Both are `readOnly`, so they
+ * work in demo mode.
+ */
+
+import { connection } from "next/server";
+import { BookOpen, CalendarClock, Library, Ruler } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -5,137 +18,239 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { BookOpen, Search, Download, Calendar } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { KpiCard } from "@/components/shared/kpi-card";
+import { PageHeader } from "@/components/shared/page-header";
+import {
+  convertUnitAction,
+  explainFactorResolutionAction,
+} from "@/lib/actions/emission-factor";
+import { activeOrganizationId } from "@/lib/auth/active-organization";
+import { GHG_SCOPES } from "@/lib/core/enums";
+import {
+  listEmissionFactors,
+  listFactorSources,
+  listFactorVersions,
+} from "@/lib/data/repositories/emission-factor";
+import { formatDate, formatNumber, scopeLabel } from "@/lib/format";
+import { SCOPE3_CATEGORY_DEFINITIONS } from "@/lib/reference/scope3-categories";
+import { UNIT_REGISTRY } from "@/lib/reference/units";
+import { EMISSION_FACTOR_UNITS } from "@/lib/core/enums";
+import { getDictionary } from "@/lib/i18n/server";
 
-const categories = [
-  { name: "Energy", count: 245, icon: "⚡" },
-  { name: "Transport", count: 189, icon: "🚛" },
-  { name: "Industrial Processes", count: 156, icon: "🏭" },
-  { name: "Waste", count: 78, icon: "♻️" },
-  { name: "Agriculture", count: 92, icon: "🌾" },
-  { name: "Refrigerants", count: 34, icon: "❄️" },
-];
+import { FactorTable, type FactorTableRow } from "./_components/factor-table";
+import { ResolutionExplainer } from "./_components/resolution-explainer";
+import { UnitConverter } from "./_components/unit-converter";
 
-const factors = [
-  { name: "Grid Electricity - US Average", value: "0.417", unit: "kgCO2e/kWh", source: "EPA eGRID 2023", region: "United States", updated: "2024-01" },
-  { name: "Natural Gas - Combustion", value: "2.02", unit: "kgCO2e/m3", source: "IPCC AR6", region: "Global", updated: "2023-12" },
-  { name: "Diesel - Mobile Combustion", value: "2.68", unit: "kgCO2e/L", source: "DEFRA 2024", region: "United Kingdom", updated: "2024-03" },
-  { name: "Grid Electricity - EU Average", value: "0.256", unit: "kgCO2e/kWh", source: "EEA 2023", region: "Europe", updated: "2024-01" },
-  { name: "Air Travel - Short Haul", value: "0.255", unit: "kgCO2e/pkm", source: "DEFRA 2024", region: "Global", updated: "2024-03" },
-  { name: "R-410A Refrigerant", value: "2088", unit: "kgCO2e/kg", source: "IPCC AR6", region: "Global", updated: "2023-06" },
-];
+export default async function EmissionFactorsPage() {
+  await connection();
+  const dict = await getDictionary();
 
-export default function EmissionFactorsPage() {
+  const organizationId = await activeOrganizationId();
+
+  const [factors, sources, versions] = await Promise.all([
+    listEmissionFactors({ organizationId, includeInactive: true }),
+    listFactorSources(),
+    listFactorVersions(),
+  ]);
+
+  const rows: FactorTableRow[] = factors.map((factor) => ({
+    id: factor.id,
+    name: factor.name,
+    value: factor.value,
+    unit: factor.unit,
+    gasType: factor.gasType ?? null,
+    scope: factor.scope ?? null,
+    scope3Category: factor.scope3Category ?? null,
+    region: factor.region ?? null,
+    country: factor.country ?? null,
+    sector: factor.sector ?? null,
+    validFrom: factor.validFrom ? factor.validFrom.toISOString() : null,
+    validTo: factor.validTo ? factor.validTo.toISOString() : null,
+    isActive: factor.isActive !== false,
+    uncertainty: factor.uncertainty ?? null,
+    dataQuality: factor.dataQuality ?? null,
+    sourceName: factor.sourceName,
+    versionLabel: factor.versionLabel,
+    organizationSpecific: factor.organizationId !== null && factor.organizationId !== undefined,
+  }));
+
+  const active = rows.filter((row) => row.isActive);
+  const sectors = [...new Set(rows.map((row) => row.sector).filter(Boolean))] as string[];
+  const openEnded = active.filter((row) => row.validTo === null);
+  const versionsBySource = new Map<string, typeof versions>();
+  for (const version of versions) {
+    const bucket = versionsBySource.get(version.sourceId);
+    if (bucket) versionsBySource.set(version.sourceId, [...bucket, version]);
+    else versionsBySource.set(version.sourceId, [version]);
+  }
+
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Emission Factors</h1>
-          <p className="text-sm text-muted-foreground">
-            Browse and manage emission factor libraries from global databases.
-          </p>
-        </div>
-        <Button variant="outline" size="sm">
-          <Download className="size-4" />
-          Export Library
-        </Button>
+      <PageHeader
+        title={dict["factors.title"]}
+        description={dict["factors.desc"]}
+        meta={[
+          { label: dict["factors.meta.factors"], value: formatNumber(rows.length) },
+          { label: dict["factors.meta.sources"], value: formatNumber(sources.length) },
+          { label: dict["factors.meta.versions"], value: formatNumber(versions.length) },
+        ]}
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiCard
+          title={dict["factors.kpi.activeFactors"]}
+          value={formatNumber(active.length)}
+          icon={Library}
+          description={`${rows.length - active.length} ${dict["factors.kpi.superseded"]}`}
+          source="listEmissionFactors()"
+        />
+        <KpiCard
+          title={dict["factors.kpi.publishedSources"]}
+          value={formatNumber(sources.length)}
+          icon={BookOpen}
+          description={sources.map((source) => source.publisher).filter(Boolean).join(", ")}
+          source="EmissionFactorSource"
+        />
+        <KpiCard
+          title={dict["factors.kpi.openEndedValidity"]}
+          value={formatNumber(openEnded.length)}
+          icon={CalendarClock}
+          description={dict["factors.kpi.openEndedValidityDesc"]}
+          source="EmissionFactor.validTo"
+        />
+        <KpiCard
+          title={dict["factors.kpi.organizationSpecific"]}
+          value={formatNumber(rows.filter((row) => row.organizationSpecific).length)}
+          icon={Ruler}
+          description={dict["factors.kpi.organizationSpecificDesc"]}
+          source="EmissionFactor.organizationId"
+        />
       </div>
 
-      {/* Search and Version Info */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
-          <Input placeholder="Search emission factors by name, category, or source..." className="pl-10" />
-        </div>
-        <div className="flex items-center gap-2 rounded-md border px-3 py-2">
-          <Calendar className="size-4 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">v2024.1</span>
-        </div>
-      </div>
-
-      {/* Categories */}
-      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        {categories.map((cat) => (
-          <Card key={cat.name} className="cursor-pointer transition-colors hover:bg-muted/50">
-            <CardContent className="flex flex-col items-center p-4 text-center">
-              <span className="text-2xl">{cat.icon}</span>
-              <span className="mt-1 text-xs font-medium">{cat.name}</span>
-              <span className="text-xs text-muted-foreground">{cat.count} factors</span>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Version Info */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-1.5">
-              <BookOpen className="size-3" />
-              Total Factors
-            </CardDescription>
-            <CardTitle className="text-2xl">794</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">Across 6 categories and 12 sources</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Last Updated</CardDescription>
-            <CardTitle className="text-2xl">March 2024</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">DEFRA, EPA, IPCC databases refreshed</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Data Sources</CardDescription>
-            <CardTitle className="text-2xl">12</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">EPA, DEFRA, IPCC, EEA, GHG Protocol</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Factor Library Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Factor Library</CardTitle>
+          <CardTitle>{dict["factors.card.factorLibrary"]}</CardTitle>
           <CardDescription>
-            Emission factors with source attribution and regional applicability
+            {dict["factors.card.factorLibraryDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <div className="grid grid-cols-6 gap-4 border-b bg-muted/50 p-3 text-xs font-medium text-muted-foreground">
-              <span className="col-span-2">Factor Name</span>
-              <span>Value</span>
-              <span>Source</span>
-              <span>Region</span>
-              <span>Updated</span>
-            </div>
-            {factors.map((factor, index) => (
-              <div
-                key={index}
-                className="grid grid-cols-6 gap-4 border-b p-3 text-sm last:border-0"
-              >
-                <span className="col-span-2 font-medium">{factor.name}</span>
-                <span className="font-mono">
-                  {factor.value} <span className="text-xs text-muted-foreground">{factor.unit}</span>
-                </span>
-                <Badge variant="outline" className="w-fit text-xs">{factor.source}</Badge>
-                <span className="text-muted-foreground">{factor.region}</span>
-                <span className="text-muted-foreground">{factor.updated}</span>
-              </div>
+          <FactorTable
+            rows={rows}
+            scopes={GHG_SCOPES.map((scope) => ({ value: scope, label: scopeLabel(scope) }))}
+            sources={sources.map((source) => ({ value: source.name, label: source.name }))}
+          />
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>{dict["factors.card.whichFactorApplies"]}</CardTitle>
+            <CardDescription>
+              {dict["factors.card.whichFactorAppliesDesc"]}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResolutionExplainer
+              organizationId={organizationId}
+              defaultDate={new Date().toISOString().slice(0, 10)}
+              scopes={GHG_SCOPES.map((scope) => ({ value: scope, label: scopeLabel(scope) }))}
+              scope3Categories={SCOPE3_CATEGORY_DEFINITIONS.map((definition) => ({
+                value: definition.category,
+                label: `${definition.number}. ${definition.nameEn}`,
+              }))}
+              sectors={sectors.map((sector) => ({ value: sector, label: sector }))}
+              units={EMISSION_FACTOR_UNITS.map((unit) => ({ value: unit, label: unit }))}
+              explainResolution={explainFactorResolutionAction}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>{dict["factors.card.unitConverter"]}</CardTitle>
+            <CardDescription>
+              {dict["factors.card.unitConverterDesc"]}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <UnitConverter
+              units={UNIT_REGISTRY.map((definition) => ({
+                value: definition.unit,
+                label: `${definition.unit} — ${definition.label} (${definition.dimension})`,
+              }))}
+              convertUnit={convertUnitAction}
+            />
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{dict["factors.card.sourcesAndVersions"]}</CardTitle>
+          <CardDescription>
+            {dict["factors.card.sourcesAndVersionsDesc"]}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue={sources[0]?.id ?? "none"}>
+            <TabsList className="flex-wrap" variant="line">
+              {sources.map((source) => (
+                <TabsTrigger key={source.id} value={source.id}>
+                  {source.name}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            {sources.map((source) => (
+              <TabsContent key={source.id} value={source.id} className="space-y-3 pt-3">
+                <div className="space-y-1 text-sm">
+                  <p className="font-medium">{source.name}</p>
+                  <p className="text-xs text-muted-foreground">{source.description}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Publisher: {source.publisher} · Methodology: {source.methodology} · Last
+                    updated {formatDate(source.lastUpdated)}
+                  </p>
+                  {source.url && (
+                    <a
+                      href={source.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs underline"
+                    >
+                      {source.url}
+                    </a>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  {(versionsBySource.get(source.id) ?? []).map((version) => (
+                    <div key={version.id} className="rounded-md border p-2.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-medium">v{version.version}</span>
+                        {version.isLatest && <Badge variant="secondary">latest</Badge>}
+                        <span className="text-xs text-muted-foreground">
+                          released {formatDate(version.releaseDate)} ·{" "}
+                          {rows.filter((row) => row.versionLabel === version.version).length}{" "}
+                          factors
+                        </span>
+                      </div>
+                      {version.description && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {version.description}
+                        </p>
+                      )}
+                      {version.changelog && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Changelog: {version.changelog}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </TabsContent>
             ))}
-          </div>
+          </Tabs>
         </CardContent>
       </Card>
     </div>

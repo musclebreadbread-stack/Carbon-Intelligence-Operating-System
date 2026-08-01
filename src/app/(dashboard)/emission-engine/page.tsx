@@ -1,3 +1,16 @@
+/**
+ * Emission engine module.
+ *
+ * The whole page is the orchestrator's output: `getCalculationOutcome()` runs
+ * `runCalculation()` over the repository's activity entries and candidate factors,
+ * and every number here — scope totals, uncertainty band, traces, lineage — comes
+ * out of that one run.
+ */
+
+import { connection } from "next/server";
+import { Activity, Calculator, Gauge, Sigma } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -5,166 +18,313 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Calculator, Flame, Zap, Truck, Play } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EmptyState } from "@/components/shared/empty-state";
+import { KpiCard } from "@/components/shared/kpi-card";
+import { LineageGraph } from "@/components/shared/lineage-graph";
+import { PageHeader } from "@/components/shared/page-header";
+import {
+  previewCalculationAction,
+  runCalculationAction,
+} from "@/lib/actions/calculation";
+import { activeOrganizationId } from "@/lib/auth/active-organization";
+import { GWP_VERSIONS } from "@/lib/core/enums";
+import { CONSOLIDATION_APPROACHES } from "@/lib/domain/emissions/aggregate";
+import { listReportingYears } from "@/lib/data/repositories/activity-data";
+import {
+  getCalculationOutcome,
+  getInventory,
+  listCalculations,
+} from "@/lib/data/repositories/calculation";
+import { getLineageGraph } from "@/lib/data/repositories/lineage";
+import { listFacilities } from "@/lib/data/repositories/organization";
+import {
+  formatDateTime,
+  formatEmissions,
+  formatNumber,
+  formatPercent,
+  humaniseEnum,
+  scopeLabel,
+} from "@/lib/format";
+import { toProvenanceTree } from "@/lib/domain/lineage/graph";
+import { getDictionary } from "@/lib/i18n/server";
 
-const scopeCards = [
-  {
-    title: "Scope 1 - Direct Emissions",
-    icon: Flame,
-    total: "3,280 tCO2e",
-    categories: [
-      { name: "Stationary Combustion", value: 1850, percent: 56 },
-      { name: "Mobile Combustion", value: 890, percent: 27 },
-      { name: "Process Emissions", value: 340, percent: 10 },
-      { name: "Fugitive Emissions", value: 200, percent: 7 },
-    ],
-    status: "calculated",
-  },
-  {
-    title: "Scope 2 - Indirect Emissions",
-    icon: Zap,
-    total: "4,120 tCO2e",
-    categories: [
-      { name: "Purchased Electricity", value: 3400, percent: 83 },
-      { name: "Purchased Steam", value: 520, percent: 13 },
-      { name: "Purchased Cooling", value: 200, percent: 4 },
-    ],
-    status: "calculated",
-  },
-  {
-    title: "Scope 3 - Value Chain",
-    icon: Truck,
-    total: "5,050 tCO2e",
-    categories: [
-      { name: "Purchased Goods & Services", value: 2100, percent: 42 },
-      { name: "Business Travel", value: 850, percent: 17 },
-      { name: "Employee Commuting", value: 620, percent: 12 },
-      { name: "Upstream Transportation", value: 980, percent: 19 },
-      { name: "Waste Generated", value: 500, percent: 10 },
-    ],
-    status: "in_progress",
-  },
-];
+import { RunCalculationPanel } from "./_components/run-calculation-panel";
+import { ScopeTotals } from "./_components/scope-totals";
+import { TraceDrawer, type TracedResult } from "./_components/trace-drawer";
 
-const recentCalculations = [
-  { name: "Q1 2024 - Scope 1", method: "GHG Protocol", result: "820 tCO2e", date: "2024-03-15", status: "verified" },
-  { name: "Q1 2024 - Scope 2 (Market)", method: "Market-based", result: "1,030 tCO2e", date: "2024-03-14", status: "verified" },
-  { name: "Q1 2024 - Scope 2 (Location)", method: "Location-based", result: "1,150 tCO2e", date: "2024-03-14", status: "verified" },
-  { name: "Q1 2024 - Scope 3 Cat 6", method: "Spend-based", result: "210 tCO2e", date: "2024-03-12", status: "draft" },
-  { name: "Q1 2024 - Scope 3 Cat 1", method: "Hybrid", result: "525 tCO2e", date: "2024-03-10", status: "in_review" },
-];
+export default async function EmissionEnginePage() {
+  await connection();
+  const dict = await getDictionary();
 
-export default function EmissionEnginePage() {
+  const organizationId = await activeOrganizationId();
+  const years = await listReportingYears(organizationId);
+  const reportingYear = years[0] ?? new Date().getUTCFullYear();
+
+  const [inventory, outcome, calculations, facilities, lineage] = await Promise.all([
+    getInventory(organizationId, reportingYear),
+    getCalculationOutcome(organizationId, reportingYear),
+    listCalculations(organizationId),
+    listFacilities(organizationId),
+    getLineageGraph(organizationId, reportingYear),
+  ]);
+
+  // The provenance tree is anchored on the largest result, which is the number a
+  // reviewer asks about first.
+  const anchorResult = [...outcome.results].sort((a, b) => b.totalCO2e - a.totalCO2e)[0];
+  const provenance = anchorResult
+    ? toProvenanceTree(lineage, `result:${anchorResult.id}`)
+    : null;
+
+  const traceByResult = new Map(outcome.traces.map((trace) => [trace.resultId, trace.steps]));
+  const tracedResults: TracedResult[] = [...outcome.results]
+    .sort((a, b) => b.totalCO2e - a.totalCO2e)
+    .slice(0, 25)
+    .map((result) => ({
+      resultId: result.id,
+      label: result.emissionSourceId ?? result.activityDataEntryId,
+      scope: result.scope,
+      totalCO2e: result.totalCO2e,
+      unit: result.unit,
+      method: result.method,
+      dataQuality: result.dataQuality,
+      factorRationale: outcome.factorSelections[result.activityDataEntryId] ?? [],
+      steps: (traceByResult.get(result.id) ?? []).map((step) => ({
+        stepName: step.stepName,
+        formula: step.formula,
+        inputs: step.inputs,
+        output: step.output,
+        unit: step.unit,
+        notes: step.notes ?? null,
+        orderIndex: step.orderIndex,
+      })),
+    }));
+
+  const uncertainty = outcome.uncertainty;
+
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Emission Engine</h1>
-          <p className="text-sm text-muted-foreground">
-            Calculate and track greenhouse gas emissions across all scopes using GHG Protocol methodologies.
-          </p>
-        </div>
-        <Button size="sm">
-          <Play className="size-4" />
-          Run Calculation
-        </Button>
+      <PageHeader
+        title={dict["engine.title"]}
+        description={dict["engine.desc"]}
+        meta={[
+          { label: dict["engine.meta.reportingYear"], value: String(reportingYear) },
+          { label: dict["engine.meta.gwp"], value: inventory.gwpVersion },
+          { label: dict["engine.meta.consolidation"], value: humaniseEnum(inventory.consolidationApproach) },
+          { label: dict["engine.meta.scope2Basis"], value: humaniseEnum(inventory.totals.scope2Basis) },
+        ]}
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiCard
+          title={dict["engine.kpi.totalEmissions"]}
+          value={formatEmissions(inventory.totals.totalEmissions)}
+          unit={inventory.totals.unit}
+          icon={Calculator}
+          description={`${inventory.totals.resultCount} ${dict["engine.kpi.emissionResults"]}`}
+          source="buildInventory() over the calculated results"
+        />
+        <KpiCard
+          title={dict["engine.kpi.overallUncertainty"]}
+          value={`±${formatNumber(uncertainty.overallUncertainty, 2)}`}
+          unit="%"
+          icon={Gauge}
+          description={`${formatNumber(uncertainty.confidenceLevel, 0)}% ${dict["engine.kpi.confidenceInterval"]}`}
+          source="propagateUncertainty() quadrature"
+        />
+        <KpiCard
+          title={dict["engine.kpi.dataQuality"]}
+          value={formatNumber(outcome.quality.aggregate.overallScore, 1)}
+          unit="/ 100"
+          icon={Activity}
+          description={outcome.quality.aggregate.level}
+          source="aggregateQuality()"
+          goodDirection="up"
+        />
+        <KpiCard
+          title={dict["engine.kpi.traceSteps"]}
+          value={formatNumber(
+            outcome.traces.reduce((total, trace) => total + trace.steps.length, 0),
+          )}
+          icon={Sigma}
+          description={`${outcome.traces.length} ${dict["engine.kpi.tracedResults"]}`}
+          source="runCalculation() traces"
+        />
       </div>
 
-      {/* Calculation Status */}
       <Card>
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Calculator className="size-4" />
-              <CardTitle>Calculation Status - FY2024</CardTitle>
-            </div>
-            <Badge variant="secondary">78% Complete</Badge>
-          </div>
+        <CardHeader>
+          <CardTitle>{dict["engine.card.inventoryByScope"]}</CardTitle>
+          <CardDescription>
+            {dict["engine.card.inventoryByScopeDesc"]}
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <Progress value={78} className="h-2" />
-          <p className="mt-2 text-xs text-muted-foreground">
-            14 of 18 emission categories calculated. 4 categories pending activity data.
-          </p>
+          <ScopeTotals totals={inventory.totals} consolidated={inventory.consolidated} />
         </CardContent>
       </Card>
 
-      {/* Scope Breakdown Cards */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        {scopeCards.map((scope) => {
-          const Icon = scope.icon;
-          return (
-            <Card key={scope.title}>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardDescription className="flex items-center gap-1.5">
-                    <Icon className="size-4" />
-                    {scope.title}
-                  </CardDescription>
-                  <Badge
-                    variant={scope.status === "calculated" ? "secondary" : "outline"}
-                    className="text-xs"
-                  >
-                    {scope.status === "calculated" ? "Complete" : "In Progress"}
-                  </Badge>
-                </div>
-                <CardTitle className="text-xl">{scope.total}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {scope.categories.map((cat) => (
-                    <div key={cat.name} className="space-y-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">{cat.name}</span>
-                        <span className="font-medium">{cat.percent}%</span>
-                      </div>
-                      <Progress value={cat.percent} className="h-1" />
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>{dict["engine.card.uncertainty"]}</CardTitle>
+            <CardDescription>
+              {uncertainty.methodology}
+              {uncertainty.notes ? ` ${uncertainty.notes}` : ""}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-baseline justify-between text-sm">
+              <span className="font-mono">
+                {formatEmissions(uncertainty.lowerBound)} {inventory.totals.unit}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {formatNumber(uncertainty.confidenceLevel, 0)}% interval
+              </span>
+              <span className="font-mono">
+                {formatEmissions(uncertainty.upperBound)} {inventory.totals.unit}
+              </span>
+            </div>
+            <div className="relative h-2 rounded-full bg-muted">
+              <span
+                className="absolute inset-y-0 rounded-full bg-primary/40"
+                style={{ left: "6%", right: "6%" }}
+              />
+              <span
+                className="absolute inset-y-[-3px] w-0.5 bg-foreground"
+                style={{ left: "50%" }}
+              />
+            </div>
+            <div className="grid gap-2 text-xs sm:grid-cols-3">
+              <div>
+                <p className="text-muted-foreground">Activity data</p>
+                <p className="font-mono">
+                  ±{formatNumber(uncertainty.activityDataUncertainty ?? 0, 2)}%
+                </p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Emission factor</p>
+                <p className="font-mono">
+                  ±{formatNumber(uncertainty.emissionFactorUncertainty ?? 0, 2)}%
+                </p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Methodology</p>
+                <p className="font-mono">
+                  ±{formatNumber(uncertainty.methodologyUncertainty ?? 0, 2)}%
+                </p>
+              </div>
+            </div>
+            {uncertainty.monteCarloIterations !== null && (
+              <p className="text-xs text-muted-foreground">
+                Monte Carlo: {formatNumber(uncertainty.monteCarloIterations)} iterations with a
+                seeded PRNG, so the interval is reproducible.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>{dict["engine.card.runCalculation"]}</CardTitle>
+            <CardDescription>
+              {dict["engine.card.runCalculationDesc"]}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <RunCalculationPanel
+              organizationId={organizationId}
+              years={years.length > 0 ? years : [reportingYear]}
+              facilities={facilities.map((facility) => ({
+                value: facility.id,
+                label: facility.name,
+              }))}
+              gwpVersions={GWP_VERSIONS.map((version) => ({
+                value: version,
+                label: version,
+              }))}
+              consolidationApproaches={CONSOLIDATION_APPROACHES.map((approach: string) => ({
+                value: approach,
+                label: humaniseEnum(approach),
+              }))}
+              runCalculation={runCalculationAction}
+              previewCalculation={previewCalculationAction}
+            />
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Recent Calculations */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent Calculations</CardTitle>
-          <CardDescription>Latest emission calculation runs and results</CardDescription>
+          <CardTitle>{dict["engine.card.tracesAndLineage"]}</CardTitle>
+          <CardDescription>
+            {dict["engine.card.tracesAndLineageDesc"]}
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <div className="grid grid-cols-5 gap-4 border-b bg-muted/50 p-3 text-xs font-medium text-muted-foreground">
-              <span>Calculation</span>
-              <span>Method</span>
-              <span>Result</span>
-              <span>Date</span>
-              <span>Status</span>
-            </div>
-            {recentCalculations.map((calc, index) => (
-              <div
-                key={index}
-                className="grid grid-cols-5 gap-4 border-b p-3 text-sm last:border-0"
-              >
-                <span className="font-medium">{calc.name}</span>
-                <span className="text-muted-foreground">{calc.method}</span>
-                <span className="font-mono text-muted-foreground">{calc.result}</span>
-                <span className="text-muted-foreground">{calc.date}</span>
-                <Badge
-                  variant={calc.status === "verified" ? "secondary" : "outline"}
-                  className="w-fit"
-                >
-                  {calc.status}
-                </Badge>
-              </div>
-            ))}
-          </div>
+          <Tabs defaultValue="traces">
+            <TabsList variant="line">
+              <TabsTrigger value="traces">{dict["engine.tab.traces"]}</TabsTrigger>
+              <TabsTrigger value="calculations">{dict["engine.tab.calculationRecords"]}</TabsTrigger>
+              <TabsTrigger value="lineage">{dict["engine.tab.lineage"]}</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="traces" className="pt-3">
+              <TraceDrawer results={tracedResults} />
+            </TabsContent>
+
+            <TabsContent value="calculations" className="space-y-2 pt-3">
+              {calculations.length === 0 ? (
+                <EmptyState
+                  title={dict["engine.empty.noCalculationRecords"]}
+                  description={dict["engine.empty.noCalculationRecordsDesc"]}
+                />
+              ) : (
+                calculations.map((calculation) => (
+                  <div
+                    key={calculation.id}
+                    className="flex flex-wrap items-center gap-2 rounded-md border p-2.5"
+                  >
+                    <span className="text-sm font-medium">{calculation.name}</span>
+                    <Badge variant="secondary">{scopeLabel(calculation.scope)}</Badge>
+                    <Badge variant="outline">{calculation.status}</Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {calculation.resultCount} result
+                      {calculation.resultCount === 1 ? "" : "s"} ·{" "}
+                      {formatDateTime(calculation.calculatedAt)}
+                    </span>
+                    <span className="ml-auto font-mono text-xs">
+                      {formatEmissions(calculation.totalEmissions)} {calculation.unit}
+                    </span>
+                  </div>
+                ))
+              )}
+            </TabsContent>
+
+            <TabsContent value="lineage" className="space-y-3 pt-3">
+              {provenance ? (
+                <>
+                  <p className="text-xs text-muted-foreground">
+                    Provenance of the largest result (
+                    {formatEmissions(anchorResult?.totalCO2e ?? 0)} {inventory.totals.unit},{" "}
+                    {formatPercent(
+                      inventory.totals.totalEmissions === 0
+                        ? 0
+                        : ((anchorResult?.totalCO2e ?? 0) / inventory.totals.totalEmissions) * 100,
+                    )}{" "}
+                    of the total). The full graph carries {lineage.nodes.length} nodes and{" "}
+                    {lineage.edges.length} edges.
+                  </p>
+                  <LineageGraph tree={provenance} />
+                </>
+              ) : (
+                <EmptyState
+                  title={dict["engine.empty.noLineageGraph"]}
+                  description={dict["engine.empty.noLineageGraphDesc"]}
+                />
+              )}
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
     </div>

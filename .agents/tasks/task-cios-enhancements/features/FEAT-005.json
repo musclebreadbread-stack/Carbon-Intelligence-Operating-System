@@ -1,0 +1,23 @@
+{
+  "id": "FEAT-005",
+  "type": "docs",
+  "description": "Sync Korean Word document (docs/CIOS-직접-설정-가이드.docx) with actual implementation state by updating the generator script",
+  "status": "completed",
+  "steps": [
+    "Read scripts/generate-setup-guide.ts to understand the current content of the generated Word document.",
+    "Update the generator script to reflect the current implementation state: the i18n system defaults to Korean, all 19 dashboard pages are translated, evidence upload has MIME/size limits, export completeness bug is fixed, accessibility improvements (id=main-content, MobileDrawer, aria-labels), ESG page has download buttons.",
+    "Regenerate the document by running: bunx tsx scripts/generate-setup-guide.ts",
+    "Verify the generated docs/CIOS-직접-설정-가이드.docx exists and is non-empty."
+  ],
+  "acceptance_criteria": [
+    "scripts/generate-setup-guide.ts reflects the current implementation state",
+    "docs/CIOS-직접-설정-가이드.docx is regenerated successfully",
+    "The document content describes what the user needs to configure themselves (Supabase credentials, database URL, OpenAI key, etc.) and clearly states what is already implemented vs what requires user action"
+  ],
+  "verification": [
+    "bunx tsx scripts/generate-setup-guide.ts",
+    "test -f docs/CIOS-직접-설정-가이드.docx && echo 'DOCX exists'"
+  ],
+  "blocked_reason": null,
+  "findings": "Used `bun run scripts/generate-setup-guide.ts` instead of `bunx tsx scripts/generate-setup-guide.ts` because tsx module resolution fails under bun. All 34 tests pass with `bunx vitest run scripts/`. Generated docx is 30,426 bytes with 13 sections."
+}

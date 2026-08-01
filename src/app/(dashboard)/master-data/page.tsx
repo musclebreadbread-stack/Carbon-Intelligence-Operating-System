@@ -1,4 +1,13 @@
-"use client";
+/**
+ * Master data module.
+ *
+ * Ten reference collections read in one `getMasterData()` round trip (rather than
+ * ten), rendered through the shared data table, and created through the item-30
+ * master-data actions.
+ */
+
+import { connection } from "next/server";
+import { Boxes, Database, Fuel, Users } from "lucide-react";
 
 import {
   Card,
@@ -7,106 +16,123 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Plus, Search } from "lucide-react";
+import { KpiCard } from "@/components/shared/kpi-card";
+import { PageHeader } from "@/components/shared/page-header";
+import {
+  createEnergySourceAction,
+  createFuelAction,
+  createLogisticsRouteAction,
+  createProductAction,
+  createRawMaterialAction,
+  createRefrigerantAction,
+  createSupplierAction,
+  createVehicleAction,
+  createWasteTypeAction,
+  createWaterSourceAction,
+} from "@/lib/actions/master-data";
+import { activeOrganizationId } from "@/lib/auth/active-organization";
+import { ENERGY_TYPES, FUEL_CATEGORIES, VEHICLE_TYPES } from "@/lib/core/enums";
+import { getMasterData } from "@/lib/data/repositories/master-data";
+import { formatNumber } from "@/lib/format";
+import { UNIT_REGISTRY } from "@/lib/reference/units";
+import { getDictionary } from "@/lib/i18n/server";
 
-const tabs = [
-  { value: "products", label: "Products", count: 156 },
-  { value: "materials", label: "Materials", count: 89 },
-  { value: "fuels", label: "Fuels", count: 34 },
-  { value: "vehicles", label: "Vehicles", count: 42 },
-  { value: "refrigerants", label: "Refrigerants", count: 18 },
-  { value: "suppliers", label: "Suppliers", count: 230 },
-];
+import { MasterDataTabs } from "./_components/master-data-tabs";
 
-const sampleData = [
-  { name: "Steel Grade A", category: "Raw Material", unit: "tonnes", status: "active" },
-  { name: "Aluminum Alloy 6061", category: "Raw Material", unit: "tonnes", status: "active" },
-  { name: "HDPE Pellets", category: "Polymer", unit: "kg", status: "active" },
-  { name: "Natural Gas", category: "Fuel", unit: "m3", status: "active" },
-  { name: "Recycled Paper", category: "Packaging", unit: "tonnes", status: "review" },
-];
+export default async function MasterDataPage() {
+  await connection();
+  const dict = await getDictionary();
 
-export default function MasterDataPage() {
+  const organizationId = await activeOrganizationId();
+  const bundle = await getMasterData(organizationId);
+
+  const total =
+    bundle.products.length +
+    bundle.rawMaterials.length +
+    bundle.fuels.length +
+    bundle.fuelTypes.length +
+    bundle.vehicles.length +
+    bundle.refrigerants.length +
+    bundle.suppliers.length +
+    bundle.logisticsRoutes.length +
+    bundle.energySources.length +
+    bundle.wasteTypes.length +
+    bundle.waterSources.length;
+
+  const highGwpRefrigerants = bundle.refrigerants.filter(
+    (refrigerant) => refrigerant.gwp100 >= 1000,
+  );
+  const renewableFuels = bundle.fuels.filter((fuel) => fuel.isRenewable);
+
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Master Data</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage reference data for products, materials, fuels, vehicles, refrigerants, and suppliers.
-          </p>
-        </div>
-        <Button size="sm">
-          <Plus className="size-4" />
-          Add Record
-        </Button>
+      <PageHeader
+        title={dict["master.title"]}
+        description={dict["master.desc"]}
+        meta={[{ label: dict["master.meta.records"], value: formatNumber(total) }]}
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiCard
+          title={dict["master.kpi.masterRecords"]}
+          value={formatNumber(total)}
+          icon={Database}
+          description={dict["master.kpi.masterRecordsDesc"]}
+          source="getMasterData()"
+        />
+        <KpiCard
+          title={dict["master.kpi.suppliers"]}
+          value={formatNumber(bundle.suppliers.length)}
+          icon={Users}
+          description={`${bundle.suppliers.filter((supplier) => supplier.tier === 1).length} ${dict["master.kpi.suppliersDesc"]}`}
+          source="Supplier"
+        />
+        <KpiCard
+          title={dict["master.kpi.fuels"]}
+          value={formatNumber(bundle.fuels.length)}
+          icon={Fuel}
+          description={`${renewableFuels.length} renewable, ${bundle.fuelTypes.length} fuel types`}
+          source="Fuel / FuelType"
+        />
+        <KpiCard
+          title={dict["master.kpi.highGwpRefrigerants"]}
+          value={formatNumber(highGwpRefrigerants.length)}
+          icon={Boxes}
+          description={dict["master.kpi.highGwpRefrigerantsDesc"]}
+          source="Refrigerant.gwp100"
+        />
       </div>
 
-      {/* Tabs Content */}
-      <Tabs defaultValue="products">
-        <TabsList>
-          {tabs.map((tab) => (
-            <TabsTrigger key={tab.value} value={tab.value}>
-              {tab.label}
-              <Badge variant="secondary" className="ml-1.5 text-xs">
-                {tab.count}
-              </Badge>
-            </TabsTrigger>
-          ))}
-        </TabsList>
-
-        {tabs.map((tab) => (
-          <TabsContent key={tab.value} value={tab.value}>
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>{tab.label}</CardTitle>
-                    <CardDescription>
-                      {tab.count} records in the {tab.label.toLowerCase()} registry
-                    </CardDescription>
-                  </div>
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-                    <Input placeholder="Search..." className="pl-9 w-64" />
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="rounded-md border">
-                  <div className="grid grid-cols-4 gap-4 border-b bg-muted/50 p-3 text-xs font-medium text-muted-foreground">
-                    <span>Name</span>
-                    <span>Category</span>
-                    <span>Unit</span>
-                    <span>Status</span>
-                  </div>
-                  {sampleData.map((item, index) => (
-                    <div
-                      key={index}
-                      className="grid grid-cols-4 gap-4 border-b p-3 text-sm last:border-0"
-                    >
-                      <span className="font-medium">{item.name}</span>
-                      <span className="text-muted-foreground">{item.category}</span>
-                      <span className="text-muted-foreground">{item.unit}</span>
-                      <Badge
-                        variant={item.status === "active" ? "secondary" : "outline"}
-                        className="w-fit"
-                      >
-                        {item.status}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        ))}
-      </Tabs>
+      <Card>
+        <CardHeader>
+          <CardTitle>{dict["master.card.collections"]}</CardTitle>
+          <CardDescription>
+            {dict["master.card.collectionsDesc"]}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <MasterDataTabs
+            organizationId={organizationId}
+            bundle={bundle}
+            fuelCategories={FUEL_CATEGORIES}
+            vehicleTypes={VEHICLE_TYPES}
+            energyTypes={ENERGY_TYPES}
+            units={UNIT_REGISTRY.map((definition) => definition.unit)}
+            actions={{
+              createProduct: createProductAction,
+              createRawMaterial: createRawMaterialAction,
+              createFuel: createFuelAction,
+              createVehicle: createVehicleAction,
+              createRefrigerant: createRefrigerantAction,
+              createSupplier: createSupplierAction,
+              createLogisticsRoute: createLogisticsRouteAction,
+              createEnergySource: createEnergySourceAction,
+              createWasteType: createWasteTypeAction,
+              createWaterSource: createWaterSourceAction,
+            }}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }
