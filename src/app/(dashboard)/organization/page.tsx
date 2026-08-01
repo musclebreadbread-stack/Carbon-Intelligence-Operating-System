@@ -97,14 +97,14 @@ export default async function OrganizationPage() {
     <div className="space-y-6">
       <PageHeader
         title={dict["org.title"]}
-        description="Reporting boundary, seven-level hierarchy and consolidation approach."
+        description={dict["org.desc"]}
         meta={[
-          { label: "Reporting year", value: String(reportingYear) },
+          { label: dict["org.meta.reportingYear"], value: String(reportingYear) },
           {
-            label: "Consolidation",
+            label: dict["org.meta.consolidation"],
             value: humaniseEnum(inventory.consolidationApproach),
           },
-          { label: "GWP", value: inventory.gwpVersion },
+          { label: dict["org.meta.gwp"], value: inventory.gwpVersion },
         ]}
         actions={
           <EntityForms

@@ -68,8 +68,8 @@ export default async function MasterDataPage() {
     <div className="space-y-6">
       <PageHeader
         title={dict["master.title"]}
-        description="The reference entities every activity entry points at: products, materials, fuels, vehicles, refrigerants, suppliers, routes, energy, waste and water."
-        meta={[{ label: "Records", value: formatNumber(total) }]}
+        description={dict["master.desc"]}
+        meta={[{ label: dict["master.meta.records"], value: formatNumber(total) }]}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

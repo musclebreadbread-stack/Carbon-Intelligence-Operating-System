@@ -149,11 +149,11 @@ export default async function AnalyticsPage() {
     <div className="space-y-6">
       <PageHeader
         title={dict["analytics.title"]}
-        description="Trend, composition, facility comparison, intensity and year-on-year attribution — computed from the calculated inventory."
+        description={dict["analytics.desc"]}
         meta={[
-          { label: "Current year", value: String(currentYear) },
-          { label: "Comparison year", value: String(priorYear) },
-          { label: "Scope 2 basis", value: current.totals.scope2Basis },
+          { label: dict["analytics.meta.currentYear"], value: String(currentYear) },
+          { label: dict["analytics.meta.comparisonYear"], value: String(priorYear) },
+          { label: dict["analytics.meta.scope2Basis"], value: current.totals.scope2Basis },
         ]}
       />
 

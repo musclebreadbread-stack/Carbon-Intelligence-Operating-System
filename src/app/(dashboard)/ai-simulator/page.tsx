@@ -140,12 +140,12 @@ export default async function AiSimulatorPage() {
     <div className="space-y-6">
       <PageHeader
         title={dict["simulator.title"]}
-        description="Scenario projection against the SBTi pathway, carbon-budget consumption and scenario comparison."
+        description={dict["simulator.desc"]}
         meta={[
-          { label: "Baseline year", value: String(currentYear) },
-          { label: "Scenarios", value: formatNumber(projections.length) },
+          { label: dict["simulator.meta.baselineYear"], value: String(currentYear) },
+          { label: dict["simulator.meta.scenarios"], value: formatNumber(projections.length) },
           {
-            label: "Baseline emissions",
+            label: dict["simulator.meta.baselineEmissions"],
             value: `${formatEmissions(inventory.totals.totalEmissions)} ${inventory.totals.unit}`,
           },
         ]}

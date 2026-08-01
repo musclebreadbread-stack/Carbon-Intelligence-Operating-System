@@ -123,11 +123,11 @@ export default async function AiEnginePage() {
     <div className="space-y-6">
       <PageHeader
         title={dict["ai.title"]}
-        description="Anomaly detection, gap analysis, forecasting and confidence scoring — deterministic statistics with an explainable trail."
+        description={dict["ai.desc"]}
         meta={[
-          { label: "Reporting year", value: String(currentYear) },
-          { label: "Narrative", value: llm.mode },
-          { label: "Models registered", value: formatNumber(models.length) },
+          { label: dict["ai.meta.reportingYear"], value: String(currentYear) },
+          { label: dict["ai.meta.narrative"], value: llm.mode },
+          { label: dict["ai.meta.modelsRegistered"], value: formatNumber(models.length) },
         ]}
       />
 

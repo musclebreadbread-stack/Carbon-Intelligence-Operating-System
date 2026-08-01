@@ -164,12 +164,12 @@ export default async function CarbonFinancePage() {
     <div className="space-y-6">
       <PageHeader
         title={dict["finance.title"]}
-        description="Credit registry, retirement, gross-versus-net emissions, ETS position, REC/PPA coverage and internal carbon pricing."
+        description={dict["finance.desc"]}
         meta={[
-          { label: "Reporting year", value: String(reportingYear) },
-          { label: "Credits", value: formatNumber(portfolio.credits.length) },
+          { label: dict["finance.meta.reportingYear"], value: String(reportingYear) },
+          { label: dict["finance.meta.credits"], value: formatNumber(portfolio.credits.length) },
           {
-            label: "Retirable",
+            label: dict["finance.meta.retirable"],
             value: `${formatEmissions(portfolio.balance.totalAvailable)} ${net.unit}`,
           },
         ]}

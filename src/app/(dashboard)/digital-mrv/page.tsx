@@ -61,11 +61,11 @@ export default async function DigitalMrvPage() {
       <div className="space-y-6">
         <PageHeader
           title={dict["mrv.title"]}
-          description="Monitoring, reporting and verification plans with their coverage and completeness."
+          description={dict["mrv.desc"]}
         />
         <EmptyState
-          title="No MRV plan"
-          description="Create an MRVPlan and a MonitoringPlan to measure coverage against the emission-source inventory."
+          title={dict["mrv.empty.noMrvPlan"]}
+          description={dict["mrv.empty.noMrvPlanDesc"]}
         />
       </div>
     );
@@ -76,13 +76,13 @@ export default async function DigitalMrvPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Digital MRV"
-        description="Monitoring plan coverage, parameter completeness and the meter and sensor readings behind them."
+        title={dict["mrv.title"]}
+        description={dict["mrv.desc"]}
         meta={[
-          { label: "Plan", value: plan.name },
-          { label: "Framework", value: plan.framework || "—" },
-          { label: "Status", value: humaniseEnum(plan.status) },
-          { label: "Reporting year", value: String(reportingYear) },
+          { label: dict["mrv.meta.plan"], value: plan.name },
+          { label: dict["mrv.meta.framework"], value: plan.framework || "\u2014" },
+          { label: dict["mrv.meta.status"], value: humaniseEnum(plan.status) },
+          { label: dict["mrv.meta.reportingYear"], value: String(reportingYear) },
         ]}
       />
 

@@ -113,11 +113,11 @@ export default async function ActivityDataPage() {
     <div className="space-y-6">
       <PageHeader
         title={dict["activity.title"]}
-        description="Every measured or estimated activity the inventory is built from, with its validation results and computed data quality."
+        description={dict["activity.desc"]}
         meta={[
-          { label: "Reporting year", value: String(reportingYear) },
-          { label: "Entries", value: formatNumber(entries.length) },
-          { label: "Data sets", value: formatNumber(headers.length) },
+          { label: dict["activity.meta.reportingYear"], value: String(reportingYear) },
+          { label: dict["activity.meta.entries"], value: formatNumber(entries.length) },
+          { label: dict["activity.meta.dataSets"], value: formatNumber(headers.length) },
         ]}
       />
 

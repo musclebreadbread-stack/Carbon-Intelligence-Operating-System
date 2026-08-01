@@ -89,11 +89,11 @@ export default async function EmissionFactorsPage() {
     <div className="space-y-6">
       <PageHeader
         title={dict["factors.title"]}
-        description="Versioned factor library with validity windows, publisher citations and the documented specificity ranking the calculation engine applies."
+        description={dict["factors.desc"]}
         meta={[
-          { label: "Factors", value: formatNumber(rows.length) },
-          { label: "Sources", value: formatNumber(sources.length) },
-          { label: "Versions", value: formatNumber(versions.length) },
+          { label: dict["factors.meta.factors"], value: formatNumber(rows.length) },
+          { label: dict["factors.meta.sources"], value: formatNumber(sources.length) },
+          { label: dict["factors.meta.versions"], value: formatNumber(versions.length) },
         ]}
       />
 

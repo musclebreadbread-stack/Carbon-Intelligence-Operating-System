@@ -77,11 +77,11 @@ export default async function EsgDisclosurePage() {
     <div className="space-y-6">
       <PageHeader
         title={dict["disclosure.title"]}
-        description="Framework mapping, auto-populated numeric datapoints, response editor and report generation."
+        description={dict["disclosure.desc"]}
         meta={[
-          { label: "Reporting year", value: String(reportingYear) },
-          { label: "Mapped frameworks", value: formatNumber(views.length) },
-          { label: "Reports", value: formatNumber(reports.length) },
+          { label: dict["disclosure.meta.reportingYear"], value: String(reportingYear) },
+          { label: dict["disclosure.meta.mappedFrameworks"], value: formatNumber(views.length) },
+          { label: dict["disclosure.meta.reports"], value: formatNumber(reports.length) },
         ]}
         actions={
           reports.length > 0 ? (

@@ -139,11 +139,11 @@ export default async function SettingsPage() {
     <div className="space-y-6">
       <PageHeader
         title={dict["settings.title"]}
-        description="Organisation profile, reporting conventions and the configuration status of every external dependency."
+        description={dict["settings.desc"]}
         meta={[
-          { label: "Data mode", value: dataMode },
-          { label: "GWP", value: inventory.gwpVersion },
-          { label: "Consolidation", value: humaniseEnum(inventory.consolidationApproach) },
+          { label: dict["settings.meta.dataMode"], value: dataMode },
+          { label: dict["settings.meta.gwp"], value: inventory.gwpVersion },
+          { label: dict["settings.meta.consolidation"], value: humaniseEnum(inventory.consolidationApproach) },
         ]}
       />
 

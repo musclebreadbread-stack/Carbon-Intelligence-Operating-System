@@ -83,11 +83,11 @@ export default async function SecurityPage() {
     <div className="space-y-6">
       <PageHeader
         title={dict["security.title"]}
-        description="Users, roles, the permission matrix, API keys, sessions and attribute-based access policies."
+        description={dict["security.desc"]}
         meta={[
-          { label: "Users", value: formatNumber(users.length) },
-          { label: "Roles", value: formatNumber(roles.length) },
-          { label: "Permissions", value: formatNumber(permissions.length) },
+          { label: dict["security.meta.users"], value: formatNumber(users.length) },
+          { label: dict["security.meta.roles"], value: formatNumber(roles.length) },
+          { label: dict["security.meta.permissions"], value: formatNumber(permissions.length) },
         ]}
       />
 

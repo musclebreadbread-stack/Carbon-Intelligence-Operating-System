@@ -92,11 +92,11 @@ export default async function VerificationPage() {
       <div className="space-y-6">
         <PageHeader
           title={dict["verification.title"]}
-          description="Third-party assurance engagements, findings, evidence and the assurance opinion."
+          description={dict["verification.desc"]}
         />
         <EmptyState
-          title="No verification engagement"
-          description="Create an engagement to record scopes, findings and evidence against it."
+          title={dict["verification.empty.noEngagement"]}
+          description={dict["verification.empty.noEngagementDesc"]}
         />
       </div>
     );
@@ -108,13 +108,13 @@ export default async function VerificationPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Verification"
-        description="Third-party assurance: engagement scope, findings, corrective actions, evidence digests and the resulting opinion."
+        title={dict["verification.title"]}
+        description={dict["verification.desc"]}
         meta={[
-          { label: "Engagement", value: engagement.name },
-          { label: "Verifier", value: engagement.verifierOrg ?? "—" },
-          { label: "Assurance", value: engagement.level ?? "—" },
-          { label: "Status", value: humaniseEnum(engagement.status) },
+          { label: dict["verification.meta.engagement"], value: engagement.name },
+          { label: dict["verification.meta.verifier"], value: engagement.verifierOrg ?? "\u2014" },
+          { label: dict["verification.meta.assurance"], value: engagement.level ?? "\u2014" },
+          { label: dict["verification.meta.status"], value: humaniseEnum(engagement.status) },
         ]}
       />
 

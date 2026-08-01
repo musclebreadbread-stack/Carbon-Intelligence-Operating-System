@@ -88,11 +88,11 @@ export default async function AiAgentsPage() {
     <div className="space-y-6">
       <PageHeader
         title={dict["agents.title"]}
-        description="Agent registry, task queue, bounded tool-call runtime, tool catalogue and MCP server connections."
+        description={dict["agents.desc"]}
         meta={[
-          { label: "Agents", value: formatNumber(agents.length) },
-          { label: "Tools", value: formatNumber(tools.length) },
-          { label: "LLM", value: llm.mode },
+          { label: dict["agents.meta.agents"], value: formatNumber(agents.length) },
+          { label: dict["agents.meta.tools"], value: formatNumber(tools.length) },
+          { label: dict["agents.meta.llm"], value: llm.mode },
         ]}
       />
 

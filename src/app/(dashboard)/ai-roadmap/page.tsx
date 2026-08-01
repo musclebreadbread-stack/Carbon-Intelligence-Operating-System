@@ -177,12 +177,12 @@ export default async function AiRoadmapPage() {
     <div className="space-y-6">
       <PageHeader
         title={dict["roadmap.title"]}
-        description="Decarbonisation sequencing, marginal abatement cost curve, least-cost portfolio and investment appraisal."
+        description={dict["roadmap.desc"]}
         meta={[
-          { label: "MACC year", value: String(macc.year) },
-          { label: "Measures", value: formatNumber(macc.curve.points.length) },
+          { label: dict["roadmap.meta.maccYear"], value: String(macc.year) },
+          { label: dict["roadmap.meta.measures"], value: formatNumber(macc.curve.points.length) },
           {
-            label: "Abatement target",
+            label: dict["roadmap.meta.abatementTarget"],
             value: `${formatEmissions(macc.abatementTarget)} tCO2e`,
           },
         ]}

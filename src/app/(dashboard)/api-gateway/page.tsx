@@ -77,11 +77,11 @@ export default async function ApiGatewayPage() {
     <div className="space-y-6">
       <PageHeader
         title={dict["apiGateway.title"]}
-        description="REST surface, API-key authentication, rate limiting and the live health report."
+        description={dict["apiGateway.desc"]}
         meta={[
-          { label: "Version", value: "v1" },
-          { label: "Endpoints", value: formatNumber(endpoints.length) },
-          { label: "Operations", value: formatNumber(totalOperations) },
+          { label: dict["apiGateway.meta.version"], value: "v1" },
+          { label: dict["apiGateway.meta.endpoints"], value: formatNumber(endpoints.length) },
+          { label: dict["apiGateway.meta.operations"], value: formatNumber(totalOperations) },
         ]}
       />
 

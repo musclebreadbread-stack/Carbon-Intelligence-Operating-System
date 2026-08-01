@@ -78,10 +78,10 @@ export default async function NotificationsPage() {
     <div className="space-y-6">
       <PageHeader
         title={dict["notifications.title"]}
-        description="In-app delivery of rule-engine notify effects, and what is waiting on a transport you have to supply."
+        description={dict["notifications.desc"]}
         meta={[
-          { label: "Total", value: formatNumber(notifications.length) },
-          { label: "Unread", value: formatNumber(unread.length) },
+          { label: dict["notifications.meta.total"], value: formatNumber(notifications.length) },
+          { label: dict["notifications.meta.unread"], value: formatNumber(unread.length) },
         ]}
       />
 

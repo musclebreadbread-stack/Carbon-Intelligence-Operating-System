@@ -106,12 +106,12 @@ export default async function EmissionEnginePage() {
     <div className="space-y-6">
       <PageHeader
         title={dict["engine.title"]}
-        description="Scope 1, 2 and 3 calculation, uncertainty propagation, calculation traces and data lineage."
+        description={dict["engine.desc"]}
         meta={[
-          { label: "Reporting year", value: String(reportingYear) },
-          { label: "GWP", value: inventory.gwpVersion },
-          { label: "Consolidation", value: humaniseEnum(inventory.consolidationApproach) },
-          { label: "Scope 2 basis", value: humaniseEnum(inventory.totals.scope2Basis) },
+          { label: dict["engine.meta.reportingYear"], value: String(reportingYear) },
+          { label: dict["engine.meta.gwp"], value: inventory.gwpVersion },
+          { label: dict["engine.meta.consolidation"], value: humaniseEnum(inventory.consolidationApproach) },
+          { label: dict["engine.meta.scope2Basis"], value: humaniseEnum(inventory.totals.scope2Basis) },
         ]}
       />
 
