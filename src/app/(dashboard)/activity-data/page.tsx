@@ -123,14 +123,14 @@ export default async function ActivityDataPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          title="Entries"
+          title={dict["activity.kpi.entries"]}
           value={formatNumber(entries.length)}
           icon={Activity}
-          description={`across ${headers.length} activity data sets`}
+          description={`${headers.length} ${dict["activity.kpi.entriesDesc"]}`}
           source="listActivityEntries()"
         />
         <KpiCard
-          title="Aggregate data quality"
+          title={dict["activity.kpi.aggregateDataQuality"]}
           value={formatNumber(outcome.quality.aggregate.overallScore, 1)}
           unit="/ 100"
           icon={Gauge}
@@ -138,20 +138,20 @@ export default async function ActivityDataPage() {
           source="aggregateQuality()"
         />
         <KpiCard
-          title="Estimated entries"
+          title={dict["activity.kpi.estimatedEntries"]}
           value={formatNumber(estimatedShare, 1)}
           unit="%"
           icon={ListChecks}
-          description="metered data scores higher on reliability"
+          description={dict["activity.kpi.estimatedEntriesDesc"]}
           source="ActivityDataEntry.isEstimated"
           goodDirection="down"
         />
         <KpiCard
-          title="Entries with evidence"
+          title={dict["activity.kpi.entriesWithEvidence"]}
           value={formatNumber(evidenceShare, 1)}
           unit="%"
           icon={ShieldCheck}
-          description="evidence lifts the reliability dimension"
+          description={dict["activity.kpi.entriesWithEvidenceDesc"]}
           source="ActivityDataEntry.evidenceUrl"
           goodDirection="up"
         />
@@ -159,19 +159,19 @@ export default async function ActivityDataPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Data-quality dimensions</CardTitle>
+          <CardTitle>{dict["activity.card.dataQualityDimensions"]}</CardTitle>
           <CardDescription>
-            The five `DataQualityScore` dimensions, weighted by each entry&apos;s emissions.
+            {dict["activity.card.dataQualityDimensionsDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-5">
           {(
             [
-              ["Completeness", outcome.quality.aggregate.completeness],
-              ["Accuracy", outcome.quality.aggregate.accuracy],
-              ["Timeliness", outcome.quality.aggregate.timeliness],
-              ["Consistency", outcome.quality.aggregate.consistency],
-              ["Reliability", outcome.quality.aggregate.reliability],
+              [dict["activity.card.dataQualityDim.completeness"], outcome.quality.aggregate.completeness],
+              [dict["activity.card.dataQualityDim.accuracy"], outcome.quality.aggregate.accuracy],
+              [dict["activity.card.dataQualityDim.timeliness"], outcome.quality.aggregate.timeliness],
+              [dict["activity.card.dataQualityDim.consistency"], outcome.quality.aggregate.consistency],
+              [dict["activity.card.dataQualityDim.reliability"], outcome.quality.aggregate.reliability],
             ] as const
           ).map(([label, value]) => (
             <div key={label} className="space-y-1">
@@ -190,7 +190,7 @@ export default async function ActivityDataPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Entries</CardTitle>
+          <CardTitle>{dict["activity.card.entries"]}</CardTitle>
           <CardDescription>
             {rows.length} row{rows.length === 1 ? "" : "s"}; the data-quality column is{" "}
             <code>scoreEntry()</code> output from the same run that produced the inventory.
@@ -203,18 +203,17 @@ export default async function ActivityDataPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Add, import and validate</CardTitle>
+          <CardTitle>{dict["activity.card.addImportValidate"]}</CardTitle>
           <CardDescription>
-            Manual entry, CSV column mapping and a rule-set dry run all go through the same
-            server-side validation path.
+            {dict["activity.card.addImportValidateDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="entry">
             <TabsList variant="line">
-              <TabsTrigger value="entry">New entry</TabsTrigger>
-              <TabsTrigger value="import">CSV import</TabsTrigger>
-              <TabsTrigger value="rules">Validation rules</TabsTrigger>
+              <TabsTrigger value="entry">{dict["activity.tab.newEntry"]}</TabsTrigger>
+              <TabsTrigger value="import">{dict["activity.tab.csvImport"]}</TabsTrigger>
+              <TabsTrigger value="rules">{dict["activity.tab.validationRules"]}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="entry" className="pt-3">
@@ -246,8 +245,8 @@ export default async function ActivityDataPage() {
             <TabsContent value="rules" className="space-y-4 pt-3">
               {ruleSets.length === 0 ? (
                 <EmptyState
-                  title="No rule sets"
-                  description="Seed or create a rule set to validate entries on save."
+                  title={dict["activity.empty.noRuleSets"]}
+                  description={dict["activity.empty.noRuleSetsDesc"]}
                 />
               ) : (
                 <>
@@ -283,7 +282,7 @@ export default async function ActivityDataPage() {
                   />
 
                   <div>
-                    <p className="mb-1.5 text-sm font-medium">Recent rule executions</p>
+                    <p className="mb-1.5 text-sm font-medium">{dict["activity.label.recentRuleExecutions"]}</p>
                     {ruleExecutions.length === 0 ? (
                       <p className="text-xs text-muted-foreground">
                         No <code>RuleExecution</code> rows: executions are persisted, and no

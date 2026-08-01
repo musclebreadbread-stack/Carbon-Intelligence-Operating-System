@@ -138,7 +138,7 @@ export default async function OrganizationPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          title="Hierarchy entities"
+          title={dict["org.kpi.hierarchyEntities"]}
           value={formatNumber(totalEntities)}
           icon={Layers}
           description={[...byTier.entries()]
@@ -147,21 +147,21 @@ export default async function OrganizationPage() {
           source="getHierarchyTree()"
         />
         <KpiCard
-          title="Facilities"
+          title={dict["org.kpi.facilities"]}
           value={formatNumber(facilities.length)}
           icon={Factory}
-          description={`${facilities.filter((facility) => facility.operationalControl).length} under operational control`}
+          description={`${facilities.filter((facility) => facility.operationalControl).length} ${dict["org.kpi.facilitiesDesc"]}`}
           source="listFacilities()"
         />
         <KpiCard
-          title="Emission sources"
+          title={dict["org.kpi.emissionSources"]}
           value={formatNumber(sources.length)}
           icon={Building2}
-          description={`${sources.filter((source) => source.isActive).length} active`}
+          description={`${sources.filter((source) => source.isActive).length} ${dict["org.kpi.emissionSourcesActive"]}`}
           source="listEmissionSources()"
         />
         <KpiCard
-          title="Countries covered"
+          title={dict["org.kpi.countriesCovered"]}
           value={formatNumber(regions.size)}
           icon={Globe2}
           description={[...regions].join(", ")}
@@ -171,7 +171,7 @@ export default async function OrganizationPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Consolidated inventory</CardTitle>
+          <CardTitle>{dict["org.card.consolidatedInventory"]}</CardTitle>
           <CardDescription>
             {humaniseEnum(inventory.consolidationApproach)} applied by{" "}
             <code>applyConsolidation()</code> over {inventory.results.length} emission results.
@@ -179,7 +179,7 @@ export default async function OrganizationPage() {
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-3">
           <div>
-            <p className="text-xs text-muted-foreground">Gross (100% of every facility)</p>
+            <p className="text-xs text-muted-foreground">{dict["org.card.consolidatedInventoryLabel.gross"]}</p>
             <p className="text-xl font-semibold">
               {formatEmissions(inventory.totals.totalEmissions)}{" "}
               <span className="text-sm font-normal text-muted-foreground">
@@ -188,7 +188,7 @@ export default async function OrganizationPage() {
             </p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Consolidated</p>
+            <p className="text-xs text-muted-foreground">{dict["org.card.consolidatedInventoryLabel.consolidated"]}</p>
             <p className="text-xl font-semibold">
               {formatEmissions(inventory.consolidated.totalEmissions)}{" "}
               <span className="text-sm font-normal text-muted-foreground">
@@ -197,7 +197,7 @@ export default async function OrganizationPage() {
             </p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Excluded by the approach</p>
+            <p className="text-xs text-muted-foreground">{dict["org.card.consolidatedInventoryLabel.excluded"]}</p>
             <p className="text-xl font-semibold">
               {formatEmissions(consolidationDelta)}{" "}
               <span className="text-sm font-normal text-muted-foreground">
@@ -211,10 +211,9 @@ export default async function OrganizationPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Organization hierarchy</CardTitle>
+            <CardTitle>{dict["org.card.orgHierarchy"]}</CardTitle>
             <CardDescription>
-              Enterprise → business unit → facility → building → production line → equipment →
-              emission source.
+              {dict["org.card.orgHierarchyDesc"]}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -222,8 +221,8 @@ export default async function OrganizationPage() {
               <HierarchyTree root={tree} />
             ) : (
               <EmptyState
-                title="No hierarchy yet"
-                description="Create a business unit and a facility to start the tree."
+                title={dict["org.empty.noHierarchy"]}
+                description={dict["org.empty.noHierarchyDesc"]}
               />
             )}
           </CardContent>
@@ -231,9 +230,9 @@ export default async function OrganizationPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Facilities</CardTitle>
+            <CardTitle>{dict["org.card.facilities"]}</CardTitle>
             <CardDescription>
-              Coordinates, control status and calculated emissions per site.
+              {dict["org.card.facilitiesDesc"]}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -258,9 +257,9 @@ export default async function OrganizationPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Emission sources by scope</CardTitle>
+          <CardTitle>{dict["org.card.emissionSourcesByScope"]}</CardTitle>
           <CardDescription>
-            Every source the calculation engine can resolve a factor for.
+            {dict["org.card.emissionSourcesByScopeDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -286,10 +285,9 @@ export default async function OrganizationPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Organization profile</CardTitle>
+          <CardTitle>{dict["org.card.organizationProfile"]}</CardTitle>
           <CardDescription>
-            Fiscal year, base currency and reporting year drive period boundaries and
-            intensity denominators across every module.
+            {dict["org.card.organizationProfileDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent>

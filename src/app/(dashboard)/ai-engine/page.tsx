@@ -133,21 +133,21 @@ export default async function AiEnginePage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          title="Anomalies"
+          title={dict["ai.kpi.anomalies"]}
           value={formatNumber(anomalyRows.length)}
           icon={AlertTriangle}
-          description={`${criticalAnomalies.length} high or critical`}
+          description={`${criticalAnomalies.length} ${dict["ai.kpi.anomaliesDesc"]}`}
           source="detectAnomalies() over every activity series"
         />
         <KpiCard
-          title="Data gaps"
+          title={dict["ai.kpi.dataGaps"]}
           value={formatNumber(gaps.length)}
           icon={Activity}
-          description={`${formatNumber(estimatedFill, 1)} units filled by estimation`}
+          description={`${formatNumber(estimatedFill, 1)} ${dict["ai.kpi.dataGapsDesc"]}`}
           source="detectDataGaps()"
         />
         <KpiCard
-          title="Inventory confidence"
+          title={dict["ai.kpi.inventoryConfidence"]}
           value={formatPercent(confidence.scorePercent, 1)}
           icon={Brain}
           description={confidence.level}
@@ -155,7 +155,7 @@ export default async function AiEnginePage() {
           goodDirection="up"
         />
         <KpiCard
-          title="Forecast quality"
+          title={dict["ai.kpi.forecastQuality"]}
           value={formatNumber(forecast.model.rSquared, 3)}
           unit="R²"
           icon={Sparkles}
@@ -169,7 +169,7 @@ export default async function AiEnginePage() {
         <CardHeader>
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
-              <CardTitle>Narrative generation mode</CardTitle>
+              <CardTitle>{dict["ai.card.narrativeMode"]}</CardTitle>
               <CardDescription>{llm.label}</CardDescription>
             </div>
             <Badge variant={isLlmConfigured() ? "secondary" : "outline"}>
@@ -189,18 +189,16 @@ export default async function AiEnginePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Analyses</CardTitle>
+          <CardTitle>{dict["ai.card.analyses"]}</CardTitle>
           <CardDescription>
-            Run one of the five analysis types. A run persists the typed result rows plus the
-            explanation graph, so it is refused without a database — the recomputed feeds below
-            are unaffected.
+            {dict["ai.card.analysesDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <ActionForm
             action={runAnalysisAction}
             hidden={{ organizationId }}
-            submitLabel="Run analysis"
+            submitLabel={dict["ai.label.runAnalysis"]}
             pendingLabel="Analysing…"
             fields={[
               { name: "name", label: "Analysis name", required: true, defaultValue: `${currentYear} anomaly sweep` },
@@ -294,18 +292,18 @@ export default async function AiEnginePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Detection feeds</CardTitle>
+          <CardTitle>{dict["ai.card.detectionFeeds"]}</CardTitle>
           <CardDescription>
-            Recomputed on every read from the current activity data.
+            {dict["ai.card.detectionFeedsDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="anomalies">
             <TabsList variant="line">
-              <TabsTrigger value="anomalies">Anomalies ({anomalyRows.length})</TabsTrigger>
-              <TabsTrigger value="gaps">Data gaps ({gaps.length})</TabsTrigger>
-              <TabsTrigger value="forecast">Forecast</TabsTrigger>
-              <TabsTrigger value="confidence">Confidence</TabsTrigger>
+              <TabsTrigger value="anomalies">{dict["ai.tab.anomalies"]} ({anomalyRows.length})</TabsTrigger>
+              <TabsTrigger value="gaps">{dict["ai.tab.dataGaps"]} ({gaps.length})</TabsTrigger>
+              <TabsTrigger value="forecast">{dict["ai.tab.forecast"]}</TabsTrigger>
+              <TabsTrigger value="confidence">{dict["ai.tab.confidence"]}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="anomalies" className="pt-3">
@@ -315,8 +313,8 @@ export default async function AiEnginePage() {
             <TabsContent value="gaps" className="pt-3">
               {gaps.length === 0 ? (
                 <EmptyState
-                  title="No data gaps"
-                  description="Every expected period in the reporting year carries a usable value."
+                  title={dict["ai.empty.noDataGaps"]}
+                  description={dict["ai.empty.noDataGapsDesc"]}
                 />
               ) : (
                 <ul className="space-y-2">
@@ -404,17 +402,17 @@ export default async function AiEnginePage() {
         <ExplanationPanel explanation={explanation} />
       ) : (
         <EmptyState
-          title="No result to explain"
-          description="An explanation is built per emission result; there are none for this year."
+          title={dict["ai.empty.noResultToExplain"]}
+          description={dict["ai.empty.noResultToExplainDesc"]}
         />
       )}
 
       {models.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Registered models</CardTitle>
+            <CardTitle>{dict["ai.card.registeredModels"]}</CardTitle>
             <CardDescription>
-              `AIModel` rows describing which engine produced which analysis type.
+              {dict["ai.card.registeredModelsDesc"]}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-1.5">

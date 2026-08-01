@@ -153,39 +153,39 @@ export default async function AiSimulatorPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          title="Net-zero target year"
+          title={dict["simulator.kpi.netZeroTargetYear"]}
           value={String(netZero?.scenario.targetYear ?? "—")}
           icon={Target}
           description={
             netZero
-              ? `${formatEmissions(netZero.projection.targetEmissions)} ${netZero.projection.unit} residual`
-              : "no net-zero scenario"
+              ? `${formatEmissions(netZero.projection.targetEmissions)} ${netZero.projection.unit} ${dict["simulator.kpi.residualUnit"]}`
+              : dict["simulator.kpi.noNetZeroScenario"]
           }
           source="projectScenario()"
         />
         <KpiCard
-          title="Net-zero reduction"
+          title={dict["simulator.kpi.netZeroReduction"]}
           value={formatFraction(netZero?.projection.targetReduction ?? 0)}
           icon={FlaskConical}
-          description="baseline to target year"
+          description={dict["simulator.kpi.baselineToTarget"]}
           source="projectScenario()"
           goodDirection="up"
         />
         <KpiCard
-          title="BAU at target year"
+          title={dict["simulator.kpi.bauAtTargetYear"]}
           value={formatEmissions(bau?.projection.targetEmissions ?? 0)}
           unit={inventory.totals.unit}
           icon={Gauge}
           description={
             bau && netZero
-              ? `${formatEmissions(bau.projection.targetEmissions - netZero.projection.targetEmissions)} ${inventory.totals.unit} gap to net zero`
-              : "no BAU scenario"
+              ? `${formatEmissions(bau.projection.targetEmissions - netZero.projection.targetEmissions)} ${inventory.totals.unit} ${dict["simulator.kpi.gapToNetZero"]}`
+              : dict["simulator.kpi.noBAU"]
           }
           source="projectScenario()"
           goodDirection="down"
         />
         <KpiCard
-          title="Carbon budget used"
+          title={dict["simulator.kpi.carbonBudgetUsed"]}
           value={formatPercent((budget?.consumption.utilisation ?? 0) * 100)}
           icon={Wallet}
           description={
@@ -204,7 +204,7 @@ export default async function AiSimulatorPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Net-zero scenario against the SBTi pathway</CardTitle>
+          <CardTitle>{dict["simulator.card.netZeroVsPathway"]}</CardTitle>
           <CardDescription>
             {pathwayView
               ? `Required pathway: ${pathwayView.pathway.methodology}. Scenario: ${netZero?.projection.methodology ?? "—"}.`
@@ -220,17 +220,16 @@ export default async function AiSimulatorPage() {
               scenarioLabel={netZero?.scenario.name ?? "Scenario"}
             />
           ) : (
-            <EmptyState title="No projection to chart" />
+            <EmptyState title={dict["simulator.empty.noProjection"]} />
           )}
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Scenario library</CardTitle>
+          <CardTitle>{dict["simulator.card.scenarioLibrary"]}</CardTitle>
           <CardDescription>
-            Each scenario is projected from the same calculated baseline, so the differences
-            are entirely down to the lever sets.
+            {dict["simulator.card.scenarioLibraryDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -279,7 +278,7 @@ export default async function AiSimulatorPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Carbon budget</CardTitle>
+            <CardTitle>{dict["simulator.card.carbonBudget"]}</CardTitle>
             <CardDescription>
               {budget
                 ? `${budget.budget.name} — ${budget.consumption.methodology}`
@@ -309,11 +308,11 @@ export default async function AiSimulatorPage() {
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="text-muted-foreground">
-                      <th className="text-left font-medium">Year</th>
-                      <th className="text-right font-medium">Emissions</th>
-                      <th className="text-right font-medium">Cumulative</th>
-                      <th className="text-right font-medium">Remaining</th>
-                      <th className="text-right font-medium">Utilisation</th>
+                      <th className="text-left font-medium">{dict["simulator.table.year"]}</th>
+                      <th className="text-right font-medium">{dict["simulator.table.emissions"]}</th>
+                      <th className="text-right font-medium">{dict["simulator.table.cumulative"]}</th>
+                      <th className="text-right font-medium">{dict["simulator.table.remaining"]}</th>
+                      <th className="text-right font-medium">{dict["simulator.table.utilisation"]}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -358,18 +357,18 @@ export default async function AiSimulatorPage() {
                 )}
               </div>
             ) : (
-              <EmptyState title="No carbon budget" />
+              <EmptyState title={dict["simulator.empty.noBudget"]} />
             )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Scenario comparison</CardTitle>
+            <CardTitle>{dict["simulator.card.scenarioComparison"]}</CardTitle>
             <CardDescription>
               {comparison
                 ? comparison.name
-                : "No stored comparison; build one from the scenario library."}
+                : dict["simulator.card.scenarioComparisonEmpty"]}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -377,7 +376,7 @@ export default async function AiSimulatorPage() {
               <table className="w-full text-xs">
                 <thead>
                   <tr className="text-muted-foreground">
-                    <th className="text-left font-medium">Metric</th>
+                    <th className="text-left font-medium">{dict["simulator.table.metric"]}</th>
                     <th className="text-right font-medium">A</th>
                     <th className="text-right font-medium">B</th>
                     <th className="text-right font-medium">B − A</th>
@@ -405,7 +404,7 @@ export default async function AiSimulatorPage() {
                 </tbody>
               </table>
             ) : (
-              <EmptyState title="No comparison" />
+              <EmptyState title={dict["simulator.empty.noComparison"]} />
             )}
           </CardContent>
         </Card>
@@ -413,10 +412,9 @@ export default async function AiSimulatorPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Build a scenario</CardTitle>
+          <CardTitle>{dict["simulator.card.buildScenario"]}</CardTitle>
           <CardDescription>
-            Levers are pre-filled with the net-zero default set. Projecting is read-only and
-            works with no database; simulating persists the `ScenarioResult` series.
+            {dict["simulator.card.buildScenarioDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent>

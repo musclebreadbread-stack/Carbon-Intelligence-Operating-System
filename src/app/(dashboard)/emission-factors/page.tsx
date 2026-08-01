@@ -99,41 +99,40 @@ export default async function EmissionFactorsPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          title="Active factors"
+          title={dict["factors.kpi.activeFactors"]}
           value={formatNumber(active.length)}
           icon={Library}
-          description={`${rows.length - active.length} superseded`}
+          description={`${rows.length - active.length} ${dict["factors.kpi.superseded"]}`}
           source="listEmissionFactors()"
         />
         <KpiCard
-          title="Published sources"
+          title={dict["factors.kpi.publishedSources"]}
           value={formatNumber(sources.length)}
           icon={BookOpen}
           description={sources.map((source) => source.publisher).filter(Boolean).join(", ")}
           source="EmissionFactorSource"
         />
         <KpiCard
-          title="Open-ended validity"
+          title={dict["factors.kpi.openEndedValidity"]}
           value={formatNumber(openEnded.length)}
           icon={CalendarClock}
-          description="no validTo — will keep applying until superseded"
+          description={dict["factors.kpi.openEndedValidityDesc"]}
           source="EmissionFactor.validTo"
         />
         <KpiCard
-          title="Organization-specific"
+          title={dict["factors.kpi.organizationSpecific"]}
           value={formatNumber(rows.filter((row) => row.organizationSpecific).length)}
           icon={Ruler}
-          description="rank above published factors in resolveFactor()"
+          description={dict["factors.kpi.organizationSpecificDesc"]}
           source="EmissionFactor.organizationId"
         />
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Factor library</CardTitle>
+          <CardTitle>{dict["factors.card.factorLibrary"]}</CardTitle>
           <CardDescription>
-            Filter by scope, source and validity date. Every factor carries its publisher and
-            version, because an inventory figure is only defensible if its factor is citable.
+            {dict["factors.card.factorLibraryDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -148,10 +147,9 @@ export default async function EmissionFactorsPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Which factor applies?</CardTitle>
+            <CardTitle>{dict["factors.card.whichFactorApplies"]}</CardTitle>
             <CardDescription>
-              Runs `resolveFactor()` against the live candidate set and returns its ordered
-              rationale, the runners-up and every rejected candidate with a reason.
+              {dict["factors.card.whichFactorAppliesDesc"]}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -172,11 +170,9 @@ export default async function EmissionFactorsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Unit converter</CardTitle>
+            <CardTitle>{dict["factors.card.unitConverter"]}</CardTitle>
             <CardDescription>
-              The engines&apos; own converter: direct factor, inverse factor, or a single hop
-              through the dimension&apos;s canonical unit. Incompatible dimensions are rejected
-              rather than silently coerced.
+              {dict["factors.card.unitConverterDesc"]}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -193,10 +189,9 @@ export default async function EmissionFactorsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Sources and versions</CardTitle>
+          <CardTitle>{dict["factors.card.sourcesAndVersions"]}</CardTitle>
           <CardDescription>
-            Each factor set is version-pinned, so a recalculation with a newer release is an
-            explicit act rather than a silent drift.
+            {dict["factors.card.sourcesAndVersionsDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent>

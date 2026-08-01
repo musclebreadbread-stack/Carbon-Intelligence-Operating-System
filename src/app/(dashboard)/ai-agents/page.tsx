@@ -98,31 +98,31 @@ export default async function AiAgentsPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          title="Registered agents"
+          title={dict["agents.kpi.registeredAgents"]}
           value={formatNumber(agents.length)}
           icon={Bot}
-          description={`${agents.filter((agent) => agent.isActive).length} active`}
+          description={`${agents.filter((agent) => agent.isActive).length} ${dict["agents.kpi.activeAgents"]}`}
           source="listAgents()"
         />
         <KpiCard
-          title="Queued tasks"
+          title={dict["agents.kpi.queuedTasks"]}
           value={formatNumber(tasks.length)}
           icon={Wrench}
-          description={`${tasks.filter((task) => task.status === "IDLE").length} idle`}
+          description={`${tasks.filter((task) => task.status === "IDLE").length} ${dict["agents.kpi.idle"]}`}
           source="listAgentTasks()"
         />
         <KpiCard
-          title="Built-in tools"
+          title={dict["agents.kpi.builtInTools"]}
           value={formatNumber(tools.length)}
           icon={Wrench}
-          description="read from the live registry, not a table"
+          description={dict["agents.kpi.builtInToolsDesc"]}
           source="createDefaultRegistry().list()"
         />
         <KpiCard
-          title="MCP servers"
+          title={dict["agents.kpi.mcpServers"]}
           value={formatNumber(servers.length)}
           icon={Plug}
-          description={`${connections.filter((row) => row.status === "connected").length} connected`}
+          description={`${connections.filter((row) => row.status === "connected").length} ${dict["agents.kpi.connected"]}`}
           source="listMcpServers()"
         />
       </div>
@@ -133,7 +133,7 @@ export default async function AiAgentsPage() {
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Sparkles className="size-4 text-muted-foreground" />
-                Conversation and narrative capability
+                {dict["agents.card.conversationCapability"]}
               </CardTitle>
               <CardDescription>{llm.description.label}</CardDescription>
             </div>
@@ -154,15 +154,14 @@ export default async function AiAgentsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Agents</CardTitle>
+          <CardTitle>{dict["agents.card.agents"]}</CardTitle>
           <CardDescription>
-            Capabilities are the tool names an agent is allowed to call; the runtime rejects
-            anything outside the list.
+            {dict["agents.card.agentsDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
           {agents.length === 0 ? (
-            <EmptyState title="No agents registered" />
+            <EmptyState title={dict["agents.empty.noAgents"]} />
           ) : (
             agents.map((agent) => (
               <div key={agent.id} className="rounded-lg border p-2.5">
@@ -202,24 +201,23 @@ export default async function AiAgentsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Task queue and execution</CardTitle>
+          <CardTitle>{dict["agents.card.taskQueue"]}</CardTitle>
           <CardDescription>
-            Tasks carry their planned tool calls, a timeout and a retry budget. Running one
-            persists an `AgentExecution` with its log, tokens and duration.
+            {dict["agents.card.taskQueueDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="queue">
             <TabsList variant="line">
-              <TabsTrigger value="queue">Queue ({tasks.length})</TabsTrigger>
-              <TabsTrigger value="run">Run a task</TabsTrigger>
-              <TabsTrigger value="log">Execution log ({executions.length})</TabsTrigger>
-              <TabsTrigger value="new">New agent</TabsTrigger>
+              <TabsTrigger value="queue">{dict["agents.tab.queue"]} ({tasks.length})</TabsTrigger>
+              <TabsTrigger value="run">{dict["agents.tab.runTask"]}</TabsTrigger>
+              <TabsTrigger value="log">{dict["agents.tab.executionLog"]} ({executions.length})</TabsTrigger>
+              <TabsTrigger value="new">{dict["agents.tab.newAgent"]}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="queue" className="space-y-2 pt-3">
               {tasks.length === 0 ? (
-                <EmptyState title="No queued tasks" />
+                <EmptyState title={dict["agents.empty.noQueuedTasks"]} />
               ) : (
                 tasks.map((task) => (
                   <div key={task.id} className="rounded-lg border p-2.5">
@@ -257,8 +255,8 @@ export default async function AiAgentsPage() {
               {executions.length === 0 ? (
                 <div className="space-y-2">
                   <EmptyState
-                    title="No executions recorded"
-                    description="An AgentExecution row is written per run, so this log stays empty until a database is configured."
+                    title={dict["agents.empty.noExecutions"]}
+                    description={dict["agents.empty.noExecutionsDesc"]}
                   />
                   <p className="text-xs text-muted-foreground">
                     Lifetime totals across the recorded executions:{" "}
@@ -302,7 +300,7 @@ export default async function AiAgentsPage() {
               <ActionForm
                 action={createAgentAction}
                 hidden={{ organizationId }}
-                submitLabel="Create agent"
+                submitLabel={dict["agents.label.createAgent"]}
                 fields={[
                   { name: "name", label: "Name", required: true },
                   { name: "type", label: "Type", required: true, placeholder: "inventory" },
@@ -338,10 +336,9 @@ export default async function AiAgentsPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Tool catalogue</CardTitle>
+            <CardTitle>{dict["agents.card.toolCatalogue"]}</CardTitle>
             <CardDescription>
-              Read from `createDefaultRegistry()`, so every tool listed is one the runtime can
-              actually call, with its zod-derived parameter list.
+              {dict["agents.card.toolCatalogueDesc"]}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -368,9 +365,9 @@ export default async function AiAgentsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>MCP servers</CardTitle>
+            <CardTitle>{dict["agents.card.mcpServers"]}</CardTitle>
             <CardDescription>
-              Model Context Protocol endpoints and their last health check.
+              {dict["agents.card.mcpServersDesc"]}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">

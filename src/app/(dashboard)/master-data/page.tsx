@@ -74,42 +74,40 @@ export default async function MasterDataPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          title="Master records"
+          title={dict["master.kpi.masterRecords"]}
           value={formatNumber(total)}
           icon={Database}
-          description="across ten collections"
+          description={dict["master.kpi.masterRecordsDesc"]}
           source="getMasterData()"
         />
         <KpiCard
-          title="Suppliers"
+          title={dict["master.kpi.suppliers"]}
           value={formatNumber(bundle.suppliers.length)}
           icon={Users}
-          description={`${bundle.suppliers.filter((supplier) => supplier.tier === 1).length} tier-1`}
+          description={`${bundle.suppliers.filter((supplier) => supplier.tier === 1).length} ${dict["master.kpi.suppliersDesc"]}`}
           source="Supplier"
         />
         <KpiCard
-          title="Fuels"
+          title={dict["master.kpi.fuels"]}
           value={formatNumber(bundle.fuels.length)}
           icon={Fuel}
           description={`${renewableFuels.length} renewable, ${bundle.fuelTypes.length} fuel types`}
           source="Fuel / FuelType"
         />
         <KpiCard
-          title="High-GWP refrigerants"
+          title={dict["master.kpi.highGwpRefrigerants"]}
           value={formatNumber(highGwpRefrigerants.length)}
           icon={Boxes}
-          description="GWP-100 ≥ 1,000 — fugitive emissions dominate these"
+          description={dict["master.kpi.highGwpRefrigerantsDesc"]}
           source="Refrigerant.gwp100"
         />
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Collections</CardTitle>
+          <CardTitle>{dict["master.card.collections"]}</CardTitle>
           <CardDescription>
-            Sort, filter, hide columns and paginate. Creating a record goes through the
-            matching server action, so validation and the audit trail are identical to the
-            REST API path.
+            {dict["master.card.collectionsDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent>

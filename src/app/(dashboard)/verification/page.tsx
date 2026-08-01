@@ -120,14 +120,14 @@ export default async function VerificationPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          title="Open findings"
+          title={dict["verification.kpi.openFindings"]}
           value={formatNumber(rollup.open)}
           icon={ShieldAlert}
           description={`${rollup.overdue} overdue · highest open severity ${rollup.highestOpenSeverity ?? "none"}`}
           source="severityRollup()"
         />
         <KpiCard
-          title="Closure rate"
+          title={dict["verification.kpi.closureRate"]}
           value={formatPercent(rollup.closureRate * 100, 0)}
           icon={ClipboardCheck}
           description={`${rollup.closed} of ${rollup.total} findings closed`}
@@ -135,14 +135,14 @@ export default async function VerificationPage() {
           goodDirection="up"
         />
         <KpiCard
-          title="Assurance opinion"
+          title={dict["verification.kpi.assuranceOpinion"]}
           value={misstatements.opinionType}
           icon={FileCheck}
           description={`net misstatement ${formatEmissions(misstatements.netMisstatement)} ${misstatements.unit} vs threshold ${formatEmissions(misstatements.thresholdQuantity)} ${misstatements.unit}`}
           source="aggregateMisstatements()"
         />
         <KpiCard
-          title="Audit readiness"
+          title={dict["verification.kpi.auditReadiness"]}
           value={formatNumber(readiness.score, 0)}
           unit="/ 100"
           icon={Gauge}
@@ -155,10 +155,9 @@ export default async function VerificationPage() {
       {readiness.blockers.length > 0 && (
         <Card className="border-red-500/40">
           <CardHeader>
-            <CardTitle className="text-base">Blockers</CardTitle>
+            <CardTitle className="text-base">{dict["verification.card.blockers"]}</CardTitle>
             <CardDescription>
-              These cap the readiness level regardless of the score: an open critical finding is
-              not something a good score elsewhere compensates for.
+              {dict["verification.card.blockersDesc"]}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -173,10 +172,9 @@ export default async function VerificationPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Engagements and scope</CardTitle>
+          <CardTitle>{dict["verification.card.engagementsAndScope"]}</CardTitle>
           <CardDescription>
-            Each scope carries its own materiality threshold, because a Scope 3 category is not
-            assured to the same precision as metered Scope 1.
+            {dict["verification.card.engagementsAndScopeDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -225,7 +223,7 @@ export default async function VerificationPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Findings</CardTitle>
+          <CardTitle>{dict["verification.card.findings"]}</CardTitle>
           <CardDescription>
             {quantified.length} of {findings.length} findings carry a quantified misstatement, and
             only those feed the opinion.
@@ -234,20 +232,20 @@ export default async function VerificationPage() {
         <CardContent>
           <Tabs defaultValue="triage">
             <TabsList className="flex-wrap" variant="line">
-              <TabsTrigger value="triage">Triage ({triage.openCount})</TabsTrigger>
-              <TabsTrigger value="all">All findings ({findings.length})</TabsTrigger>
-              <TabsTrigger value="rollup">Severity rollup</TabsTrigger>
-              <TabsTrigger value="new">Record a finding</TabsTrigger>
-              <TabsTrigger value="opinion">Materiality</TabsTrigger>
+              <TabsTrigger value="triage">{dict["verification.tab.triage"]} ({triage.openCount})</TabsTrigger>
+              <TabsTrigger value="all">{dict["verification.tab.allFindings"]} ({findings.length})</TabsTrigger>
+              <TabsTrigger value="rollup">{dict["verification.tab.severityRollup"]}</TabsTrigger>
+              <TabsTrigger value="new">{dict["verification.tab.recordFinding"]}</TabsTrigger>
+              <TabsTrigger value="opinion">{dict["verification.tab.materiality"]}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="triage" className="space-y-3 pt-3">
               {(
                 [
-                  ["Overdue", triage.overdue],
-                  [`Due within ${triage.dueSoonDays} days`, triage.dueSoon],
-                  ["Upcoming", triage.upcoming],
-                  ["No due date", triage.undated],
+                  [dict["verification.triage.overdue"], triage.overdue],
+                  [dict["verification.triage.dueSoon"], triage.dueSoon],
+                  [dict["verification.triage.upcoming"], triage.upcoming],
+                  [dict["verification.triage.noDueDate"], triage.undated],
                 ] as const
               ).map(([label, bucket]) => (
                 <div key={label}>
@@ -321,11 +319,11 @@ export default async function VerificationPage() {
               <table className="w-full text-xs">
                 <thead className="text-muted-foreground">
                   <tr>
-                    <th className="text-left font-medium">Severity</th>
-                    <th className="text-right font-medium">Total</th>
-                    <th className="text-right font-medium">Open</th>
-                    <th className="text-right font-medium">Closed</th>
-                    <th className="text-right font-medium">Overdue</th>
+                    <th className="text-left font-medium">{dict["verification.table.severity"]}</th>
+                    <th className="text-right font-medium">{dict["verification.table.total"]}</th>
+                    <th className="text-right font-medium">{dict["verification.table.open"]}</th>
+                    <th className="text-right font-medium">{dict["verification.table.closed"]}</th>
+                    <th className="text-right font-medium">{dict["verification.table.overdue"]}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -401,7 +399,7 @@ export default async function VerificationPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Evidence package</CardTitle>
+            <CardTitle>{dict["verification.card.evidencePackage"]}</CardTitle>
             <CardDescription>
               {evidence
                 ? `${evidence.name} — SHA-256 digest ${evidence.hash.slice(0, 16)}…`
@@ -434,23 +432,23 @@ export default async function VerificationPage() {
                 </p>
               </>
             ) : (
-              <EmptyState title="No evidence package" />
+              <EmptyState title={dict["verification.empty.noEvidencePackage"]} />
             )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Audit trail</CardTitle>
+            <CardTitle>{dict["verification.card.auditTrail"]}</CardTitle>
             <CardDescription>
-              Every mutation writes an `AuditTrail` row with a redacted field-level diff.
+              {dict["verification.card.auditTrailDesc"]}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {auditTrail.length === 0 ? (
               <EmptyState
-                title="No audit entries"
-                description="Audit entries are written by the server actions on every mutation, so this viewer is empty until a database is configured."
+                title={dict["verification.empty.noAuditEntries"]}
+                description={dict["verification.empty.noAuditEntriesDesc"]}
               />
             ) : (
               <ul className="space-y-1">

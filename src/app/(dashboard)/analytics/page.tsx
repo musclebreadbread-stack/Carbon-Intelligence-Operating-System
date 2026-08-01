@@ -159,7 +159,7 @@ export default async function AnalyticsPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          title={`${currentYear} total`}
+          title={`${currentYear} ${dict["analytics.kpi.total"]}`}
           value={formatEmissions(current.totals.totalEmissions)}
           unit={current.totals.unit}
           icon={BarChart3}
@@ -168,7 +168,7 @@ export default async function AnalyticsPage() {
           source="buildInventory()"
         />
         <KpiCard
-          title="Intensity per sqm"
+          title={dict["analytics.kpi.intensityPerSqm"]}
           value={formatNumber(intensities[0].value, 4)}
           unit={intensities[0].unit}
           icon={Gauge}
@@ -176,7 +176,7 @@ export default async function AnalyticsPage() {
           source="intensity()"
         />
         <KpiCard
-          title="Scope 3 share"
+          title={dict["analytics.kpi.scope3Share"]}
           value={formatNumber(
             current.totals.totalEmissions === 0
               ? 0
@@ -185,12 +185,12 @@ export default async function AnalyticsPage() {
           )}
           unit="%"
           icon={Users}
-          description="SBTi requires Scope 3 targets above 40%"
+          description={dict["analytics.kpi.scope3ShareDesc"]}
           source="buildInventory()"
           goodDirection="neutral"
         />
         <KpiCard
-          title={`Forecast ${forecast.predictions.at(-1)?.horizon ?? ""}`}
+          title={`${dict["analytics.kpi.forecast"]} ${forecast.predictions.at(-1)?.horizon ?? ""}`}
           value={formatEmissions(forecast.predictions.at(-1)?.predictedValue ?? 0)}
           unit={current.totals.unit}
           icon={TrendingDown}
@@ -202,9 +202,9 @@ export default async function AnalyticsPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Monthly emissions by scope</CardTitle>
+            <CardTitle>{dict["analytics.card.monthlyByScope"]}</CardTitle>
             <CardDescription>
-              Calculated results attributed to the month of their activity period.
+              {dict["analytics.card.monthlyByScopeDesc"]}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -212,8 +212,8 @@ export default async function AnalyticsPage() {
               <EmissionsTrendChart points={trendPoints} unit={current.totals.unit} />
             ) : (
               <EmptyState
-                title="No monthly series"
-                description="Activity entries carry no period that maps onto a month."
+                title={dict["analytics.empty.noMonthlySeries"]}
+                description={dict["analytics.empty.noMonthlySeriesDesc"]}
               />
             )}
           </CardContent>
@@ -221,10 +221,9 @@ export default async function AnalyticsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Scope composition</CardTitle>
+            <CardTitle>{dict["analytics.card.scopeComposition"]}</CardTitle>
             <CardDescription>
-              Share of the {formatEmissions(current.totals.totalEmissions)}{" "}
-              {current.totals.unit} total.
+              {dict["analytics.card.scopeCompositionDesc"]}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -236,7 +235,7 @@ export default async function AnalyticsPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Scope 3 by category</CardTitle>
+            <CardTitle>{dict["analytics.card.scope3ByCategory"]}</CardTitle>
             <CardDescription>
               {scope3Slices.length} of 15 GHG Protocol categories carry data.
             </CardDescription>
@@ -245,14 +244,14 @@ export default async function AnalyticsPage() {
             {scope3Slices.length > 0 ? (
               <ScopeBreakdownChart slices={scope3Slices} unit={current.totals.unit} />
             ) : (
-              <EmptyState title="No Scope 3 data" />
+              <EmptyState title={dict["analytics.empty.noScope3Data"]} />
             )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Year-on-year attribution</CardTitle>
+            <CardTitle>{dict["analytics.card.yoyAttribution"]}</CardTitle>
             <CardDescription>
               How {priorYear} became {currentYear}, split by scope.
             </CardDescription>
@@ -265,27 +264,25 @@ export default async function AnalyticsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Facility heatmap</CardTitle>
+          <CardTitle>{dict["analytics.card.facilityHeatmap"]}</CardTitle>
           <CardDescription>
-            Emissions per facility and scope, from `rollUp()` at the facility level. The
-            colour ramp is scaled to the largest cell, so an outlier cannot hide.
+            {dict["analytics.card.facilityHeatmapDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {heatmapCells.length > 0 ? (
             <Heatmap cells={heatmapCells} unit={current.totals.unit} />
           ) : (
-            <EmptyState title="No facility-level results" />
+            <EmptyState title={dict["analytics.empty.noFacilityResults"]} />
           )}
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Intensity metrics</CardTitle>
+          <CardTitle>{dict["analytics.card.intensityMetrics"]}</CardTitle>
           <CardDescription>
-            `intensity()` returns 0 rather than Infinity for a zero denominator, so a missing
-            denominator is visible as a zero with its basis shown.
+            {dict["analytics.card.intensityMetricsDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-3">
@@ -307,9 +304,9 @@ export default async function AnalyticsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Forecast</CardTitle>
+          <CardTitle>{dict["analytics.card.forecastCard"]}</CardTitle>
           <CardDescription>
-            {forecast.methodology} — deterministic statistics, not a language model.
+            {forecast.methodology} — {dict["analytics.card.forecastCardDesc"]}.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">

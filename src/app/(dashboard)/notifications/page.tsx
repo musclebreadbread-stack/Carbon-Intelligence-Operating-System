@@ -87,52 +87,50 @@ export default async function NotificationsPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          title="Unread"
+          title={dict["notifications.kpi.unreadKpi"]}
           value={formatNumber(unread.length)}
           icon={Bell}
-          description="drives the badge in the header"
+          description={dict["notifications.kpi.unreadDesc"]}
           source="countUnreadNotifications()"
         />
         <KpiCard
-          title="Delivered in-app"
+          title={dict["notifications.kpi.deliveredInApp"]}
           value={formatNumber(inApp.length)}
           icon={Inbox}
-          description="written by persistNotifications() from a notify effect"
+          description={dict["notifications.kpi.deliveredInAppDesc"]}
           source="Notification.channel = in_app"
         />
         <KpiCard
-          title="Recorded, not sent"
+          title={dict["notifications.kpi.recordedNotSent"]}
           value={formatNumber(pending.length)}
           icon={BellOff}
-          description="channel needs a transport this deployment does not have"
+          description={dict["notifications.kpi.recordedNotSentDesc"]}
           source="Notification.channel != in_app"
         />
         <KpiCard
-          title="Action required"
+          title={dict["notifications.kpi.actionRequired"]}
           value={formatNumber(
             notifications.filter((notification) => notification.type === "ACTION_REQUIRED")
               .length,
           )}
           icon={SendHorizontal}
-          description="a blocking rule effect always raises this type"
+          description={dict["notifications.kpi.actionRequiredDesc"]}
           source="notificationTypeForSeverity()"
         />
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>In-app notifications</CardTitle>
+          <CardTitle>{dict["notifications.card.inApp"]}</CardTitle>
           <CardDescription>
-            Delivered end to end: no external service is involved, which is why{" "}
-            <code>in_app</code> is the default channel and the one an unconfigured
-            deployment still gets.
+            {dict["notifications.card.inAppDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {inApp.length === 0 ? (
             <EmptyState
-              title="No in-app notifications"
-              description="A rule set with a notify action raises one the next time it matches."
+              title={dict["notifications.empty.noInApp"]}
+              description={dict["notifications.empty.noInAppDesc"]}
             />
           ) : (
             <NotificationList
@@ -155,28 +153,26 @@ export default async function NotificationsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Recorded, not sent</CardTitle>
+          <CardTitle>{dict["notifications.card.recordedNotSent"]}</CardTitle>
           <CardDescription>
-            These notifications exist and are not lost, but this system does not transmit
-            them: each channel terminates at a service you own. The provisioning steps are
-            in <code>{SETUP_GUIDE_PATH}</code>.
+            {dict["notifications.card.recordedNotSentDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {pending.length === 0 ? (
             <EmptyState
-              title="Nothing waiting on an external transport"
-              description="Every notification raised so far used the in_app channel."
+              title={dict["notifications.empty.noPending"]}
+              description={dict["notifications.empty.noPendingDesc"]}
             />
           ) : (
             <div className="overflow-x-auto rounded-lg border">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50">
                   <tr>
-                    <th className="px-3 py-2 text-left font-medium">Channel</th>
-                    <th className="px-3 py-2 text-left font-medium">Title</th>
-                    <th className="px-3 py-2 text-left font-medium">You must supply</th>
-                    <th className="px-3 py-2 text-left font-medium">Raised</th>
+                    <th className="px-3 py-2 text-left font-medium">{dict["notifications.table.channel"]}</th>
+                    <th className="px-3 py-2 text-left font-medium">{dict["notifications.table.title"]}</th>
+                    <th className="px-3 py-2 text-left font-medium">{dict["notifications.table.youMustSupply"]}</th>
+                    <th className="px-3 py-2 text-left font-medium">{dict["notifications.table.raised"]}</th>
                   </tr>
                 </thead>
                 <tbody>

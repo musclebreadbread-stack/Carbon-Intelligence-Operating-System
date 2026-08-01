@@ -114,37 +114,37 @@ export default async function EsgDisclosurePage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          title="Overall completeness"
+          title={dict["disclosure.kpi.overallCompleteness"]}
           value={formatPercent(overallTotal === 0 ? 0 : (overallAnswered / overallTotal) * 100)}
           icon={Percent}
-          description={`${overallAnswered} of ${overallTotal} datapoints across every mapped framework`}
+          description={`${overallAnswered} of ${overallTotal} ${dict["disclosure.kpi.overallCompletenessDesc"]}`}
           source="completeness()"
           goodDirection="up"
         />
         <KpiCard
-          title="Auto-populated"
+          title={dict["disclosure.kpi.autoPopulated"]}
           value={formatNumber(autoPopulated)}
           icon={ListChecks}
-          description="numeric datapoints filled from the calculated inventory"
+          description={dict["disclosure.kpi.autoPopulatedDesc"]}
           source="mapInventoryToRequirements()"
           goodDirection="up"
         />
         <KpiCard
-          title="Frameworks mapped"
+          title={dict["disclosure.kpi.frameworksMapped"]}
           value={`${views.length} / ${frameworks.length}`}
           icon={FileText}
           description={
             unmappable.length > 0
-              ? `${unmappable.map((framework) => framework.code).join(", ")} have no requirement catalogue yet`
+              ? `${unmappable.map((framework) => framework.code).join(", ")} ${dict["disclosure.kpi.noRequirementCatalogue"]}`
               : "every framework has a catalogue"
           }
           source="requirementsFor()"
         />
         <KpiCard
-          title="Reports"
+          title={dict["disclosure.kpi.reports"]}
           value={formatNumber(reports.length)}
           icon={Send}
-          description={`${reports.filter((report) => report.submittedAt !== null).length} submitted`}
+          description={`${reports.filter((report) => report.submittedAt !== null).length} ${dict["disclosure.kpi.submitted"]}`}
           source="listDisclosureReports()"
         />
       </div>
@@ -215,7 +215,7 @@ export default async function EsgDisclosurePage() {
       {primary && (
         <Card>
           <CardHeader>
-            <CardTitle>{primary.framework} requirements</CardTitle>
+            <CardTitle>{primary.framework} {dict["disclosure.tab.requirements"]}</CardTitle>
             <CardDescription>
               Auto-populated values are marked; the rest need authoring. Saving a response goes
               through `saveDisclosureResponseAction`, which validates the requirement code
@@ -225,11 +225,11 @@ export default async function EsgDisclosurePage() {
           <CardContent>
             <Tabs defaultValue="requirements">
               <TabsList className="flex-wrap" variant="line">
-                <TabsTrigger value="requirements">Requirements</TabsTrigger>
-                <TabsTrigger value="categories">By category</TabsTrigger>
-                <TabsTrigger value="editor">Response editor</TabsTrigger>
-                <TabsTrigger value="report">Assembled report</TabsTrigger>
-                <TabsTrigger value="generate">Generate</TabsTrigger>
+                <TabsTrigger value="requirements">{dict["disclosure.tab.requirements"]}</TabsTrigger>
+                <TabsTrigger value="categories">{dict["disclosure.tab.byCategory"]}</TabsTrigger>
+                <TabsTrigger value="editor">{dict["disclosure.tab.responseEditor"]}</TabsTrigger>
+                <TabsTrigger value="report">{dict["disclosure.tab.assembledReport"]}</TabsTrigger>
+                <TabsTrigger value="generate">{dict["disclosure.tab.generate"]}</TabsTrigger>
               </TabsList>
 
               <TabsContent value="requirements" className="pt-3">
@@ -237,11 +237,11 @@ export default async function EsgDisclosurePage() {
                   <table className="w-full text-xs">
                     <thead className="bg-muted/50">
                       <tr>
-                        <th className="px-2 py-1.5 text-left font-medium">Code</th>
-                        <th className="px-2 py-1.5 text-left font-medium">Requirement</th>
-                        <th className="px-2 py-1.5 text-left font-medium">Category</th>
-                        <th className="px-2 py-1.5 text-left font-medium">Value</th>
-                        <th className="px-2 py-1.5 text-left font-medium">Status</th>
+                        <th className="px-2 py-1.5 text-left font-medium">{dict["disclosure.table.code"]}</th>
+                        <th className="px-2 py-1.5 text-left font-medium">{dict["disclosure.table.requirement"]}</th>
+                        <th className="px-2 py-1.5 text-left font-medium">{dict["disclosure.table.category"]}</th>
+                        <th className="px-2 py-1.5 text-left font-medium">{dict["disclosure.table.value"]}</th>
+                        <th className="px-2 py-1.5 text-left font-medium">{dict["disclosure.table.status"]}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -290,11 +290,11 @@ export default async function EsgDisclosurePage() {
                 <table className="w-full text-xs">
                   <thead className="text-muted-foreground">
                     <tr>
-                      <th className="text-left font-medium">Category</th>
-                      <th className="text-right font-medium">Answered</th>
-                      <th className="text-right font-medium">Total</th>
-                      <th className="text-right font-medium">Overall</th>
-                      <th className="text-right font-medium">Mandatory</th>
+                      <th className="text-left font-medium">{dict["disclosure.table.category"]}</th>
+                      <th className="text-right font-medium">{dict["disclosure.table.answered"]}</th>
+                      <th className="text-right font-medium">{dict["disclosure.table.totalCol"]}</th>
+                      <th className="text-right font-medium">{dict["disclosure.table.overall"]}</th>
+                      <th className="text-right font-medium">{dict["disclosure.table.mandatory"]}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -399,7 +399,7 @@ export default async function EsgDisclosurePage() {
                     ))}
                   </>
                 ) : (
-                  <EmptyState title="No assembled report" />
+                  <EmptyState title={dict["disclosure.empty.noAssembledReport"]} />
                 )}
               </TabsContent>
 
@@ -481,15 +481,14 @@ export default async function EsgDisclosurePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Reports and submission deadlines</CardTitle>
+          <CardTitle>{dict["disclosure.card.reportsAndDeadlines"]}</CardTitle>
           <CardDescription>
-            `DisclosureReport` rows with their due dates; submission is the user&apos;s own
-            filing action with the framework body.
+            {dict["disclosure.card.reportsAndDeadlinesDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-1.5">
           {reports.length === 0 ? (
-            <EmptyState title="No reports yet" />
+            <EmptyState title={dict["disclosure.empty.noReports"]} />
           ) : (
             reports.map((report) => (
               <div
@@ -538,10 +537,9 @@ export default async function EsgDisclosurePage() {
       {unmappable.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Frameworks without a requirement catalogue</CardTitle>
+            <CardTitle>{dict["disclosure.card.frameworksWithoutCatalogue"]}</CardTitle>
             <CardDescription>
-              These are declared in the schema but have no mapped datapoints yet, so they are
-              excluded from the completeness figures rather than reported as 0%.
+              {dict["disclosure.card.frameworksWithoutCatalogueDesc"]}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-1.5">

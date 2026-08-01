@@ -149,48 +149,46 @@ export default async function SettingsPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          title="Dependencies configured"
+          title={dict["settings.kpi.dependenciesConfigured"]}
           value={`${configured} / ${ENVIRONMENT.length}`}
           icon={SettingsIcon}
           description={
             dataMode === "demo"
-              ? "running in demo mode — figures computed, nothing persisted"
-              : "running against a live database"
+              ? dict["settings.kpi.dependenciesDescDemo"]
+              : dict["settings.kpi.dependenciesDescLive"]
           }
           source="process.env"
           goodDirection="up"
         />
         <KpiCard
-          title="Fiscal year starts"
+          title={dict["settings.kpi.fiscalYearStarts"]}
           value={MONTHS[(organization?.fiscalYearStart ?? 1) - 1]?.label ?? "January"}
           icon={Building2}
-          description="drives every reporting-period boundary"
+          description={dict["settings.kpi.fiscalYearStartsDesc"]}
           source="Organization.fiscalYearStart"
         />
         <KpiCard
-          title="Base currency"
+          title={dict["settings.kpi.baseCurrency"]}
           value={organization?.baseCurrency ?? "USD"}
           icon={Building2}
-          description="used by MACC, investment appraisal and carbon pricing"
+          description={dict["settings.kpi.baseCurrencyDesc"]}
           source="Organization.baseCurrency"
         />
         <KpiCard
-          title={`${reportingYear} inventory`}
+          title={`${reportingYear} ${dict["settings.kpi.inventory"]}`}
           value={formatEmissions(inventory.totals.totalEmissions)}
           unit={inventory.totals.unit}
           icon={Database}
-          description={`${formatNumber(inventory.totals.resultCount)} emission results`}
+          description={`${formatNumber(inventory.totals.resultCount)} ${dict["settings.kpi.inventoryDesc"]}`}
           source="buildInventory()"
         />
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Environment configuration</CardTitle>
+          <CardTitle>{dict["settings.card.environmentConfig"]}</CardTitle>
           <CardDescription>
-            Each variable is checked with the same predicate the runtime uses, so this panel
-            cannot disagree with the application&apos;s behaviour. Nothing here reveals a value —
-            only whether one is present and usable.
+            {dict["settings.card.environmentConfigDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -208,7 +206,7 @@ export default async function SettingsPage() {
                     <Badge variant={ok ? "secondary" : "outline"}>
                       {ok ? "configured" : "not configured"}
                     </Badge>
-                    {entry.required && !ok && <Badge variant="destructive">required</Badge>}
+                    {entry.required && !ok && <Badge variant="destructive">{dict["settings.label.required"]}</Badge>}
                   </div>
                   {!ok && (
                     <p className="mt-1 text-xs text-muted-foreground">{entry.degradation}</p>
@@ -233,10 +231,9 @@ export default async function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Organisation profile and reporting conventions</CardTitle>
+          <CardTitle>{dict["settings.card.orgProfileAndConventions"]}</CardTitle>
           <CardDescription>
-            The fiscal year, base currency and reporting year set here are read by every module;
-            changing them changes period boundaries and intensity denominators everywhere.
+            {dict["settings.card.orgProfileAndConventionsDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -299,16 +296,14 @@ export default async function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Calculation conventions</CardTitle>
+          <CardTitle>{dict["settings.card.calculationConventions"]}</CardTitle>
           <CardDescription>
-            These are chosen per calculation run rather than stored as a single organisation
-            setting, because a re-statement under a different GWP vintage or consolidation
-            approach has to be an explicit, auditable act.
+            {dict["settings.card.calculationConventionsDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-3">
           <div>
-            <p className="text-xs text-muted-foreground">GWP version in use</p>
+            <p className="text-xs text-muted-foreground">{dict["settings.label.gwpInUse"]}</p>
             <p className="text-lg font-semibold">{inventory.gwpVersion}</p>
             <p className="text-[11px] text-muted-foreground">
               Available: {GWP_VERSIONS.join(", ")}. AR6 puts fossil CH₄ at 29.8 and AR5 at 30, so
@@ -316,7 +311,7 @@ export default async function SettingsPage() {
             </p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Consolidation approach</p>
+            <p className="text-xs text-muted-foreground">{dict["settings.label.consolidationApproach"]}</p>
             <p className="text-lg font-semibold">
               {humaniseEnum(inventory.consolidationApproach)}
             </p>
@@ -325,7 +320,7 @@ export default async function SettingsPage() {
             </p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Scope 2 basis for the total</p>
+            <p className="text-xs text-muted-foreground">{dict["settings.label.scope2BasisForTotal"]}</p>
             <p className="text-lg font-semibold">
               {humaniseEnum(inventory.totals.scope2Basis)}
             </p>
@@ -340,14 +335,9 @@ export default async function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Notification delivery</CardTitle>
+          <CardTitle>{dict["settings.card.notificationDelivery"]}</CardTitle>
           <CardDescription>
-            In-app delivery is complete: a rule&apos;s <code>notify</code> effect writes a{" "}
-            <code>Notification</code> row, which appears in{" "}
-            <Link href="/notifications" className="underline">
-              the notification centre
-            </Link>{" "}
-            and on the header badge. Every other channel stops at a service you own.
+            {dict["settings.card.notificationDeliveryDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-1.5 text-xs text-muted-foreground">
