@@ -18,6 +18,20 @@ import { activeOrganizationId } from "@/lib/auth/active-organization";
 import { prisma } from "@/lib/prisma";
 import { uploadEvidence, deleteEvidence } from "@/lib/storage/evidence";
 
+const ALLOWED_MIME_TYPES = new Set([
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "text/csv",
+  "application/zip",
+  "application/octet-stream",
+]);
+
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+
 export async function POST(request: NextRequest) {
   try {
     const session = await requireSession();
@@ -28,6 +42,21 @@ export async function POST(request: NextRequest) {
     if (!file) {
       return NextResponse.json(
         { error: "No file provided" },
+        { status: 400 },
+      );
+    }
+
+    const effectiveMimeType = file.type || "application/octet-stream";
+    if (!ALLOWED_MIME_TYPES.has(effectiveMimeType)) {
+      return NextResponse.json(
+        { error: "File type not allowed. Accepted: PDF, images, Office documents, CSV, ZIP." },
+        { status: 400 },
+      );
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: "File too large. Maximum size is 50MB." },
         { status: 400 },
       );
     }
@@ -97,7 +126,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   try {
-    const session = await requireSession();
+    await requireSession();
     const organizationId = await activeOrganizationId();
 
     const evidence = await prisma.auditEvidence.findMany({
