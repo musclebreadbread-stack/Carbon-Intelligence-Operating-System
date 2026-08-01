@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "fix",
   "description": "Export fixes: completeness 100x bug in DOCX/XLSX, narrative responses in getAssembledReport, PDF Korean font embed verified, and ESG page download button",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Fix the 100x completeness bug in src/lib/reports/xlsx.ts line 33: change `(input.metadata.completeness * 100).toFixed(1)` to `input.metadata.completeness.toFixed(1)` since the value passed from the export route is already a percentage (assembled.completeness.percent is 0-100)",
     "Fix the same 100x completeness bug in src/lib/reports/docx.ts line 69: change `(input.metadata.completeness * 100).toFixed(1)` to `input.metadata.completeness.toFixed(1)`",
@@ -22,5 +22,5 @@
     "bunx tsc --noEmit"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All 7 tests pass. TypeScript compiles cleanly. The PDF generator was already correct (no *100). Narrative responses were already handled correctly in getAssembledReport and the export route. The ESG page already had per-report download links in the reports list; added top-level download buttons in the PageHeader actions for the primary report."
 }
