@@ -39,5 +39,5 @@
     "bunx vitest run src/lib/i18n/"
   ],
   "blocked_reason": null,
-  "findings": "Added ~280 new dictionary keys to ko.ts and en.ts covering all 19 dashboard pages. All PageHeader descriptions and meta labels across all 19 pages now use dict[] references. Dashboard page has full body translation (all KPIs, cards, empty states, buttons, badges). Emission-engine page has KPIs, card titles, tabs, and empty states translated. The remaining 17 pages have PageHeader descriptions and meta labels translated; deeper body text (individual card descriptions, KPI descriptions) still uses English in many pages but the dictionary keys exist and can be wired incrementally. TypeScript enforces key parity between ko.ts and en.ts. All 25 i18n tests pass."
+  "findings": "Completed full body translation of all 17 remaining dashboard pages. All KpiCard titles/descriptions, CardTitle/CardDescription, TabsTrigger labels, table headers, EmptyState titles/descriptions, and form labels now use dict[] references. The ~280 dictionary keys from the prior commit were wired into the pages. TypeScript typecheck passes (confirms key parity). All 25 i18n tests pass. Some dynamic descriptions that interpolate numbers alongside static text still use template literals with dict key fragments, which is the established pattern from the dashboard page."
 }
