@@ -2,7 +2,7 @@
   "id": "FEAT-005",
   "type": "docs",
   "description": "Sync Korean Word document (docs/CIOS-직접-설정-가이드.docx) with actual implementation state by updating the generator script",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Read scripts/generate-setup-guide.ts to understand the current content of the generated Word document.",
     "Update the generator script to reflect the current implementation state: the i18n system defaults to Korean, all 19 dashboard pages are translated, evidence upload has MIME/size limits, export completeness bug is fixed, accessibility improvements (id=main-content, MobileDrawer, aria-labels), ESG page has download buttons.",
@@ -19,5 +19,5 @@
     "test -f docs/CIOS-직접-설정-가이드.docx && echo 'DOCX exists'"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Used `bun run scripts/generate-setup-guide.ts` instead of `bunx tsx scripts/generate-setup-guide.ts` because tsx module resolution fails under bun. All 34 tests pass with `bunx vitest run scripts/`. Generated docx is 30,426 bytes with 13 sections."
 }
