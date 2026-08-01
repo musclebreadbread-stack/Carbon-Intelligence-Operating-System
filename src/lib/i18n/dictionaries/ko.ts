@@ -126,6 +126,10 @@ const ko = {
   "nav.sectionIntelligence": "인텔리전스",
   "nav.sectionSystem": "시스템",
 
+  // Sidebar accessibility
+  "sidebar.expand": "사이드바 펼치기",
+  "sidebar.collapse": "사이드바 접기",
+
   // Language
   "language.switch": "언어 변경",
   "language.korean": "한국어",

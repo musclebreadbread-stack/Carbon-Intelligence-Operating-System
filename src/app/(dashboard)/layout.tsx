@@ -106,7 +106,7 @@ export default async function DashboardLayout({
             openFindings={openFindings}
             unreadNotifications={unreadNotifications}
           />
-          <main className="flex-1 space-y-4 overflow-y-auto bg-muted/30 p-6">
+          <main id="main-content" className="flex-1 space-y-4 overflow-y-auto bg-muted/30 p-6">
             <DemoModeBanner
               demoMode={dataMode === "demo"}
               databaseConfigured={isDbConfigured()}

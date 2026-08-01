@@ -194,6 +194,7 @@ export function Sidebar() {
             size="icon-sm"
             onClick={toggleCollapsed}
             className="w-full"
+            aria-label={collapsed ? t("sidebar.expand") : t("sidebar.collapse")}
           >
             {collapsed ? (
               <ChevronRight className="size-4" />

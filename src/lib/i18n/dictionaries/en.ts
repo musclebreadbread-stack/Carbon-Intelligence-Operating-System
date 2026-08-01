@@ -128,6 +128,10 @@ const en: Dictionary = {
   "nav.sectionIntelligence": "Intelligence",
   "nav.sectionSystem": "System",
 
+  // Sidebar accessibility
+  "sidebar.expand": "Expand sidebar",
+  "sidebar.collapse": "Collapse sidebar",
+
   // Language
   "language.switch": "Change language",
   "language.korean": "\uD55C\uAD6D\uC5B4",

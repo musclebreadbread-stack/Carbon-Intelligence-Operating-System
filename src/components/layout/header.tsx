@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { OrganizationSwitcher } from "@/components/layout/organization-switcher";
+import { MobileDrawer } from "@/components/layout/mobile-drawer";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { useSession } from "@/components/providers/session-provider";
 import { useT } from "@/components/providers/locale-provider";
@@ -57,6 +58,29 @@ export function Header({
   return (
     <header className="flex h-14 items-center justify-between border-b bg-background px-4">
       <div className="flex items-center gap-3">
+        <MobileDrawer>
+          <nav className="flex flex-col gap-1">
+            <Link href="/dashboard" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.dashboard")}</Link>
+            <Link href="/organization" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.organization")}</Link>
+            <Link href="/master-data" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.masterData")}</Link>
+            <Link href="/activity-data" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.activityData")}</Link>
+            <Link href="/emission-engine" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.emissionEngine")}</Link>
+            <Link href="/emission-factors" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.emissionFactors")}</Link>
+            <Link href="/ai-engine" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.aiEngine")}</Link>
+            <Link href="/ai-roadmap" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.aiRoadmap")}</Link>
+            <Link href="/ai-simulator" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.aiSimulator")}</Link>
+            <Link href="/ai-agents" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.aiAgents")}</Link>
+            <Link href="/digital-mrv" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.digitalMrv")}</Link>
+            <Link href="/verification" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.verification")}</Link>
+            <Link href="/esg-disclosure" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.esgDisclosure")}</Link>
+            <Link href="/carbon-finance" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.carbonFinance")}</Link>
+            <Link href="/analytics" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.analytics")}</Link>
+            <Link href="/notifications" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.notifications")}</Link>
+            <Link href="/api-gateway" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.apiGateway")}</Link>
+            <Link href="/security" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.security")}</Link>
+            <Link href="/settings" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.settings")}</Link>
+          </nav>
+        </MobileDrawer>
         <OrganizationSwitcher />
         <Badge
           variant={dataMode === "demo" ? "outline" : "secondary"}
