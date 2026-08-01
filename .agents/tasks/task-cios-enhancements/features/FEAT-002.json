@@ -1,0 +1,24 @@
+{
+  "id": "FEAT-002",
+  "type": "fix",
+  "description": "Evidence API improvements: MIME/size validation, lint warning fix, confirm atomic metadata persistence and organization-scoped GET",
+  "status": "completed",
+  "steps": [
+    "In src/app/api/evidence/route.ts POST handler, add MIME type and file size validation BEFORE the upload attempt. Add constants like ALLOWED_MIME_TYPES (e.g. application/pdf, image/png, image/jpeg, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.openxmlformats-officedocument.wordprocessingml.document, text/csv, application/zip) and MAX_FILE_SIZE (e.g. 50MB = 50 * 1024 * 1024). Return 400 with descriptive error if MIME or size check fails.",
+    "Fix the lint warning in the GET handler: on line ~100, `const session = await requireSession()` assigns session but never uses it. Since requireSession() is called for its side effect (throws on no session), prefix with void or remove the assignment: `await requireSession()` (no const assignment needed).",
+    "Verify that the POST handler already does atomic metadata saving with cleanup (lines 55-75: creates prisma.auditEvidence.create, catches dbError and deletes orphan upload). This is already correctly implemented.",
+    "Verify that the GET handler already filters by organizationId (line 106: where: { organizationId }). This is already correctly implemented."
+  ],
+  "acceptance_criteria": [
+    "POST /api/evidence rejects files with disallowed MIME types with 400 status",
+    "POST /api/evidence rejects files exceeding size limit with 400 status",
+    "bunx eslint src/app/api/evidence/ reports 0 warnings",
+    "Existing atomic save and org-scoped GET behavior is preserved"
+  ],
+  "verification": [
+    "bunx eslint src/app/api/evidence/",
+    "bunx tsc --noEmit"
+  ],
+  "blocked_reason": null,
+  "findings": "All verification passed. eslint reports 0 problems, tsc --noEmit passes. The atomic metadata save with orphan cleanup and org-scoped GET were already correctly implemented. Added ALLOWED_MIME_TYPES Set and MAX_FILE_SIZE constant before the POST handler. Validation checks occur after the null file check but before reading the file buffer."
+}
