@@ -44,11 +44,12 @@ import {
   formatPercent,
   humaniseEnum,
 } from "@/lib/format";
-import { getDictionary } from "@/lib/i18n/server";
+import { getDictionary, getLocale } from "@/lib/i18n/server";
 
 export default async function EsgDisclosurePage() {
   await connection();
   const dict = await getDictionary();
+  const locale = await getLocale();
 
   const organizationId = await activeOrganizationId();
   const years = await listReportingYears(organizationId);
@@ -87,21 +88,21 @@ export default async function EsgDisclosurePage() {
           reports.length > 0 ? (
             <>
               <a
-                href={`/api/reports/${reports[0].id}/export?format=xlsx&locale=ko`}
+                href={`/api/reports/${reports[0].id}/export?format=xlsx&locale=${locale}`}
                 className="inline-flex items-center rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted"
                 download
               >
                 XLSX
               </a>
               <a
-                href={`/api/reports/${reports[0].id}/export?format=pdf&locale=ko`}
+                href={`/api/reports/${reports[0].id}/export?format=pdf&locale=${locale}`}
                 className="inline-flex items-center rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted"
                 download
               >
                 PDF
               </a>
               <a
-                href={`/api/reports/${reports[0].id}/export?format=docx&locale=ko`}
+                href={`/api/reports/${reports[0].id}/export?format=docx&locale=${locale}`}
                 className="inline-flex items-center rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted"
                 download
               >
@@ -136,7 +137,7 @@ export default async function EsgDisclosurePage() {
           description={
             unmappable.length > 0
               ? `${unmappable.map((framework) => framework.code).join(", ")} ${dict["disclosure.kpi.noRequirementCatalogue"]}`
-              : "every framework has a catalogue"
+              : dict["disclosure.kpi.allFrameworksMapped"]
           }
           source="requirementsFor()"
         />
@@ -504,21 +505,21 @@ export default async function EsgDisclosurePage() {
                 </span>
                 <span className="ml-auto flex gap-1">
                   <a
-                    href={`/api/reports/${report.id}/export?format=xlsx&locale=ko`}
+                    href={`/api/reports/${report.id}/export?format=xlsx&locale=${locale}`}
                     className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium hover:bg-muted"
                     download
                   >
                     XLSX
                   </a>
                   <a
-                    href={`/api/reports/${report.id}/export?format=pdf&locale=ko`}
+                    href={`/api/reports/${report.id}/export?format=pdf&locale=${locale}`}
                     className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium hover:bg-muted"
                     download
                   >
                     PDF
                   </a>
                   <a
-                    href={`/api/reports/${report.id}/export?format=docx&locale=ko`}
+                    href={`/api/reports/${report.id}/export?format=docx&locale=${locale}`}
                     className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium hover:bg-muted"
                     download
                   >

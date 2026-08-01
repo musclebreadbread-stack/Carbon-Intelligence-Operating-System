@@ -130,6 +130,11 @@ const ko = {
   "sidebar.expand": "사이드바 펼치기",
   "sidebar.collapse": "사이드바 접기",
 
+  // Mobile drawer accessibility
+  "mobile.openMenu": "메뉴 열기",
+  "mobile.navigation": "모바일 내비게이션",
+  "mobile.closeMenu": "메뉴 닫기",
+
   // Language
   "language.switch": "언어 변경",
   "language.korean": "한국어",
@@ -765,6 +770,7 @@ const ko = {
   "disclosure.kpi.autoPopulatedDesc": "계산된 인벤토리에서 채워진 수치 데이터포인트",
   "disclosure.kpi.frameworksMapped": "프레임워크 매핑",
   "disclosure.kpi.noRequirementCatalogue": "아직 요구사항 카탈로그가 없음",
+  "disclosure.kpi.allFrameworksMapped": "모든 프레임워크에 카탈로그가 있음",
   "disclosure.kpi.reports": "보고서",
   "disclosure.kpi.submitted": "제출됨",
   "disclosure.tab.requirements": "요구사항",

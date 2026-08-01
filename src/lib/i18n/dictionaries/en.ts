@@ -132,6 +132,11 @@ const en: Dictionary = {
   "sidebar.expand": "Expand sidebar",
   "sidebar.collapse": "Collapse sidebar",
 
+  // Mobile drawer accessibility
+  "mobile.openMenu": "Open menu",
+  "mobile.navigation": "Mobile navigation",
+  "mobile.closeMenu": "Close menu",
+
   // Language
   "language.switch": "Change language",
   "language.korean": "\uD55C\uAD6D\uC5B4",
@@ -767,6 +772,7 @@ const en: Dictionary = {
   "disclosure.kpi.autoPopulatedDesc": "numeric datapoints filled from the calculated inventory",
   "disclosure.kpi.frameworksMapped": "Frameworks mapped",
   "disclosure.kpi.noRequirementCatalogue": "have no requirement catalogue yet",
+  "disclosure.kpi.allFrameworksMapped": "every framework has a catalogue",
   "disclosure.kpi.reports": "Reports",
   "disclosure.kpi.submitted": "submitted",
   "disclosure.tab.requirements": "Requirements",

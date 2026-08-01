@@ -11,9 +11,11 @@ import { useState } from "react";
 import { Menu, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useT } from "@/components/providers/locale-provider";
 
 export function MobileDrawer({ children }: { readonly children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const t = useT();
 
   return (
     <>
@@ -22,7 +24,7 @@ export function MobileDrawer({ children }: { readonly children: React.ReactNode 
         size="icon"
         className="md:hidden"
         onClick={() => setOpen(true)}
-        aria-label="메뉴 열기"
+        aria-label={t("mobile.openMenu")}
         data-testid="mobile-menu-button"
       >
         <Menu className="size-5" />
@@ -40,7 +42,7 @@ export function MobileDrawer({ children }: { readonly children: React.ReactNode 
           <nav
             className="fixed inset-y-0 left-0 z-50 w-64 bg-background shadow-lg md:hidden overflow-y-auto"
             role="navigation"
-            aria-label="모바일 내비게이션"
+            aria-label={t("mobile.navigation")}
             data-testid="mobile-drawer"
           >
             <div className="flex items-center justify-between p-4 border-b">
@@ -49,7 +51,7 @@ export function MobileDrawer({ children }: { readonly children: React.ReactNode 
                 variant="ghost"
                 size="icon"
                 onClick={() => setOpen(false)}
-                aria-label="메뉴 닫기"
+                aria-label={t("mobile.closeMenu")}
               >
                 <X className="size-5" />
               </Button>
