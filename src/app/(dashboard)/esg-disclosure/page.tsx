@@ -83,6 +83,33 @@ export default async function EsgDisclosurePage() {
           { label: "Mapped frameworks", value: formatNumber(views.length) },
           { label: "Reports", value: formatNumber(reports.length) },
         ]}
+        actions={
+          reports.length > 0 ? (
+            <>
+              <a
+                href={`/api/reports/${reports[0].id}/export?format=xlsx&locale=ko`}
+                className="inline-flex items-center rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+                download
+              >
+                XLSX
+              </a>
+              <a
+                href={`/api/reports/${reports[0].id}/export?format=pdf&locale=ko`}
+                className="inline-flex items-center rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+                download
+              >
+                PDF
+              </a>
+              <a
+                href={`/api/reports/${reports[0].id}/export?format=docx&locale=ko`}
+                className="inline-flex items-center rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+                download
+              >
+                DOCX
+              </a>
+            </>
+          ) : undefined
+        }
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

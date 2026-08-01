@@ -1,0 +1,26 @@
+{
+  "id": "FEAT-001",
+  "type": "fix",
+  "description": "Export fixes: completeness 100x bug in DOCX/XLSX, narrative responses in getAssembledReport, PDF Korean font embed verified, and ESG page download button",
+  "status": "in_progress",
+  "steps": [
+    "Fix the 100x completeness bug in src/lib/reports/xlsx.ts line 33: change `(input.metadata.completeness * 100).toFixed(1)` to `input.metadata.completeness.toFixed(1)` since the value passed from the export route is already a percentage (assembled.completeness.percent is 0-100)",
+    "Fix the same 100x completeness bug in src/lib/reports/docx.ts line 69: change `(input.metadata.completeness * 100).toFixed(1)` to `input.metadata.completeness.toFixed(1)`",
+    "Update the test in src/lib/reports/reports.test.ts: the SAMPLE_INPUT uses completeness: 0.75 which represents a 0-1 fraction. Since the export route now passes a 0-100 percent, update the test to use completeness: 75 (the real value from assembled.completeness.percent) so the XLSX/DOCX display 75.0% not 7500.0%",
+    "Verify getAssembledReport in src/lib/data/repositories/disclosure.ts already merges narrative responses into the assembled report (lines 208-224). The narrative value field is correctly set. Verify the export route at src/app/api/reports/[reportId]/export/route.ts correctly passes req.value for narrative in the value field of the datapoints array (line 91: value: req.value ?? ...). If narrative responses are being dropped, fix the issue - otherwise document that it already works.",
+    "Verify PDF Korean font embed in src/lib/reports/pdf.ts already registers NotoSansKR from public/fonts/NotoSansKR-KSX1001.ttf (lines 22-25, 49-54). The file at public/fonts/NotoSansKR-KSX1001.ttf already exists. This is already implemented.",
+    "Add a download button to the ESG disclosure page header: In src/app/(dashboard)/esg-disclosure/page.tsx, add an `actions` prop to the PageHeader component with download links (XLSX, PDF, DOCX) using the primary report ID when available. Use the LinkButton component pattern from dashboard/page.tsx or simple anchor tags with download attribute pointing to /api/reports/{reportId}/export?format=xxx&locale=ko. Import LinkButton from @/components/shared/link-button if needed."
+  ],
+  "acceptance_criteria": [
+    "XLSX and DOCX exports show completeness as X.Y% (not 100x the real value)",
+    "Test in reports.test.ts passes with updated completeness value",
+    "ESG disclosure page has visible download buttons (XLSX/PDF/DOCX) in the page header area when a report exists",
+    "Narrative response values appear in exports (already working, confirmed)"
+  ],
+  "verification": [
+    "bunx vitest run src/lib/reports/reports.test.ts",
+    "bunx tsc --noEmit"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

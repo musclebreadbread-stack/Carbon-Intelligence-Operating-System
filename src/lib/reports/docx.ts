@@ -66,7 +66,7 @@ export async function generateDocx(input: ExportInput): Promise<Buffer> {
             children: [
               new TextRun({ text: "완성도: ", bold: true }),
               new TextRun(
-                `${(input.metadata.completeness * 100).toFixed(1)}%`,
+                `${input.metadata.completeness.toFixed(1)}%`,
               ),
             ],
           }),

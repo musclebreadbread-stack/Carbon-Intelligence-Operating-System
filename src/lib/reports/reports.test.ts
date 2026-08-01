@@ -17,7 +17,7 @@ const SAMPLE_INPUT: ExportInput = buildExportInput({
   organizationName: "테스트 조직",
   framework: "CDP",
   reportingYear: 2024,
-  completeness: 0.75,
+  completeness: 75,
   locale: "ko",
   datapoints: [
     {
@@ -121,6 +121,6 @@ describe("disclosure model adapter", () => {
     expect(SAMPLE_INPUT.metadata.organizationName).toBe("테스트 조직");
     expect(SAMPLE_INPUT.metadata.framework).toBe("CDP");
     expect(SAMPLE_INPUT.metadata.reportingYear).toBe(2024);
-    expect(SAMPLE_INPUT.metadata.completeness).toBe(0.75);
+    expect(SAMPLE_INPUT.metadata.completeness).toBe(75);
   });
 });

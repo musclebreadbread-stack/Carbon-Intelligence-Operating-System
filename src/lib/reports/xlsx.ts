@@ -30,7 +30,7 @@ export async function generateXlsx(input: ExportInput): Promise<Buffer> {
   metaSheet.addRow({ field: "생성일시", value: input.metadata.generatedAt });
   metaSheet.addRow({
     field: "완성도",
-    value: `${(input.metadata.completeness * 100).toFixed(1)}%`,
+    value: `${input.metadata.completeness.toFixed(1)}%`,
   });
 
   // Style the header row
