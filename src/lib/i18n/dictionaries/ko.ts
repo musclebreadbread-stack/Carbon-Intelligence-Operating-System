@@ -908,6 +908,7 @@ const ko = {
   "security.card.usersKeysAndSessions": "사용자, 키 및 세션",
   "security.card.usersKeysAndSessionsDesc": "자격 증명 자체는 Supabase Auth에 있습니다.",
   "security.tab.users": "사용자",
+  "security.tab.members": "구성원",
   "security.tab.apiKeys": "API 키",
   "security.tab.sessions": "세션",
   "security.tab.policies": "정책",
@@ -918,6 +919,14 @@ const ko = {
   "security.empty.noAuditEntries": "감사 항목 없음",
   "security.empty.noAuditEntriesDesc": "모든 변경은 필드 수준 diff와 함께 AuditTrail 행을 기록합니다.",
   "security.table.resource": "리소스",
+  "security.members.inviteEmail": "이메일",
+  "security.members.role": "역할",
+  "security.members.invite": "구성원 추가",
+  "security.members.inviting": "추가하는 중…",
+  "security.members.empty": "구성원 없음",
+  "security.members.since": "가입일",
+  "security.members.revoke": "접근 철회",
+  "security.members.ssoNote": "SSO/SAML/OIDC 및 MFA는 실제 자격증명 공급자가 필요해 이번 범위에서 제외되었습니다(2단계 예정).",
 
   // Settings body
   "settings.desc": "조직 프로필, 보고 규약 및 모든 외부 의존성의 구성 상태",

@@ -287,7 +287,9 @@ export default async function EmissionEnginePage() {
                   >
                     <span className="text-sm font-medium">{calculation.name}</span>
                     <Badge variant="secondary">{scopeLabel(calculation.scope)}</Badge>
-                    <Badge variant="outline">{calculation.status}</Badge>
+                    <Badge variant={calculation.status === "SUPERSEDED" ? "outline" : "secondary"}>
+                      {humaniseEnum(calculation.status)}
+                    </Badge>
                     <span className="text-xs text-muted-foreground">
                       {calculation.resultCount} result
                       {calculation.resultCount === 1 ? "" : "s"} ·{" "}

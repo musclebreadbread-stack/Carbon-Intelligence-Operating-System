@@ -368,11 +368,9 @@ export async function createDataSourceAction(
       schema: dataSourceInputSchema,
       revalidate: ["/mcp-integration", "/settings"],
       handler: async ({ session, input, organizationId }) => {
-        // `DataSource` is a shared reference table with no `organizationId`
-        // column, so the tenant is enforced by the permission check above rather
-        // than by a foreign key. Recorded on the audit entry for traceability.
         const created = await prisma.dataSource.create({
           data: {
+            organizationId,
             name: input.name,
             type: input.type,
             description: input.description ?? null,

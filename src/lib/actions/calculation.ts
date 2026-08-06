@@ -22,6 +22,8 @@
  * That is also what the explainability UI reads.
  */
 
+import { randomUUID } from "node:crypto";
+
 import { CalculationError } from "@/lib/core/errors";
 import { buildGraph } from "@/lib/domain/lineage/graph";
 import { runCalculation } from "@/lib/domain/emissions/orchestrator";
@@ -109,10 +111,19 @@ export async function runCalculationAction(
         });
 
         const graph = buildGraph(outcome.lineage);
+        const runId = randomUUID();
 
         // Everything below is one transaction: a partially written calculation
         // graph would be worse than no calculation at all.
         const persisted = await prisma.$transaction(async (tx) => {
+          // Retire every previously active run for this organisation/year *before*
+          // writing the new one, so a re-run can never leave two COMPLETED runs for
+          // the same year — which is what let `listEmissionResults` double-count.
+          await tx.emissionCalculation.updateMany({
+            where: { organizationId, reportingYear: input.reportingYear, status: "COMPLETED" },
+            data: { status: "SUPERSEDED", supersededAt: new Date() },
+          });
+
           const calculationIds: string[] = [];
 
           for (const record of outcome.calculationsByScope) {
@@ -130,6 +141,10 @@ export async function runCalculationAction(
                 totalEmissions: record.totalEmissions,
                 unit: record.unit,
                 calculatedAt: record.calculatedAt,
+                runId,
+                gwpVersion: record.gwpVersion,
+                scope2Basis: record.scope2Basis,
+                consolidationApproach: record.consolidationApproach,
               },
             });
             calculationIds.push(created.id);
@@ -361,20 +376,27 @@ export async function publishInventoryAction(
       revalidate: [...PATHS, "/esg-disclosure"],
       handler: async ({ session, input, organizationId }) => {
         const view = await getInventory(organizationId, input.reportingYear);
-        const created = await prisma.emissionInventory.create({
-          data: {
-            organizationId,
-            name: input.name,
-            reportingYear: input.reportingYear,
-            baselineYear: input.baselineYear ?? null,
-            scope1Total: view.consolidated.scope1Total,
-            scope2Location: view.consolidated.scope2Location,
-            scope2Market: view.consolidated.scope2Market,
-            scope3Total: view.consolidated.scope3Total,
-            totalEmissions: view.consolidated.totalEmissions,
-            unit: view.consolidated.unit,
-            status: input.status,
+        // Upsert, not create: `EmissionInventory` is unique on
+        // (organizationId, reportingYear), so re-publishing the same year — a
+        // correction, or simply running the workflow twice — must update the
+        // existing snapshot rather than fail with an unhandled P2002.
+        const data = {
+          name: input.name,
+          baselineYear: input.baselineYear ?? null,
+          scope1Total: view.consolidated.scope1Total,
+          scope2Location: view.consolidated.scope2Location,
+          scope2Market: view.consolidated.scope2Market,
+          scope3Total: view.consolidated.scope3Total,
+          totalEmissions: view.consolidated.totalEmissions,
+          unit: view.consolidated.unit,
+          status: input.status,
+        };
+        const created = await prisma.emissionInventory.upsert({
+          where: {
+            organizationId_reportingYear: { organizationId, reportingYear: input.reportingYear },
           },
+          create: { organizationId, reportingYear: input.reportingYear, ...data },
+          update: data,
         });
 
         return {

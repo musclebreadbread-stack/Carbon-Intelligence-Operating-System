@@ -348,6 +348,10 @@ export async function recordTargetProgressAction(
         const record =
           summary.records.find((row) => row.year === input.year) ?? null;
 
+        // Server-computed values (`record`, from `evaluateProgress` above) take
+        // priority over client input for every derived metric: `input.*` is only
+        // a fallback for the fields the server could not compute (e.g. no prior
+        // year to derive a reduction from), never an override of a real answer.
         await prisma.$transaction([
           prisma.targetProgress.upsert({
             where: { targetId_year: { targetId: target.id, year: input.year } },
@@ -356,20 +360,20 @@ export async function recordTargetProgressAction(
               year: input.year,
               emissions: input.emissions,
               reductionFromBaseline:
-                input.reductionFromBaseline ?? record?.reductionFromBaseline ?? null,
+                record?.reductionFromBaseline ?? input.reductionFromBaseline ?? null,
               reductionPercent:
-                input.reductionPercent ?? record?.reductionPercent ?? null,
-              isOnTrack: input.isOnTrack ?? record?.isOnTrack ?? null,
+                record?.reductionPercent ?? input.reductionPercent ?? null,
+              isOnTrack: record?.isOnTrack ?? input.isOnTrack ?? null,
               notes: input.notes ?? record?.notes ?? null,
               verifiedAt: input.verifiedAt ?? null,
             },
             update: {
               emissions: input.emissions,
               reductionFromBaseline:
-                input.reductionFromBaseline ?? record?.reductionFromBaseline ?? null,
+                record?.reductionFromBaseline ?? input.reductionFromBaseline ?? null,
               reductionPercent:
-                input.reductionPercent ?? record?.reductionPercent ?? null,
-              isOnTrack: input.isOnTrack ?? record?.isOnTrack ?? null,
+                record?.reductionPercent ?? input.reductionPercent ?? null,
+              isOnTrack: record?.isOnTrack ?? input.isOnTrack ?? null,
               notes: input.notes ?? record?.notes ?? null,
               verifiedAt: input.verifiedAt ?? null,
             },

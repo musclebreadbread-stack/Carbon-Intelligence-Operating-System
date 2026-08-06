@@ -16,9 +16,16 @@ import {
   aggregateMisstatements,
   type MisstatementLike,
 } from "@/lib/domain/verification/materiality";
-import { severityRollup } from "@/lib/domain/verification/findings";
+import { readinessScore, severityRollup } from "@/lib/domain/verification/findings";
+import { listReportingYears } from "@/lib/data/repositories/activity-data";
 import { getInventory } from "@/lib/data/repositories/calculation";
+import { getMrvCoverage } from "@/lib/data/repositories/mrv";
+import {
+  computeDataQualityScore,
+  computeEvidenceCompleteness,
+} from "@/lib/data/repositories/verification";
 import { prisma } from "@/lib/prisma";
+import { getObjectStorageClient } from "@/lib/storage/factory";
 import {
   evidencePackageInputSchema,
   materialityAssessmentInputSchema,
@@ -245,9 +252,16 @@ export async function assessMaterialityAction(
           },
         );
 
+        // The verified total is the server's own computed inventory for the
+        // organisation's current reporting year — the same figure the
+        // verification page displays — never a value the client asserts.
+        const years = await listReportingYears(organizationId);
+        const reportingYear = years[0] ?? new Date().getUTCFullYear();
+        const inventory = await getInventory(organizationId, reportingYear);
+
         const aggregate = aggregateMisstatements(
           misstatements,
-          input.totalEmissions,
+          inventory.totals.totalEmissions,
           {
             assuranceLevel: input.assuranceLevel,
             ...(input.threshold !== undefined
@@ -332,16 +346,40 @@ export async function submitEvidencePackageAction(
         }
 
         const submittedAt = new Date();
+        const storage = getObjectStorageClient();
+
+        // Items with real content are uploaded and hashed from the actual bytes
+        // in object storage. Items with only a `fileUrl` are a pointer this
+        // codebase has no way to fetch and verify yet, so — unlike before —
+        // they are hashed from a clearly-labelled reference string rather than
+        // silently treated as if the bytes had been verified.
+        const uploads = await Promise.all(
+          input.items.map(async (item, index) => {
+            if (item.content == null) return null;
+            const key = `verification/${engagement.id}/${submittedAt.getTime()}-${index}`;
+            const result = await storage.put(key, new TextEncoder().encode(item.content));
+            return { index, key, result };
+          }),
+        );
+        const uploadByIndex = new Map(
+          uploads.filter((row) => row !== null).map((row) => [row.index, row]),
+        );
+
         const packaged = buildEvidencePackage(
-          input.items.map((item, index) => ({
-            id: `${index}`,
-            name: item.title,
-            // A file in object storage supplies its own digest; inline content is
-            // hashed here.
-            ...(item.content != null ? { content: item.content } : {}),
-            ...(item.content == null ? { content: item.fileUrl ?? item.title } : {}),
-            fileSize: item.fileSize ?? null,
-          })),
+          input.items.map((item, index) => {
+            const uploaded = uploadByIndex.get(index);
+            return {
+              id: `${index}`,
+              name: item.title,
+              // A pre-computed hash from real storage bytes short-circuits
+              // hashEvidenceManifest's own hashing; a reference-only item is
+              // labelled as such rather than pretending its URL is content.
+              ...(uploaded
+                ? { hash: uploaded.result.hash }
+                : { content: `unfetched-reference:${item.fileUrl ?? item.title}` }),
+              fileSize: item.fileSize ?? uploaded?.result.size ?? null,
+            };
+          }),
           {
             name: input.name,
             ...(input.description ? { description: input.description } : {}),
@@ -368,15 +406,20 @@ export async function submitEvidencePackageAction(
           });
 
           await tx.auditEvidence.createMany({
-            data: packaged.manifest.items.map((item, index) => ({
-              type: input.items[index]?.type ?? "document",
-              title: item.name,
-              description: `Item of evidence package ${pkg.id}`,
-              fileUrl: input.items[index]?.fileUrl ?? null,
-              fileType: input.items[index]?.fileType ?? null,
-              fileSize: item.fileSize,
-              hash: item.hash,
-            })),
+            data: packaged.manifest.items.map((item, index) => {
+              const uploaded = uploadByIndex.get(index);
+              return {
+                type: input.items[index]?.type ?? "document",
+                title: item.name,
+                description: `Item of evidence package ${pkg.id}`,
+                fileUrl: input.items[index]?.fileUrl ?? null,
+                fileType: input.items[index]?.fileType ?? null,
+                fileSize: item.fileSize,
+                hash: item.hash,
+                storageKey: uploaded?.key ?? null,
+                storageProvider: uploaded ? storage.provider : null,
+              };
+            }),
           });
 
           return pkg.id;
@@ -437,49 +480,57 @@ export async function scoreVerificationReadinessAction(
       schema: materialityAssessmentInputSchema,
       readOnly: true,
       handler: async ({ input, organizationId }) => {
-        // Reading the inventory keeps the readiness figure consistent with the
-        // numbers the engagement is actually assuring.
-        const inventory = await getInventory(
-          organizationId,
-          new Date().getUTCFullYear(),
-        );
-        const findings = await prisma.verificationFinding.findMany({
-          where: {
-            engagementId: input.engagementId,
-            engagement: { organizationId },
-          },
-          select: {
-            id: true,
-            type: true,
-            title: true,
-            severity: true,
-            status: true,
-            dueDate: true,
-            resolvedAt: true,
-          },
+        // Same reporting-year resolution as `assessMaterialityAction`, and the
+        // same `readinessScore()` inputs `getVerificationView` uses, so this
+        // action and the engagement dashboard can never disagree about readiness.
+        const years = await listReportingYears(organizationId);
+        const reportingYear = years[0] ?? new Date().getUTCFullYear();
+
+        const [inventory, coverage, evidenceCompleteness, dataQualityScore, findings] =
+          await Promise.all([
+            getInventory(organizationId, reportingYear),
+            getMrvCoverage(organizationId, { reportingYear }),
+            computeEvidenceCompleteness(input.engagementId),
+            computeDataQualityScore(organizationId, reportingYear),
+            prisma.verificationFinding.findMany({
+              where: {
+                engagementId: input.engagementId,
+                engagement: { organizationId },
+              },
+              select: {
+                id: true,
+                type: true,
+                title: true,
+                severity: true,
+                status: true,
+                dueDate: true,
+                resolvedAt: true,
+              },
+            }),
+          ]);
+        const readiness = readinessScore({
+          id: input.engagementId,
+          name: input.engagementId,
+          findings,
+          evidenceCompleteness,
+          dataQualityScore,
+          monitoringCoverage: coverage.coverage?.coverage,
+          measurementCompleteness: coverage.completeness?.completeness,
         });
-        const rollup = severityRollup(findings);
 
         return {
           data: {
-            score: rollup.closureRate * 100,
-            level:
-              rollup.open === 0
-                ? "READY"
-                : rollup.highestOpenSeverity === "CRITICAL"
-                  ? "BLOCKED"
-                  : rollup.overdue > 0
-                    ? "NOT_READY"
-                    : "NEARLY_READY",
+            score: readiness.score,
+            level: readiness.level,
             dimensions: {
-              openFindings: rollup.open,
-              closedFindings: rollup.closed,
-              overdueFindings: rollup.overdue,
-              openWeight: rollup.openWeight,
+              ...readiness.components,
+              openFindings: readiness.rollup.open,
+              closedFindings: readiness.rollup.closed,
+              overdueFindings: readiness.rollup.overdue,
               verifiedEmissions: inventory.consolidated.totalEmissions,
             },
           },
-          message: `${rollup.open} open finding(s), ${rollup.overdue} overdue, closure rate ${(rollup.closureRate * 100).toFixed(0)}%.`,
+          message: `Readiness ${readiness.score.toFixed(0)}/100 (${readiness.level}): ${readiness.rollup.open} open finding(s), ${readiness.rollup.overdue} overdue.`,
           messageKey: "action.success.scoreVerificationReadiness",
         };
       },

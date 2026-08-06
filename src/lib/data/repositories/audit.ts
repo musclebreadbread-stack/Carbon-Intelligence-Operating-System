@@ -24,7 +24,13 @@ export type AuditTrailRow = {
   readonly timestamp: Date;
 };
 
+/**
+ * Rows written before tenant scoping existed have `organizationId: null`. They
+ * are deliberately excluded rather than shown to every tenant — an audit trail
+ * that can't be attributed to a tenant should not be readable by one.
+ */
 export async function listAuditTrail(
+  organizationId: string,
   query: AuditTrailQuery,
   options: { readonly limit?: number } = {},
 ): Promise<readonly AuditTrailRow[]> {
@@ -32,6 +38,7 @@ export async function listAuditTrail(
     async () => {
       const rows = await prisma.auditTrail.findMany({
         where: {
+          organizationId,
           ...(query.entityType ? { entityType: query.entityType } : {}),
           ...(query.entityId ? { entityId: query.entityId } : {}),
           ...(query.action ? { action: query.action } : {}),

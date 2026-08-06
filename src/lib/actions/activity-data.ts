@@ -327,6 +327,44 @@ export async function recordMeterReadingAction(
             isEstimated: input.isEstimated,
           },
         });
+
+        // Best-effort link into digital MRV: if this facility's emission
+        // sources are covered by a monitoring parameter, the reading also
+        // becomes a `Measurement`, so `measurementCompleteness()` sees it —
+        // previously a meter reading never fed that coverage figure at all.
+        // No match is not an error: most facilities have no monitoring plan.
+        let measurementId: string | null = null;
+        const sources = await prisma.emissionSource.findMany({
+          where: { facilityId: input.facilityId },
+          select: { id: true },
+        });
+        if (sources.length > 0) {
+          const parameter = await prisma.monitoringParameter.findFirst({
+            where: { emissionSourceId: { in: sources.map((source) => source.id) } },
+            select: {
+              id: true,
+              name: true,
+              monitoringPlan: { select: { mrvPlanId: true } },
+            },
+          });
+          if (parameter) {
+            const measurement = await prisma.measurement.create({
+              data: {
+                mrvPlanId: parameter.monitoringPlan.mrvPlanId,
+                monitoringParameterId: parameter.id,
+                meterReadingId: created.id,
+                parameter: parameter.name,
+                value: input.consumption,
+                unit: input.unit,
+                measuredAt: input.readingDate,
+                dataSource: input.isEstimated ? "ESTIMATED" : "METER_READING",
+              },
+              select: { id: true },
+            });
+            measurementId = measurement.id;
+          }
+        }
+
         return {
           data: { id: created.id },
           message: `Recorded ${input.consumption} ${input.unit} for meter ${input.meterId}.`,
@@ -337,6 +375,9 @@ export async function recordMeterReadingAction(
               entityId: created.id,
               action: "create",
               after: { ...input, readingDate: input.readingDate.toISOString() },
+              reason: measurementId
+                ? `Linked to monitoring measurement ${measurementId}`
+                : "No monitoring parameter covers this facility's emission sources",
             }),
           ],
         };

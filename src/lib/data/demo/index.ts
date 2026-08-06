@@ -18,6 +18,7 @@ export * from "./verification";
 export * from "./disclosure";
 export * from "./ai";
 export * from "./security";
+export * from "./organization-membership";
 
 import {
   DEMO_ACTIVITY_DATA,
@@ -92,6 +93,7 @@ import {
   DEMO_ROLES,
   DEMO_USERS,
 } from "./security";
+import { DEMO_MEMBERSHIPS } from "./organization-membership";
 import {
   DEMO_ABATEMENT_TECHNOLOGIES,
   DEMO_CARBON_BUDGET,
@@ -187,6 +189,7 @@ export const DEMO_DATASET = {
   users: DEMO_USERS,
   accessPolicies: DEMO_ACCESS_POLICIES,
   apiKeys: DEMO_API_KEYS,
+  memberships: DEMO_MEMBERSHIPS,
 } as const;
 
 export type DemoDataset = typeof DEMO_DATASET;

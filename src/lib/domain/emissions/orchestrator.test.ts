@@ -309,7 +309,7 @@ describe("runCalculation end to end", () => {
       organizationId: "org-1",
       name: "FY2024 corporate inventory",
       reportingYear: 2024,
-      status: "calculated",
+      status: "COMPLETED",
       unit: "tCO2e",
     });
     expect(outcome.calculation.totalEmissions).toBeCloseTo(EXPECTED_TOTAL, 9);

@@ -77,7 +77,7 @@ export default async function DashboardPage() {
       getNetZeroPlan(organizationId),
       getCarbonFinanceView(organizationId, { reportingYear: currentYear }),
       getAnomalyFeed(organizationId),
-      listAuditTrail({}, { limit: 8 }),
+      listAuditTrail(organizationId, {}, { limit: 8 }),
     ]);
 
   const anchorTarget = targets.find((target) => target.boundary === "SCOPE_1_2") ?? targets[0];

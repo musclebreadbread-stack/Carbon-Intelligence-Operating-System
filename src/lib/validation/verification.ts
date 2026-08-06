@@ -25,7 +25,6 @@ import {
   idSchema,
   measurementFrequencySchema,
   nameSchema,
-  nonNegativeNumber,
   percentSchema,
   registryUnitSchema,
   reportingFrameworkSchema,
@@ -125,9 +124,11 @@ export const verificationFindingInputSchema = z
 export type VerificationFindingInput = z.infer<typeof verificationFindingInputSchema>;
 
 /** Input to `aggregateMisstatements`. */
+// `totalEmissions` is deliberately not a field here: the verified total the
+// opinion is based on must be the server's own computed inventory
+// (`getInventory`), never a number the client asserts in the payload.
 export const materialityAssessmentInputSchema = z.object({
   engagementId: idSchema,
-  totalEmissions: nonNegativeNumber,
   assuranceLevel: assuranceLevelSchema.default("LIMITED"),
   threshold: percentSchema.optional(),
 });

@@ -12,6 +12,8 @@
  * mode (`ActionState` with `code: 'DEMO_MODE'`) rather than silently discarded.
  */
 
+import { prisma } from "@/lib/prisma";
+
 export type DataMode = "database" | "demo";
 
 /**
@@ -106,6 +108,30 @@ export function isDemoMode(): boolean {
 /** Why the process fell back to fixtures; `null` while running on a database. */
 export function getFallbackReason(): string | null {
   return fallbackReason;
+}
+
+/**
+ * Actively probes the database, rather than trusting `getDataMode()` alone.
+ *
+ * `getDataMode()` only reflects the *last* query's outcome — right after a
+ * cold start, before any repository has run a query, it reports "database"
+ * even if the database is actually unreachable, because nothing has tried
+ * yet. `/api/v1/health` needs a real answer, not a guess based on what
+ * happened to run first.
+ */
+export async function checkDatabaseConnectivity(timeoutMs = 2000): Promise<boolean> {
+  if (!isDbConfigured()) return false;
+  try {
+    await Promise.race([
+      prisma.$queryRaw`SELECT 1`,
+      new Promise((_resolve, reject) => {
+        setTimeout(() => reject(new Error("Database connectivity check timed out")), timeoutMs);
+      }),
+    ]);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Test-only: restores the initial state between cases. */

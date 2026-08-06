@@ -23,29 +23,39 @@ const auditCreateMany = vi.fn();
 
 function txModel(name: string, result: unknown = { id: `${name}-1` }) {
   return {
-    create: vi.fn(async () => {
+    create: vi.fn(async (args: unknown) => {
+      void args;
       txCalls.push(`${name}.create`);
       return result;
     }),
-    createMany: vi.fn(async () => {
+    createMany: vi.fn(async (args: unknown) => {
+      void args;
       txCalls.push(`${name}.createMany`);
       return { count: 1 };
     }),
-    upsert: vi.fn(async () => {
+    upsert: vi.fn(async (args: unknown) => {
+      void args;
       txCalls.push(`${name}.upsert`);
       return result;
+    }),
+    updateMany: vi.fn(async (args: unknown) => {
+      void args;
+      txCalls.push(`${name}.updateMany`);
+      return { count: 0 };
     }),
   };
 }
 
 let transactionDepth = 0;
 let maxTransactionDepth = 0;
+/** The tx model set from the most recent `$transaction` call, for arg-level assertions. */
+let lastTx: { readonly emissionCalculation: ReturnType<typeof txModel> } | null = null;
 
 const transaction = vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => {
   transactionDepth += 1;
   maxTransactionDepth = Math.max(maxTransactionDepth, transactionDepth);
   try {
-    return await fn({
+    const tx = {
       emissionCalculation: txModel("emissionCalculation", { id: "calc-1" }),
       emissionResult: txModel("emissionResult"),
       uncertaintyAnalysis: txModel("uncertaintyAnalysis"),
@@ -55,7 +65,9 @@ const transaction = vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => {
       lineageGraph: txModel("lineageGraph", { id: "graph-1" }),
       dataLineageNode: txModel("dataLineageNode", { id: "node-1" }),
       dataLineageEdge: txModel("dataLineageEdge"),
-    });
+    };
+    lastTx = tx;
+    return await fn(tx);
   } finally {
     transactionDepth -= 1;
   }
@@ -65,7 +77,7 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     $transaction: (fn: (tx: unknown) => Promise<unknown>) => transaction(fn),
     auditTrail: { createMany: (...args: unknown[]) => auditCreateMany(...args) },
-    emissionInventory: { create: vi.fn(async () => ({ id: "inv-1" })) },
+    emissionInventory: { upsert: vi.fn(async () => ({ id: "inv-1" })) },
   },
 }));
 
@@ -245,6 +257,42 @@ describe("runCalculationAction — persistence", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/emission-engine");
     expect(revalidatePath).toHaveBeenCalledWith("/dashboard");
     expect(revalidatePath).toHaveBeenCalledWith("/analytics");
+  });
+
+  it("supersedes the prior COMPLETED run for the same org/year before writing the new one (double-count regression)", async () => {
+    const state = await runCalculationAction(VALID_REQUEST);
+    if (state.status !== "success") throw new Error(state.message);
+
+    expect(txCalls).toContain("emissionCalculation.updateMany");
+    // The supersede must happen before any new row is created, or the new run's
+    // own rows could be caught by the same updateMany and marked SUPERSEDED.
+    expect(txCalls.indexOf("emissionCalculation.updateMany")).toBeLessThan(
+      txCalls.indexOf("emissionCalculation.create"),
+    );
+
+    const updateManyCall = lastTx?.emissionCalculation.updateMany.mock.calls[0]?.[0] as {
+      where: { organizationId: string; reportingYear: number; status: string };
+      data: { status: string };
+    };
+    expect(updateManyCall.where).toEqual({
+      organizationId: DEMO_ORGANIZATION_ID,
+      reportingYear: DEMO_CURRENT_YEAR,
+      status: "COMPLETED",
+    });
+    expect(updateManyCall.data.status).toBe("SUPERSEDED");
+
+    const createCalls = (lastTx?.emissionCalculation.create.mock.calls ?? []) as {
+      0: { data: { runId: string; status: string; gwpVersion: string } };
+    }[];
+    expect(createCalls.length).toBeGreaterThan(0);
+    const runIds = new Set(createCalls.map((call) => call[0].data.runId));
+    // Every scope row from one invocation shares the same runId, so a future
+    // supersede can identify "this whole run" as a unit.
+    expect(runIds.size).toBe(1);
+    for (const call of createCalls) {
+      expect(call[0].data.status).toBe("COMPLETED");
+      expect(call[0].data.gwpVersion).toBe("AR6");
+    }
   });
 
   it("computes one result per fixture activity entry", async () => {

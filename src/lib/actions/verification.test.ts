@@ -18,6 +18,7 @@ let createdFinding: Record<string, unknown> | null = null;
 let findingRows: Record<string, unknown>[] = [];
 let engagementRow: Record<string, unknown> | null = null;
 let engagementUpdates: { id: string; data: Record<string, unknown> }[] = [];
+let createdEvidenceRows: Record<string, unknown>[] = [];
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -36,6 +37,18 @@ vi.mock("@/lib/prisma", () => ({
       findMany: vi.fn(async () => findingRows),
     },
     auditTrail: { createMany: (...args: unknown[]) => auditCreateMany(...args) },
+    $transaction: async (fn: (tx: unknown) => Promise<unknown>) =>
+      fn({
+        evidencePackage: {
+          create: vi.fn(async () => ({ id: "package-1" })),
+        },
+        auditEvidence: {
+          createMany: vi.fn(async ({ data }: { data: Record<string, unknown>[] }) => {
+            createdEvidenceRows = data;
+            return { count: data.length };
+          }),
+        },
+      }),
   },
 }));
 
@@ -51,8 +64,13 @@ vi.mock("@/lib/data/db", async (importOriginal) => {
 });
 
 import { DEMO_ORGANIZATION_ID } from "@/lib/data/demo";
+import { hashEvidence } from "@/lib/domain/audit/hash";
 
-import { assessMaterialityAction, recordFindingAction } from "./verification";
+import {
+  assessMaterialityAction,
+  recordFindingAction,
+  submitEvidencePackageAction,
+} from "./verification";
 
 const SESSION = {
   userId: "user-1",
@@ -66,6 +84,7 @@ const SESSION = {
       id: "role-verifier",
       name: "verifier",
       permissions: [
+        { resource: "verification", action: "create" },
         { resource: "verification", action: "update" },
         { resource: "verification", action: "approve" },
       ],
@@ -80,6 +99,7 @@ beforeEach(() => {
   findingRows = [];
   engagementRow = { id: "engagement-1", organizationId: DEMO_ORGANIZATION_ID, level: "LIMITED" };
   engagementUpdates = [];
+  createdEvidenceRows = [];
 
   requireSession.mockReset();
   canWrite.mockReset();
@@ -177,5 +197,70 @@ describe("assessMaterialityAction — reads the misstatementAmount column", () =
     // Only f-1 is uncorrected and quantified; f-2 is resolved (corrected), f-3 unquantified.
     expect(state.data.uncorrectedMisstatement).toBe(600);
     expect(engagementUpdates[0]?.data.opinionType).toBe(state.data.opinionType);
+  });
+
+  it("ignores a client-supplied totalEmissions and uses the server's computed inventory instead (materiality-tampering regression)", async () => {
+    findingRows = [
+      {
+        id: "f-1",
+        title: "Overstated Scope 1",
+        type: "SCOPE_1",
+        status: "open",
+        misstatementAmount: 600,
+      },
+    ];
+
+    const state = await assessMaterialityAction({
+      engagementId: "engagement-1",
+      // A malicious/buggy client asserts an absurdly small total so a 600-unit
+      // misstatement would swamp the threshold and force a severe opinion. If
+      // this were still trusted, thresholdQuantity (a % of the total) would be
+      // a tiny fraction of 1.
+      totalEmissions: 1,
+      assuranceLevel: "LIMITED",
+    } as unknown);
+
+    expect(state.status).toBe("success");
+    if (state.status !== "success") throw new Error(state.message);
+    expect(state.data.thresholdQuantity).toBeGreaterThan(1);
+  });
+});
+
+describe("submitEvidencePackageAction — real bytes, not a string proxy", () => {
+  it("hashes a content-bearing item from the bytes actually written to storage", async () => {
+    const state = await submitEvidencePackageAction({
+      engagementId: "engagement-1",
+      name: "Q1 evidence",
+      status: "pending",
+      items: [{ title: "Meter log", type: "document", content: "1200 kWh on 2024-03-01" }],
+    });
+
+    expect(state.status).toBe("success");
+    expect(createdEvidenceRows).toHaveLength(1);
+    const row = createdEvidenceRows[0];
+    expect(row.hash).toBe(hashEvidence(new TextEncoder().encode("1200 kWh on 2024-03-01")));
+    expect(row.storageProvider).toBe("memory");
+    expect(typeof row.storageKey).toBe("string");
+    expect(row.storageKey).not.toBeNull();
+  });
+
+  it("leaves storageKey null for a reference-only item with no content to upload", async () => {
+    const state = await submitEvidencePackageAction({
+      engagementId: "engagement-1",
+      name: "Linked evidence",
+      status: "pending",
+      items: [
+        {
+          title: "External invoice",
+          type: "document",
+          fileUrl: "https://example.com/invoice.pdf",
+        },
+      ],
+    });
+
+    expect(state.status).toBe("success");
+    expect(createdEvidenceRows).toHaveLength(1);
+    expect(createdEvidenceRows[0].storageKey).toBeNull();
+    expect(createdEvidenceRows[0].storageProvider).toBeNull();
   });
 });

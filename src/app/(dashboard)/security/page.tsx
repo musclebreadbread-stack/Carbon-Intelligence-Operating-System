@@ -23,7 +23,13 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { PageHeader } from "@/components/shared/page-header";
 import { activeOrganizationId } from "@/lib/auth/active-organization";
+import {
+  inviteMemberAction,
+  revokeMembershipAction,
+  updateMembershipRoleAction,
+} from "@/lib/actions/organization-membership";
 import { listAuditTrail } from "@/lib/data/repositories/audit";
+import { listMembersOfOrganization } from "@/lib/data/repositories/organization-membership";
 import {
   listAccessPolicies,
   listApiKeys,
@@ -32,6 +38,8 @@ import {
   listSessions,
   listUsers,
 } from "@/lib/data/repositories/security";
+
+import { MembersTab } from "./_components/members-tab";
 import { isDbConfigured } from "@/lib/data/db";
 import { formatDate, formatDateTime, formatNumber, humaniseEnum } from "@/lib/format";
 import { SETUP_GUIDE_PATH } from "@/lib/i18n/messages";
@@ -43,7 +51,7 @@ export default async function SecurityPage() {
 
   const organizationId = await activeOrganizationId();
 
-  const [users, roles, permissions, policies, apiKeys, sessions, auditTrail] =
+  const [users, roles, permissions, policies, apiKeys, sessions, auditTrail, members] =
     await Promise.all([
       listUsers(organizationId),
       listRoles(organizationId),
@@ -51,7 +59,8 @@ export default async function SecurityPage() {
       listAccessPolicies(organizationId),
       listApiKeys(organizationId),
       listSessions(organizationId),
-      listAuditTrail({}, { limit: 50 }),
+      listAuditTrail(organizationId, {}, { limit: 50 }),
+      listMembersOfOrganization(organizationId),
     ]);
 
   const permissionById = new Map(permissions.map((permission) => [permission.id, permission]));
@@ -209,6 +218,7 @@ export default async function SecurityPage() {
           <Tabs defaultValue="users">
             <TabsList className="flex-wrap" variant="line">
               <TabsTrigger value="users">{dict["security.tab.users"]} ({users.length})</TabsTrigger>
+              <TabsTrigger value="members">{dict["security.tab.members"]} ({members.length})</TabsTrigger>
               <TabsTrigger value="keys">{dict["security.tab.apiKeys"]} ({apiKeys.length})</TabsTrigger>
               <TabsTrigger value="sessions">{dict["security.tab.sessions"]} ({sessions.length})</TabsTrigger>
               <TabsTrigger value="policies">{dict["security.tab.policies"]} ({policies.length})</TabsTrigger>
@@ -239,6 +249,15 @@ export default async function SecurityPage() {
                   </span>
                 </div>
               ))}
+            </TabsContent>
+
+            <TabsContent value="members">
+              <MembersTab
+                members={members}
+                inviteMember={inviteMemberAction}
+                updateMembershipRole={updateMembershipRoleAction}
+                revokeMembership={revokeMembershipAction}
+              />
             </TabsContent>
 
             <TabsContent value="keys" className="space-y-2 pt-3">

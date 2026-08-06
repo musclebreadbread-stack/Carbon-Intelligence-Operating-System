@@ -76,9 +76,16 @@ function toFactorLike(row: EmissionFactorRow): EmissionFactorLike {
   };
 }
 
-/** Cosine-similarity search over `EmissionFactorEmbedding`, nearest first. */
+/**
+ * Cosine-similarity search over `EmissionFactorEmbedding`, nearest first.
+ *
+ * Scoped like every other `EmissionFactor` read: an organisation's own custom
+ * factors plus the shared global library (`organizationId IS NULL`), never
+ * another organisation's custom factors.
+ */
 export async function searchEmissionFactorsBySimilarity(
   query: string,
+  organizationId: string,
   options: { readonly limit?: number } = {},
 ): Promise<readonly EmissionFactorSearchResult[]> {
   const limit = options.limit ?? 10;
@@ -94,25 +101,33 @@ export async function searchEmissionFactorsBySimilarity(
                (efe."embedding" <=> ${literal}::vector) AS distance
         FROM "EmissionFactorEmbedding" efe
         JOIN "EmissionFactor" ef ON ef.id = efe."emissionFactorId"
+        WHERE ef."organizationId" = ${organizationId} OR ef."organizationId" IS NULL
         ORDER BY efe."embedding" <=> ${literal}::vector
         LIMIT ${limit}
       `;
       return rows.map((row) => ({ factor: toFactorLike(row), distance: row.distance }));
     },
-    () => keywordFallback(query, limit),
+    () => keywordFallback(query, organizationId, limit),
   );
 }
 
 /** Scores demo fixtures by how many query terms appear in their embedding text. */
-function keywordFallback(query: string, limit: number): readonly EmissionFactorSearchResult[] {
+function keywordFallback(
+  query: string,
+  organizationId: string,
+  limit: number,
+): readonly EmissionFactorSearchResult[] {
   const terms = query.toLowerCase().split(/\s+/).filter((term) => term.length > 0);
   if (terms.length === 0) return [];
 
-  return DEMO_EMISSION_FACTORS.map((factor) => {
-    const haystack = buildEmbeddingText(factor);
-    const hits = terms.filter((term) => haystack.includes(term)).length;
-    return { factor, hits };
-  })
+  return DEMO_EMISSION_FACTORS.filter(
+    (factor) => factor.organizationId === organizationId || factor.organizationId == null,
+  )
+    .map((factor) => {
+      const haystack = buildEmbeddingText(factor);
+      const hits = terms.filter((term) => haystack.includes(term)).length;
+      return { factor, hits };
+    })
     .filter((entry) => entry.hits > 0)
     .sort((a, b) => b.hits - a.hits)
     .slice(0, limit)

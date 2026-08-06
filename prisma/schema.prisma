@@ -61,6 +61,20 @@ enum DataQualityLevel {
   DEFAULT
 }
 
+enum MembershipRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum MembershipStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
+  REVOKED
+}
+
 enum CalculationApproach {
   SPEND_BASED
   ACTIVITY_BASED
@@ -68,6 +82,14 @@ enum CalculationApproach {
   DIRECT_MEASUREMENT
   SUPPLIER_SPECIFIC
   AVERAGE_DATA
+}
+
+enum CalculationRunStatus {
+  DRAFT
+  RUNNING
+  COMPLETED
+  FAILED
+  SUPERSEDED
 }
 
 enum VerificationStatus {
@@ -310,9 +332,38 @@ model User {
   agentConversations   AgentConversation[]
   createdReports       DisclosureReport[]
   verificationFindings VerificationFinding[]
+  memberships          OrganizationMembership[]
 
   @@index([organizationId])
   @@index([email])
+}
+
+/**
+ * Which organisations a user may *look at*, beyond the single "home" org on
+ * `User.organizationId`. Read paths (the active-organisation switcher) are
+ * validated against this table; write paths keep trusting `User.organizationId`
+ * / `session.organizationId` exactly as before — a member of another org can
+ * view it here but cannot write to it through the home-org write path.
+ */
+model OrganizationMembership {
+  id             String           @id @default(cuid())
+  userId         String
+  organizationId String
+  role           MembershipRole   @default(MEMBER)
+  status         MembershipStatus @default(ACTIVE)
+  invitedAt      DateTime?
+  invitedBy      String?
+  acceptedAt     DateTime?
+  expiresAt      DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId, status])
+  @@index([userId, status])
 }
 
 model Role {
@@ -441,7 +492,9 @@ model APIKey {
   keyHash            String    @unique
   prefix             String
   scopes             String[]
-  /** Per-key requests-per-minute ceiling; `null` defers to `API_RATE_LIMIT_PER_MINUTE`. */
+  /**
+   * Per-key requests-per-minute ceiling; `null` defers to `API_RATE_LIMIT_PER_MINUTE`.
+   */
   rateLimitPerMinute Int?
   lastUsedAt         DateTime?
   expiresAt          DateTime?
@@ -553,6 +606,8 @@ model Organization {
   aiModels             AIModel[]
   carbonBudgets        CarbonBudget[]
   internalCarbonPrices InternalCarbonPrice[]
+  memberships          OrganizationMembership[]
+  dataSources          DataSource[]
 
   @@index([industry])
   @@index([country])
@@ -708,8 +763,9 @@ model EmissionSource {
   equipmentId      String?
   equipment        Equipment?      @relation(fields: [equipmentId], references: [id])
 
-  activityDataEntries ActivityDataEntry[]
-  emissionResults     EmissionResult[]
+  activityDataEntries  ActivityDataEntry[]
+  emissionResults      EmissionResult[]
+  monitoringParameters MonitoringParameter[]
 
   @@index([facilityId])
   @@index([scope])
@@ -1114,6 +1170,8 @@ model MeterReading {
   facilityId String
   facility   Facility @relation(fields: [facilityId], references: [id])
 
+  measurement Measurement?
+
   @@index([facilityId])
   @@index([meterNumber])
   @@index([readingDate])
@@ -1124,7 +1182,7 @@ model MeterReading {
 // ============================================================================
 
 model EmissionCalculation {
-  id                   String              @id @default(cuid())
+  id                   String               @id @default(cuid())
   name                 String
   reportingYear        Int
   reportingPeriodStart DateTime
@@ -1132,12 +1190,22 @@ model EmissionCalculation {
   scope                GHGScope
   scope3Category       Scope3Category?
   approach             CalculationApproach
-  status               String              @default("draft")
+  status               CalculationRunStatus @default(COMPLETED)
   totalEmissions       Float?
-  unit                 String              @default("tCO2e")
+  unit                 String               @default("tCO2e")
   calculatedAt         DateTime?
-  createdAt            DateTime            @default(now())
-  updatedAt            DateTime            @updatedAt
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  // Groups the scope-by-scope rows produced by a single `runCalculationAction`
+  // invocation so they can be superseded together on the next run.
+  runId                 String
+  supersededAt          DateTime?
+  // Snapshot of the methodology basis in effect when this run executed, so a
+  // later change to global defaults never silently changes a past run's meaning.
+  gwpVersion            String
+  scope2Basis           String
+  consolidationApproach String
 
   organizationId String
   organization   Organization            @relation(fields: [organizationId], references: [id])
@@ -1151,6 +1219,8 @@ model EmissionCalculation {
   @@index([organizationId])
   @@index([reportingYear])
   @@index([scope])
+  @@index([organizationId, reportingYear, status])
+  @@index([runId])
 }
 
 model EmissionResult {
@@ -1358,11 +1428,13 @@ model EmissionFactor {
  * and writes this table with raw SQL ($queryRaw/$executeRaw).
  */
 model EmissionFactorEmbedding {
-  emissionFactorId String                   @id
+  emissionFactorId String                      @id
   embedding        Unsupported("vector(1536)")
-  /** Embedding model identifier, e.g. "text-embedding-3-small" or "deterministic". */
+  /**
+   * Embedding model identifier, e.g. "text-embedding-3-small" or "deterministic".
+   */
   model            String
-  createdAt        DateTime                 @default(now())
+  createdAt        DateTime                    @default(now())
 
   emissionFactor EmissionFactor @relation(fields: [emissionFactorId], references: [id], onDelete: Cascade)
 }
@@ -1965,9 +2037,17 @@ model Measurement {
   mrvPlanId String
   mrvPlan   MRVPlan @relation(fields: [mrvPlanId], references: [id])
 
+  // Direct links so measurement matching no longer has to fall back to
+  // string-equality on `parameter`/`name` (see measurementCompleteness()).
+  monitoringParameterId String?
+  monitoringParameter   MonitoringParameter? @relation(fields: [monitoringParameterId], references: [id])
+  meterReadingId        String?              @unique
+  meterReading          MeterReading?        @relation(fields: [meterReadingId], references: [id])
+
   @@index([mrvPlanId])
   @@index([parameter])
   @@index([measuredAt])
+  @@index([monitoringParameterId])
 }
 
 model Report {
@@ -2099,7 +2179,16 @@ model MonitoringParameter {
   monitoringPlanId String
   monitoringPlan   MonitoringPlan @relation(fields: [monitoringPlanId], references: [id])
 
+  // Emission source this parameter monitors. Nullable so a parameter can exist
+  // before its source is confirmed; measurement matching prefers this over the
+  // legacy name-based fallback once set (see measurementCompleteness()).
+  emissionSourceId String?
+  emissionSource   EmissionSource? @relation(fields: [emissionSourceId], references: [id])
+
+  measurements Measurement[]
+
   @@index([monitoringPlanId])
+  @@index([emissionSourceId])
 }
 
 // ============================================================================
@@ -2162,11 +2251,17 @@ model AuditTrail {
   timestamp   DateTime @default(now())
   createdAt   DateTime @default(now())
 
+  // Nullable for the same reason as DataSource.organizationId: pre-existing rows
+  // predate tenant scoping. `persistAudit` fills it from the action's session on
+  // every new write.
+  organizationId String?
+
   evidence AuditEvidence[]
 
   @@index([entityType, entityId])
   @@index([timestamp])
   @@index([performedBy])
+  @@index([organizationId, timestamp])
 }
 
 /**
@@ -2192,19 +2287,24 @@ model ArchivedAuditTrail {
 }
 
 model AuditEvidence {
-  id          String    @id @default(cuid())
-  type        String
-  title       String
-  description String?
-  fileUrl     String?
-  fileType    String?
-  fileSize    Int?
-  hash        String?
-  isVerified  Boolean   @default(false)
-  verifiedAt  DateTime?
-  verifiedBy  String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id              String    @id @default(cuid())
+  type            String
+  title           String
+  description     String?
+  fileUrl         String?
+  fileType        String?
+  fileSize        Int?
+  hash            String?
+  // Object-storage reference for the actual file bytes `hash` was computed
+  // over. Null when the item was hashed from inline text/a bare URL rather than
+  // an uploaded file (see ObjectStorageClient in src/lib/storage).
+  storageKey      String?
+  storageProvider String?
+  isVerified      Boolean   @default(false)
+  verifiedAt      DateTime?
+  verifiedBy      String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   auditTrailId String?
   auditTrail   AuditTrail? @relation(fields: [auditTrailId], references: [id])
@@ -2214,24 +2314,30 @@ model AuditEvidence {
 }
 
 model VerificationFinding {
-  id             String    @id @default(cuid())
-  type           String
-  severity       String
-  title          String
-  description    String?
-  recommendation String?
-  response       String?
-  status         String    @default("open")
-  dueDate        DateTime?
-  resolvedAt     DateTime?
-  /** Absolute magnitude of the misstatement in tCO2e, when quantified. */
+  id                       String    @id @default(cuid())
+  type                     String
+  severity                 String
+  title                    String
+  description              String?
+  recommendation           String?
+  response                 String?
+  status                   String    @default("open")
+  dueDate                  DateTime?
+  resolvedAt               DateTime?
+  /**
+   * Absolute magnitude of the misstatement in tCO2e, when quantified.
+   */
   misstatementAmount       Float?
-  /** Informational only — not fed into materiality/opinion math (no monetary threshold exists there). */
+  /**
+   * Informational only — not fed into materiality/opinion math (no monetary threshold exists there).
+   */
   estimatedFinancialImpact Float?
-  /** ISO 4217 currency code for `estimatedFinancialImpact`. */
+  /**
+   * ISO 4217 currency code for `estimatedFinancialImpact`.
+   */
   impactCurrency           String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
 
   engagementId String
   engagement   VerificationEngagement @relation(fields: [engagementId], references: [id])
@@ -2531,16 +2637,16 @@ model DisclosureFramework {
 }
 
 model DisclosureRequirement {
-  id           String   @id @default(cuid())
-  code         String
-  name         String
-  description  String?
-  category     String?
-  isMandatory  Boolean  @default(false)
-  dataType     String?
-  guidance     String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String   @id @default(cuid())
+  code        String
+  name        String
+  description String?
+  category    String?
+  isMandatory Boolean  @default(false)
+  dataType    String?
+  guidance    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   frameworkId String
   framework   DisclosureFramework @relation(fields: [frameworkId], references: [id])
@@ -2916,9 +3022,15 @@ model DataSource {
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
+  // Nullable so pre-existing rows (created before tenant scoping existed) stay
+  // valid; every new row is written with the acting session's organization.
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+
   versions DataVersion[]
 
   @@index([type])
+  @@index([organizationId])
 }
 
 model DataVersion {

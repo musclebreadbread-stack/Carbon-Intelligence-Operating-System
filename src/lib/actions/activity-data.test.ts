@@ -22,6 +22,10 @@ const activityDataEntryCreate = vi.fn();
 const activityDataEntryFindUnique = vi.fn();
 const activityDataEntryUpdate = vi.fn();
 const auditCreateMany = vi.fn();
+const meterReadingCreate = vi.fn();
+const emissionSourceFindMany = vi.fn();
+const monitoringParameterFindFirst = vi.fn();
+const measurementCreate = vi.fn();
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -34,7 +38,12 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: (...args: unknown[]) => activityDataEntryFindUnique(...args),
       update: (...args: unknown[]) => activityDataEntryUpdate(...args),
     },
-    meterReading: { create: vi.fn(async () => ({ id: "meter-1" })) },
+    meterReading: { create: (...args: unknown[]) => meterReadingCreate(...args) },
+    emissionSource: { findMany: (...args: unknown[]) => emissionSourceFindMany(...args) },
+    monitoringParameter: {
+      findFirst: (...args: unknown[]) => monitoringParameterFindFirst(...args),
+    },
+    measurement: { create: (...args: unknown[]) => measurementCreate(...args) },
     auditTrail: { createMany: (...args: unknown[]) => auditCreateMany(...args) },
   },
 }));
@@ -69,6 +78,7 @@ import { DEMO_CURRENT_YEAR, DEMO_ORGANIZATION_ID } from "@/lib/data/demo";
 import {
   createActivityDataAction,
   createActivityEntryAction,
+  recordMeterReadingAction,
   updateActivityEntryAction,
 } from "./activity-data";
 
@@ -166,10 +176,18 @@ beforeEach(() => {
   auditCreateMany.mockReset();
   resolveNotificationRecipients.mockReset();
   notificationSend.mockReset();
+  meterReadingCreate.mockReset();
+  emissionSourceFindMany.mockReset();
+  monitoringParameterFindFirst.mockReset();
+  measurementCreate.mockReset();
 
   requireSession.mockResolvedValue(SESSION);
   canWrite.mockResolvedValue(true);
   auditCreateMany.mockResolvedValue({ count: 1 });
+  meterReadingCreate.mockResolvedValue({ id: "meter-1" });
+  emissionSourceFindMany.mockResolvedValue([]);
+  monitoringParameterFindFirst.mockResolvedValue(null);
+  measurementCreate.mockResolvedValue({ id: "measurement-1" });
   listRuleSets.mockResolvedValue([]);
   resolveNotificationRecipients.mockResolvedValue([]);
   notificationSend.mockResolvedValue({ delivered: true, provider: "test", durationMs: 0 });
@@ -423,5 +441,66 @@ describe("updateActivityEntryAction", () => {
     if (state.status !== "error") throw new Error("expected an error state");
     expect(state.code).toBe("NOT_FOUND");
     expect(activityDataEntryUpdate).not.toHaveBeenCalled();
+  });
+});
+
+describe("recordMeterReadingAction — links into digital MRV", () => {
+  const METER_INPUT = {
+    facilityId: "fac-1",
+    meterId: "M-100",
+    meterType: "electricity",
+    readingDate: new Date(Date.UTC(DEMO_CURRENT_YEAR, 2, 1)),
+    currentReading: 1500,
+    consumption: 1200,
+    unit: "kWh",
+    isEstimated: false,
+  };
+
+  it("creates a linked Measurement when the facility's emission source is covered by a monitoring parameter", async () => {
+    emissionSourceFindMany.mockResolvedValue([{ id: "source-1" }]);
+    monitoringParameterFindFirst.mockResolvedValue({
+      id: "param-1",
+      name: "Grid electricity",
+      monitoringPlan: { mrvPlanId: "mrv-1" },
+    });
+
+    const state = await recordMeterReadingAction(METER_INPUT);
+
+    expect(state.status).toBe("success");
+    expect(measurementCreate).toHaveBeenCalledTimes(1);
+    const payload = measurementCreate.mock.calls[0][0] as {
+      data: {
+        mrvPlanId: string;
+        monitoringParameterId: string;
+        meterReadingId: string;
+        value: number;
+        unit: string;
+      };
+    };
+    expect(payload.data.mrvPlanId).toBe("mrv-1");
+    expect(payload.data.monitoringParameterId).toBe("param-1");
+    expect(payload.data.meterReadingId).toBe("meter-1");
+    expect(payload.data.value).toBe(1200);
+    expect(payload.data.unit).toBe("kWh");
+  });
+
+  it("saves the meter reading without creating a Measurement when no monitoring parameter covers the facility", async () => {
+    emissionSourceFindMany.mockResolvedValue([{ id: "source-1" }]);
+    monitoringParameterFindFirst.mockResolvedValue(null);
+
+    const state = await recordMeterReadingAction(METER_INPUT);
+
+    expect(state.status).toBe("success");
+    expect(measurementCreate).not.toHaveBeenCalled();
+  });
+
+  it("skips the monitoring-parameter lookup entirely when the facility has no emission sources", async () => {
+    emissionSourceFindMany.mockResolvedValue([]);
+
+    const state = await recordMeterReadingAction(METER_INPUT);
+
+    expect(state.status).toBe("success");
+    expect(monitoringParameterFindFirst).not.toHaveBeenCalled();
+    expect(measurementCreate).not.toHaveBeenCalled();
   });
 });

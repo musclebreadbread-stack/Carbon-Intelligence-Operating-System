@@ -1,8 +1,14 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const queryRaw = vi.fn();
+vi.mock("@/lib/prisma", () => ({
+  prisma: { $queryRaw: (...args: unknown[]) => queryRaw(...args) },
+}));
 
 import {
   DB_UNAVAILABLE_CODES,
   canWrite,
+  checkDatabaseConnectivity,
   getDataMode,
   getFallbackReason,
   isDbConfigured,
@@ -188,6 +194,36 @@ describe("withDb", () => {
       },
     );
     expect(fixtureBuilt).toBe(0);
+  });
+});
+
+describe("checkDatabaseConnectivity", () => {
+  beforeEach(() => {
+    queryRaw.mockReset();
+  });
+
+  it("returns false without even attempting a query when DATABASE_URL is unconfigured", async () => {
+    delete process.env.DATABASE_URL;
+    await expect(checkDatabaseConnectivity()).resolves.toBe(false);
+    expect(queryRaw).not.toHaveBeenCalled();
+  });
+
+  it("returns true when the probe query succeeds", async () => {
+    process.env.DATABASE_URL = "postgresql://app:s3cret@db.internal:5432/cios";
+    queryRaw.mockResolvedValue([{ "?column?": 1 }]);
+    await expect(checkDatabaseConnectivity()).resolves.toBe(true);
+  });
+
+  it("returns false — not a thrown error — when the probe query fails (cold-start regression)", async () => {
+    process.env.DATABASE_URL = "postgresql://app:s3cret@db.internal:5432/cios";
+    queryRaw.mockRejectedValue(prismaError("P1001", "Can't reach database server"));
+    await expect(checkDatabaseConnectivity()).resolves.toBe(false);
+  });
+
+  it("returns false once the timeout elapses, even if the query never settles", async () => {
+    process.env.DATABASE_URL = "postgresql://app:s3cret@db.internal:5432/cios";
+    queryRaw.mockReturnValue(new Promise(() => {}));
+    await expect(checkDatabaseConnectivity(20)).resolves.toBe(false);
   });
 });
 

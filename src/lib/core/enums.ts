@@ -304,3 +304,18 @@ export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
  */
 export const GWP_VERSIONS = ["AR4", "AR5", "AR6"] as const;
 export type GwpVersion = (typeof GWP_VERSIONS)[number];
+
+export const CALCULATION_RUN_STATUSES = [
+  "DRAFT",
+  "RUNNING",
+  "COMPLETED",
+  "FAILED",
+  "SUPERSEDED",
+] as const;
+export type CalculationRunStatus = (typeof CALCULATION_RUN_STATUSES)[number];
+
+export const MEMBERSHIP_ROLES = ["OWNER", "ADMIN", "MEMBER", "VIEWER"] as const;
+export type MembershipRole = (typeof MEMBERSHIP_ROLES)[number];
+
+export const MEMBERSHIP_STATUSES = ["ACTIVE", "INVITED", "SUSPENDED", "REVOKED"] as const;
+export type MembershipStatus = (typeof MEMBERSHIP_STATUSES)[number];

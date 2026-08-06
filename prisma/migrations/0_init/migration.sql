@@ -17,7 +17,16 @@ CREATE TYPE "OrganizationTier" AS ENUM ('ENTERPRISE', 'BUSINESS_UNIT', 'FACILITY
 CREATE TYPE "DataQualityLevel" AS ENUM ('HIGH', 'MEDIUM', 'LOW', 'ESTIMATED', 'DEFAULT');
 
 -- CreateEnum
+CREATE TYPE "MembershipRole" AS ENUM ('OWNER', 'ADMIN', 'MEMBER', 'VIEWER');
+
+-- CreateEnum
+CREATE TYPE "MembershipStatus" AS ENUM ('ACTIVE', 'INVITED', 'SUSPENDED', 'REVOKED');
+
+-- CreateEnum
 CREATE TYPE "CalculationApproach" AS ENUM ('SPEND_BASED', 'ACTIVITY_BASED', 'HYBRID', 'DIRECT_MEASUREMENT', 'SUPPLIER_SPECIFIC', 'AVERAGE_DATA');
+
+-- CreateEnum
+CREATE TYPE "CalculationRunStatus" AS ENUM ('DRAFT', 'RUNNING', 'COMPLETED', 'FAILED', 'SUPERSEDED');
 
 -- CreateEnum
 CREATE TYPE "VerificationStatus" AS ENUM ('NOT_STARTED', 'IN_PROGRESS', 'UNDER_REVIEW', 'VERIFIED', 'REJECTED', 'EXPIRED');
@@ -94,6 +103,23 @@ CREATE TABLE "User" (
     "organizationId" TEXT NOT NULL,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "OrganizationMembership" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "organizationId" TEXT NOT NULL,
+    "role" "MembershipRole" NOT NULL DEFAULT 'MEMBER',
+    "status" "MembershipStatus" NOT NULL DEFAULT 'ACTIVE',
+    "invitedAt" TIMESTAMP(3),
+    "invitedBy" TEXT,
+    "acceptedAt" TIMESTAMP(3),
+    "expiresAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "OrganizationMembership_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -743,12 +769,17 @@ CREATE TABLE "EmissionCalculation" (
     "scope" "GHGScope" NOT NULL,
     "scope3Category" "Scope3Category",
     "approach" "CalculationApproach" NOT NULL,
-    "status" TEXT NOT NULL DEFAULT 'draft',
+    "status" "CalculationRunStatus" NOT NULL DEFAULT 'COMPLETED',
     "totalEmissions" DOUBLE PRECISION,
     "unit" TEXT NOT NULL DEFAULT 'tCO2e',
     "calculatedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "runId" TEXT NOT NULL,
+    "supersededAt" TIMESTAMP(3),
+    "gwpVersion" TEXT NOT NULL,
+    "scope2Basis" TEXT NOT NULL,
+    "consolidationApproach" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "methodologyId" TEXT,
 
@@ -1426,6 +1457,8 @@ CREATE TABLE "Measurement" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "mrvPlanId" TEXT NOT NULL,
+    "monitoringParameterId" TEXT,
+    "meterReadingId" TEXT,
 
     CONSTRAINT "Measurement_pkey" PRIMARY KEY ("id")
 );
@@ -1535,6 +1568,7 @@ CREATE TABLE "MonitoringParameter" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "monitoringPlanId" TEXT NOT NULL,
+    "emissionSourceId" TEXT,
 
     CONSTRAINT "MonitoringParameter_pkey" PRIMARY KEY ("id")
 );
@@ -1587,6 +1621,7 @@ CREATE TABLE "AuditTrail" (
     "ipAddress" TEXT,
     "timestamp" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "organizationId" TEXT,
 
     CONSTRAINT "AuditTrail_pkey" PRIMARY KEY ("id")
 );
@@ -1618,6 +1653,8 @@ CREATE TABLE "AuditEvidence" (
     "fileType" TEXT,
     "fileSize" INTEGER,
     "hash" TEXT,
+    "storageKey" TEXT,
+    "storageProvider" TEXT,
     "isVerified" BOOLEAN NOT NULL DEFAULT false,
     "verifiedAt" TIMESTAMP(3),
     "verifiedBy" TEXT,
@@ -2243,6 +2280,7 @@ CREATE TABLE "DataSource" (
     "syncFrequency" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "organizationId" TEXT,
 
     CONSTRAINT "DataSource_pkey" PRIMARY KEY ("id")
 );
@@ -2734,6 +2772,15 @@ CREATE INDEX "User_organizationId_idx" ON "User"("organizationId");
 CREATE INDEX "User_email_idx" ON "User"("email");
 
 -- CreateIndex
+CREATE INDEX "OrganizationMembership_organizationId_status_idx" ON "OrganizationMembership"("organizationId", "status");
+
+-- CreateIndex
+CREATE INDEX "OrganizationMembership_userId_status_idx" ON "OrganizationMembership"("userId", "status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "OrganizationMembership_userId_organizationId_key" ON "OrganizationMembership"("userId", "organizationId");
+
+-- CreateIndex
 CREATE INDEX "Role_organizationId_idx" ON "Role"("organizationId");
 
 -- CreateIndex
@@ -2939,6 +2986,12 @@ CREATE INDEX "EmissionCalculation_reportingYear_idx" ON "EmissionCalculation"("r
 
 -- CreateIndex
 CREATE INDEX "EmissionCalculation_scope_idx" ON "EmissionCalculation"("scope");
+
+-- CreateIndex
+CREATE INDEX "EmissionCalculation_organizationId_reportingYear_status_idx" ON "EmissionCalculation"("organizationId", "reportingYear", "status");
+
+-- CreateIndex
+CREATE INDEX "EmissionCalculation_runId_idx" ON "EmissionCalculation"("runId");
 
 -- CreateIndex
 CREATE INDEX "EmissionResult_calculationId_idx" ON "EmissionResult"("calculationId");
@@ -3154,6 +3207,9 @@ CREATE INDEX "MRVPlan_organizationId_idx" ON "MRVPlan"("organizationId");
 CREATE INDEX "MRVPlan_status_idx" ON "MRVPlan"("status");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Measurement_meterReadingId_key" ON "Measurement"("meterReadingId");
+
+-- CreateIndex
 CREATE INDEX "Measurement_mrvPlanId_idx" ON "Measurement"("mrvPlanId");
 
 -- CreateIndex
@@ -3161,6 +3217,9 @@ CREATE INDEX "Measurement_parameter_idx" ON "Measurement"("parameter");
 
 -- CreateIndex
 CREATE INDEX "Measurement_measuredAt_idx" ON "Measurement"("measuredAt");
+
+-- CreateIndex
+CREATE INDEX "Measurement_monitoringParameterId_idx" ON "Measurement"("monitoringParameterId");
 
 -- CreateIndex
 CREATE INDEX "Report_organizationId_idx" ON "Report"("organizationId");
@@ -3199,6 +3258,9 @@ CREATE INDEX "MonitoringPlan_status_idx" ON "MonitoringPlan"("status");
 CREATE INDEX "MonitoringParameter_monitoringPlanId_idx" ON "MonitoringParameter"("monitoringPlanId");
 
 -- CreateIndex
+CREATE INDEX "MonitoringParameter_emissionSourceId_idx" ON "MonitoringParameter"("emissionSourceId");
+
+-- CreateIndex
 CREATE INDEX "VerificationEngagement_organizationId_idx" ON "VerificationEngagement"("organizationId");
 
 -- CreateIndex
@@ -3215,6 +3277,9 @@ CREATE INDEX "AuditTrail_timestamp_idx" ON "AuditTrail"("timestamp");
 
 -- CreateIndex
 CREATE INDEX "AuditTrail_performedBy_idx" ON "AuditTrail"("performedBy");
+
+-- CreateIndex
+CREATE INDEX "AuditTrail_organizationId_timestamp_idx" ON "AuditTrail"("organizationId", "timestamp");
 
 -- CreateIndex
 CREATE INDEX "ArchivedAuditTrail_entityType_entityId_idx" ON "ArchivedAuditTrail"("entityType", "entityId");
@@ -3433,6 +3498,9 @@ CREATE UNIQUE INDEX "DataTransformation_edgeId_key" ON "DataTransformation"("edg
 CREATE INDEX "DataSource_type_idx" ON "DataSource"("type");
 
 -- CreateIndex
+CREATE INDEX "DataSource_organizationId_idx" ON "DataSource"("organizationId");
+
+-- CreateIndex
 CREATE INDEX "DataVersion_dataSourceId_idx" ON "DataVersion"("dataSourceId");
 
 -- CreateIndex
@@ -3611,6 +3679,12 @@ CREATE INDEX "Approval_status_idx" ON "Approval"("status");
 
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "OrganizationMembership" ADD CONSTRAINT "OrganizationMembership_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "OrganizationMembership" ADD CONSTRAINT "OrganizationMembership_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Role" ADD CONSTRAINT "Role_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -3901,6 +3975,12 @@ ALTER TABLE "MRVPlan" ADD CONSTRAINT "MRVPlan_organizationId_fkey" FOREIGN KEY (
 ALTER TABLE "Measurement" ADD CONSTRAINT "Measurement_mrvPlanId_fkey" FOREIGN KEY ("mrvPlanId") REFERENCES "MRVPlan"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "Measurement" ADD CONSTRAINT "Measurement_monitoringParameterId_fkey" FOREIGN KEY ("monitoringParameterId") REFERENCES "MonitoringParameter"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Measurement" ADD CONSTRAINT "Measurement_meterReadingId_fkey" FOREIGN KEY ("meterReadingId") REFERENCES "MeterReading"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Report" ADD CONSTRAINT "Report_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -3923,6 +4003,9 @@ ALTER TABLE "MonitoringPlan" ADD CONSTRAINT "MonitoringPlan_mrvPlanId_fkey" FORE
 
 -- AddForeignKey
 ALTER TABLE "MonitoringParameter" ADD CONSTRAINT "MonitoringParameter_monitoringPlanId_fkey" FOREIGN KEY ("monitoringPlanId") REFERENCES "MonitoringPlan"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MonitoringParameter" ADD CONSTRAINT "MonitoringParameter_emissionSourceId_fkey" FOREIGN KEY ("emissionSourceId") REFERENCES "EmissionSource"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "VerificationEngagement" ADD CONSTRAINT "VerificationEngagement_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -4019,6 +4102,9 @@ ALTER TABLE "DataLineageEdge" ADD CONSTRAINT "DataLineageEdge_targetNodeId_fkey"
 
 -- AddForeignKey
 ALTER TABLE "DataTransformation" ADD CONSTRAINT "DataTransformation_edgeId_fkey" FOREIGN KEY ("edgeId") REFERENCES "DataLineageEdge"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DataSource" ADD CONSTRAINT "DataSource_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "DataVersion" ADD CONSTRAINT "DataVersion_dataSourceId_fkey" FOREIGN KEY ("dataSourceId") REFERENCES "DataSource"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

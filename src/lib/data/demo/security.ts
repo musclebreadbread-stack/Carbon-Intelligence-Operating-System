@@ -29,6 +29,7 @@ export const DEMO_RESOURCES = [
   "audit",
   "security",
   "settings",
+  "organization_membership",
 ] as const;
 export type DemoResource = (typeof DEMO_RESOURCES)[number];
 
@@ -119,6 +120,9 @@ export const DEMO_ROLES: readonly DemoRole[] = [
       "demo-perm-mrv-update",
       "demo-perm-calculation-export",
       "demo-perm-disclosure-export",
+      "demo-perm-organization_membership-create",
+      "demo-perm-organization_membership-update",
+      "demo-perm-organization_membership-delete",
     ],
   },
   {
@@ -173,7 +177,10 @@ export const DEMO_ROLES: readonly DemoRole[] = [
     description: "Read-only dashboards; no access to security or audit configuration.",
     isSystem: true,
     permissionIds: READ_ALL.filter(
-      (id) => id !== "demo-perm-security-read" && id !== "demo-perm-audit-read",
+      (id) =>
+        id !== "demo-perm-security-read" &&
+        id !== "demo-perm-audit-read" &&
+        id !== "demo-perm-organization_membership-read",
     ),
   },
 ];

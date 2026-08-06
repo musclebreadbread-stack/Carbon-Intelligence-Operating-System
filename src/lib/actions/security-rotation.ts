@@ -47,13 +47,14 @@ export async function rotateFieldEncryptionAction(
       action: "update",
       schema: rotateFieldEncryptionInputSchema,
       revalidate: ["/security"],
-      handler: async ({ session }) => {
+      handler: async ({ session, organizationId }) => {
         // Resolved once up front: an absent key refuses the whole rotation
         // immediately rather than partially rotating rows before failing.
         const oldKey = resolveKeyForVersion("v1");
         const newKey = resolveKeyForVersion("v2");
 
         const rows = await prisma.dataSource.findMany({
+          where: { organizationId },
           select: { id: true, credentials: true },
         });
 

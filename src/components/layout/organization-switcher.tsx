@@ -3,11 +3,14 @@
 /**
  * Tenant switcher.
  *
- * The list comes from `listOrganizations()` through the session provider, and the
- * selection is persisted by `setActiveOrganizationAction` in a cookie that
- * `resolveActiveOrganization()` validates on the next read. With a single
- * organisation (the demo tenant) the control renders as a static label rather than
- * a dropdown that cannot do anything.
+ * The list comes from `resolveActiveOrganization()` through the session provider —
+ * the signed-in user's home organisation plus any `OrganizationMembership` rows,
+ * never every organisation the deployment has. The selection is persisted by
+ * `setActiveOrganizationAction` in a cookie that `resolveActiveOrganization()`
+ * re-validates against the same membership set on the next read. With a single
+ * organisation (the demo tenant, or any user with no extra memberships) the
+ * control renders as a static label rather than a dropdown that cannot do
+ * anything.
  */
 
 import * as React from "react";

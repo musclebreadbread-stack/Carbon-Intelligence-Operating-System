@@ -85,7 +85,7 @@ export default async function VerificationPage() {
     getEvidencePackage(organizationId),
     getInventory(organizationId, reportingYear),
     listUsers(organizationId),
-    listAuditTrail({}, { limit: 50 }),
+    listAuditTrail(organizationId, {}, { limit: 50 }),
   ]);
 
   if (!view) {

@@ -88,10 +88,12 @@ export type MonitoringParameterRow = MonitoringParameterLike & {
 /**
  * Monitoring parameters with the emission-source association resolved.
  *
- * A persisted parameter has no source foreign key, so the association is
- * recovered by matching the parameter's declared `unit` against the sources
- * covered by the same facility, in a deterministic order. This is the documented
- * denormalisation the domain type expects.
+ * `MonitoringParameter.emissionSourceId` is the authoritative link when set —
+ * there is no create/update action for `MonitoringParameter` yet, so today
+ * this only ever comes from a seed or a direct write, but the read path
+ * prefers it the moment it exists. A row with no `emissionSourceId` falls
+ * back to matching the parameter's name against the sources covered by the
+ * same facility, in a deterministic order.
  */
 export async function listMonitoringParameters(
   organizationId: string,
@@ -106,9 +108,25 @@ export async function listMonitoringParameters(
         }),
         listEmissionSources(organizationId),
       ]);
+      const sourceById = new Map(sources.map((source) => [source.id, source]));
 
       const claimed = new Set<string>();
       return parameters.map((parameter) => {
+        if (parameter.emissionSourceId && sourceById.has(parameter.emissionSourceId)) {
+          claimed.add(parameter.emissionSourceId);
+          return {
+            id: parameter.id,
+            monitoringPlanId: parameter.monitoringPlanId,
+            name: parameter.name,
+            description: parameter.description ?? "",
+            unit: parameter.unit,
+            frequency: parameter.frequency,
+            methodology: parameter.methodology,
+            threshold: parameter.threshold,
+            alertOnBreach: parameter.alertOnBreach,
+            emissionSourceId: parameter.emissionSourceId,
+          };
+        }
         const match = sources.find(
           (source) =>
             !claimed.has(source.id) &&
@@ -162,6 +180,7 @@ export async function listMeasurements(
         frequency: row.frequency,
         measuredAt: row.measuredAt,
         verifiedAt: row.verifiedAt,
+        monitoringParameterId: row.monitoringParameterId,
       }));
     },
     () =>

@@ -156,7 +156,11 @@ export function resetDemoCalculationCache(): void {
 
 export async function listCalculations(
   organizationId: string,
-  options: { readonly reportingYear?: number } = {},
+  options: {
+    readonly reportingYear?: number;
+    /** Include SUPERSEDED runs — for audit/history views, never for totals. */
+    readonly includeSuperseded?: boolean;
+  } = {},
 ): Promise<readonly CalculationSummary[]> {
   return withDb(
     async () => {
@@ -164,6 +168,7 @@ export async function listCalculations(
         where: {
           organizationId,
           ...(options.reportingYear ? { reportingYear: options.reportingYear } : {}),
+          ...(options.includeSuperseded ? {} : { status: "COMPLETED" }),
         },
         orderBy: [{ reportingYear: "desc" }, { calculatedAt: "desc" }],
         include: { _count: { select: { results: true } } },
@@ -204,7 +209,15 @@ export async function listCalculations(
   );
 }
 
-/** Persisted emission results for a year, denormalised for the roll-up. */
+/**
+ * Persisted emission results for a year, denormalised for the roll-up.
+ *
+ * Scoped to `COMPLETED` calculation runs only. Without this, re-running a
+ * calculation for the same organisation/year (see `runCalculationAction`,
+ * which marks the previous run `SUPERSEDED` rather than deleting it) would
+ * double-count: every historical run's results would sum together instead of
+ * only the active one's.
+ */
 export async function listEmissionResults(
   organizationId: string,
   reportingYear: number,
@@ -213,7 +226,7 @@ export async function listEmissionResults(
   return withDb<readonly EmissionResultLike[]>(
     async () => {
       const rows = await prisma.emissionResult.findMany({
-        where: { calculation: { organizationId, reportingYear } },
+        where: { calculation: { organizationId, reportingYear, status: "COMPLETED" } },
         select: {
           id: true,
           scope: true,

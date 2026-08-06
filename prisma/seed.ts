@@ -1118,6 +1118,23 @@ async function seedSecurity(): Promise<void> {
     }
   }
 
+  for (const membership of SEED_TENANT.memberships) {
+    const data = {
+      organizationId: membership.organizationId,
+      role: membership.role,
+      status: membership.status,
+      invitedAt: membership.invitedAt,
+      invitedBy: membership.invitedBy,
+      acceptedAt: membership.acceptedAt,
+      expiresAt: membership.expiresAt,
+    };
+    await prisma.organizationMembership.upsert({
+      where: { userId_organizationId: { userId: membership.userId, organizationId: membership.organizationId } },
+      create: { id: membership.id, userId: membership.userId, ...data },
+      update: data,
+    });
+  }
+
   for (const policy of SEED_TENANT.accessPolicies) {
     const data = {
       organizationId: policy.organizationId,
@@ -1139,7 +1156,8 @@ async function seedSecurity(): Promise<void> {
   log(
     "security",
     `${SEED_TENANT.roles.length} roles, ${SEED_TENANT.users.length} users, ` +
-      `${SEED_TENANT.accessPolicies.length} access policies`,
+      `${SEED_TENANT.accessPolicies.length} access policies, ` +
+      `${SEED_TENANT.memberships.length} organization memberships`,
   );
   // API keys are deliberately *not* seeded: the fixture hashes are placeholders
   // that cannot authenticate, and seeding a working key would be a backdoor.

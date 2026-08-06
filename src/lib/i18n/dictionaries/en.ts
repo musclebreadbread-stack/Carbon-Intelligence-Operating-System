@@ -910,6 +910,7 @@ const en: Dictionary = {
   "security.card.usersKeysAndSessions": "Users, keys and sessions",
   "security.card.usersKeysAndSessionsDesc": "Credentials themselves live in Supabase Auth.",
   "security.tab.users": "Users",
+  "security.tab.members": "Members",
   "security.tab.apiKeys": "API keys",
   "security.tab.sessions": "Sessions",
   "security.tab.policies": "Policies",
@@ -920,6 +921,14 @@ const en: Dictionary = {
   "security.empty.noAuditEntries": "No audit entries",
   "security.empty.noAuditEntriesDesc": "Every mutation writes an AuditTrail row with a field-level diff.",
   "security.table.resource": "Resource",
+  "security.members.inviteEmail": "Email",
+  "security.members.role": "Role",
+  "security.members.invite": "Add member",
+  "security.members.inviting": "Adding…",
+  "security.members.empty": "No members",
+  "security.members.since": "since",
+  "security.members.revoke": "Revoke access",
+  "security.members.ssoNote": "SSO/SAML/OIDC and MFA need a real identity provider and are out of scope for this pass (Phase B).",
 
   // Settings body
   "settings.desc": "Organisation profile, reporting conventions and the configuration status of every external dependency.",

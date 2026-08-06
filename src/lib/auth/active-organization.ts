@@ -1,41 +1,58 @@
 /**
  * Active-tenant resolution for page reads.
  *
- * The session carries the organisation the *user* belongs to; the organisation the
- * user is currently *looking at* is a UI preference, stored in a cookie by
+ * The session carries the organisation the *user* belongs to (their "home"
+ * organisation — the anchor `session.organizationId`, used unchanged by every
+ * write path in `src/lib/actions/runtime.ts`). The organisation the user is
+ * currently *looking at* is a UI preference, stored in a cookie by
  * `setActiveOrganizationAction`. Keeping it here rather than in `session.ts` means
- * `getSession()` stays free of `next/headers` and remains unit-testable, and the
- * validity check (the id must be one the deployment actually has) lives in exactly
- * one place so a forged cookie cannot select another tenant.
+ * `getSession()` stays free of `next/headers` and remains unit-testable.
+ *
+ * The cookie is validated against the user's actual `OrganizationMembership`
+ * rows (plus their home organisation, which is always an implicit membership) —
+ * not against every organisation the deployment happens to have. A cookie naming
+ * an organisation the user does not belong to is silently ignored and the home
+ * organisation is used instead, so a forged or stale cookie cannot read another
+ * tenant's data. This is a read-only preference: it never changes which
+ * organisation writes are attributed to.
  */
 
 import { cookies } from "next/headers";
 
 import { getSession } from "@/lib/auth/session";
-import {
-  getDefaultOrganizationId,
-  listOrganizations,
-} from "@/lib/data/repositories/organization";
+import { getDefaultOrganizationId } from "@/lib/data/repositories/organization";
+import { listOrganizationMemberships } from "@/lib/data/repositories/organization-membership";
 
 export const ACTIVE_ORGANIZATION_COOKIE = "cios-active-organization";
 
 export type ActiveOrganization = {
   readonly id: string;
   readonly name: string;
-  /** Every organisation the deployment knows about, for the switcher. */
+  /** The organisations this user may read: their home org plus any membership. */
   readonly available: readonly { readonly id: string; readonly name: string }[];
 };
 
 /**
- * The organisation a page should read. Falls back to the session's organisation,
- * then to the first organisation the deployment has.
+ * The organisation a page should read. Falls back to the session's home
+ * organisation, then to the deployment's default organisation when there is no
+ * session at all.
  */
 export async function resolveActiveOrganization(): Promise<ActiveOrganization> {
-  const [session, organizations] = await Promise.all([getSession(), listOrganizations()]);
-  const available = organizations.map((organization) => ({
-    id: organization.id,
-    name: organization.name,
-  }));
+  const session = await getSession();
+
+  if (!session) {
+    const id = await getDefaultOrganizationId();
+    return { id, name: id, available: [{ id, name: id }] };
+  }
+
+  const memberships = await listOrganizationMemberships(session.userId);
+  const available = new Map<string, string>();
+  // The home organisation is always a valid read target, independent of the
+  // membership table — it is what the session itself is scoped to.
+  available.set(session.organizationId, session.organizationName);
+  for (const membership of memberships) {
+    available.set(membership.organizationId, membership.organizationName);
+  }
 
   // `cookies()` is a Request-time API: reading it here is what makes every
   // dashboard route dynamic. It is deliberately not wrapped in a try/catch,
@@ -44,18 +61,12 @@ export async function resolveActiveOrganization(): Promise<ActiveOrganization> {
   const cookieStore = await cookies();
   const selected = cookieStore.get(ACTIVE_ORGANIZATION_COOKIE)?.value;
 
-  const candidates = [selected, session?.organizationId].filter(
-    (value): value is string => typeof value === "string" && value.length > 0,
-  );
-  const id =
-    candidates.find((candidate) => available.some((row) => row.id === candidate)) ??
-    available[0]?.id ??
-    (await getDefaultOrganizationId());
+  const id = selected && available.has(selected) ? selected : session.organizationId;
 
   return {
     id,
-    name: available.find((row) => row.id === id)?.name ?? id,
-    available,
+    name: available.get(id) ?? id,
+    available: [...available].map(([orgId, name]) => ({ id: orgId, name })),
   };
 }
 

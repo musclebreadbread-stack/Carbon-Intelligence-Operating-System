@@ -13,12 +13,12 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
-import { isSupabaseConfigured } from "@/lib/auth/session";
+import { isSupabaseConfigured, requireSession } from "@/lib/auth/session";
 import { ACTIVE_ORGANIZATION_COOKIE } from "@/lib/auth/active-organization";
-import { listOrganizations } from "@/lib/data/repositories/organization";
+import { listOrganizationMemberships } from "@/lib/data/repositories/organization-membership";
 import { LOCALE_COOKIE, parseLocale } from "@/lib/i18n/locales";
 
-import { actionError, actionSuccess, type ActionState } from "./types";
+import { actionError, actionSuccess, toActionError, type ActionState } from "./types";
 
 /** Signs the current user out and returns them to the login page. */
 export async function signOutAction(): Promise<never> {
@@ -38,8 +38,10 @@ export async function signOutAction(): Promise<never> {
  *
  * Stored in a cookie rather than on the session, because the session is derived
  * from the identity provider and the tenant selection is a UI preference. The id
- * is checked against the organisations the deployment actually has, so a forged
- * cookie cannot point a page at another tenant.
+ * is checked against the caller's own `OrganizationMembership` rows (plus their
+ * home organisation, always an implicit membership) — never against every
+ * organisation the deployment happens to have — so a forged cookie cannot point
+ * a page at another tenant's data.
  */
 export async function setActiveOrganizationAction(
   organizationId: unknown,
@@ -53,13 +55,21 @@ export async function setActiveOrganizationAction(
     );
   }
 
-  const organizations = await listOrganizations();
-  if (!organizations.some((organization) => organization.id === organizationId)) {
-    return actionError(
-      "NOT_FOUND",
-      "That organization is not available to this deployment",
-      "action.error.NOT_FOUND",
-    );
+  try {
+    const session = await requireSession();
+    if (organizationId !== session.organizationId) {
+      const memberships = await listOrganizationMemberships(session.userId);
+      const belongs = memberships.some((membership) => membership.organizationId === organizationId);
+      if (!belongs) {
+        return actionError(
+          "NOT_FOUND",
+          "You are not a member of that organization",
+          "action.error.NOT_FOUND",
+        );
+      }
+    }
+  } catch (error) {
+    return toActionError(error);
   }
 
   const cookieStore = await cookies();

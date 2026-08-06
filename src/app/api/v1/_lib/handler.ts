@@ -25,7 +25,7 @@ import { getDataMode } from "@/lib/data/db";
 import { findApiKeyByHash, touchApiKey } from "@/lib/data/repositories/security";
 import { hashApiKey } from "@/lib/security/field-crypto";
 import {
-  apiRateLimiter,
+  getRateLimiter,
   rateLimitForKey,
   rateLimitHeaders,
   type RateLimitDecision,
@@ -224,7 +224,10 @@ export function withApiKey(handler: ApiHandler, options: WithApiKeyOptions = {})
         );
       }
 
-      const decision = apiRateLimiter.consume(principal.id, {
+      // `await`ed even though today's limiter is synchronous: a Phase B swap to a
+      // shared store (see `getRateLimiter()`) becomes a one-function change with
+      // no call sites to update.
+      const decision = await getRateLimiter().consume(principal.id, {
         limit: rateLimitForKey(principal.scopes, principal.rateLimitPerMinute),
         ...(options.cost !== undefined ? { cost: options.cost } : {}),
         ...(options.now !== undefined ? { now: options.now } : {}),

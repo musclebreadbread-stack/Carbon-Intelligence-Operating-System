@@ -32,8 +32,12 @@ export const POST = withApiKey(
   async ({ request, organizationId }) => {
     const parsed = await parseBody(request, runCalculationRequestSchema);
     if (!parsed.ok) return parsed.response;
+    // `runCalculationAction` runs the whole orchestrator and writes the entire
+    // result graph synchronously — by the time it resolves the work is already
+    // done, so `202 Accepted` ("request accepted, not yet processed") would be
+    // a lie. `200` until this is a real queued job (Phase B).
     const state = await runCalculationAction({ ...parsed.data, organizationId });
-    return fromActionState(state, { status: 202 });
+    return fromActionState(state);
   },
   { resource: "calculation", action: "create", cost: 10 },
 );

@@ -19,6 +19,7 @@
 
 import type {
   CalculationApproach,
+  CalculationRunStatus,
   DataQualityLevel,
   GHGScope,
   GwpVersion,
@@ -190,10 +191,18 @@ export type EmissionCalculationRecord = {
   readonly scope: GHGScope;
   readonly scope3Category: Scope3Category | null;
   readonly approach: CalculationApproach;
-  readonly status: string;
+  readonly status: CalculationRunStatus;
   readonly totalEmissions: number;
   readonly unit: string;
   readonly calculatedAt: Date;
+  /**
+   * Methodology basis snapshot: the values in effect when this run executed,
+   * so a later change to global defaults never silently reinterprets a past
+   * run. See `EmissionCalculation.gwpVersion`/`scope2Basis`/`consolidationApproach`.
+   */
+  readonly gwpVersion: GwpVersion;
+  readonly scope2Basis: "LOCATION" | "MARKET";
+  readonly consolidationApproach: ConsolidationApproach;
 };
 
 /** Plain object shaped to `EmissionResult`. */
@@ -687,10 +696,13 @@ export function runCalculation(request: CalculationRequest): CalculationOutcome 
     scope,
     scope3Category,
     approach,
-    status: "calculated",
+    status: "COMPLETED",
     totalEmissions,
     unit: inventory.unit,
     calculatedAt,
+    gwpVersion: request.gwpVersion,
+    scope2Basis,
+    consolidationApproach,
   });
 
   const calculationsByScope = [...scopeTotals.entries()].map(([scope, total]) => {

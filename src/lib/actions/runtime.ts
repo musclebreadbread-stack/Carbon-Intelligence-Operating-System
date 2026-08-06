@@ -94,11 +94,15 @@ function organizationIdOf(session: SessionUser, input: unknown): string {
  * and a failure to write the audit trail must not roll back a successful
  * mutation. Both are recorded; neither can silently suppress the other.
  */
-async function persistAudit(entries: readonly AuditEntry[]): Promise<void> {
+async function persistAudit(
+  entries: readonly AuditEntry[],
+  organizationId: string,
+): Promise<void> {
   if (entries.length === 0) return;
   try {
     await prisma.auditTrail.createMany({
       data: entries.map(({ record }) => ({
+        organizationId,
         entityType: record.entityType,
         entityId: record.entityId,
         action: record.action,
@@ -167,7 +171,7 @@ export async function runAction<TSchema extends z.ZodTypeAny, TData>(
 
     // 6. Audit trail.
     if (!definition.readOnly) {
-      await persistAudit(outcome.audit ?? []);
+      await persistAudit(outcome.audit ?? [], organizationId);
     }
 
     // 7. Cache invalidation, so the same response carries the re-rendered UI.

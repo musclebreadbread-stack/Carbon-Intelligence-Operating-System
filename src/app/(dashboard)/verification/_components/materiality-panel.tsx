@@ -67,9 +67,12 @@ export function MaterialityPanel({
     FormData
   >(async (_previous, formData) => {
     const threshold = Number(formData.get("threshold"));
+    // `totalEmissions` is shown on screen but never sent: the server computes
+    // its own verified total from the current inventory (see
+    // `assessMaterialityAction`), so a client-supplied figure would be ignored
+    // anyway and sending it would only suggest otherwise.
     const payload = {
       engagementId,
-      totalEmissions,
       assuranceLevel: String(formData.get("assuranceLevel") ?? defaultAssuranceLevel),
       ...(Number.isFinite(threshold) && threshold > 0 ? { threshold } : {}),
     };

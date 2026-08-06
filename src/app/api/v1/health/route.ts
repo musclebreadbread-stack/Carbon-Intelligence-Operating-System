@@ -15,7 +15,12 @@ import { connection } from "next/server";
 
 import { describeLlmMode, isLlmConfigured } from "@/lib/ai/llm/factory";
 import { isSupabaseConfigured } from "@/lib/auth/session";
-import { getDataMode, getFallbackReason, isDbConfigured } from "@/lib/data/db";
+import {
+  checkDatabaseConnectivity,
+  getDataMode,
+  getFallbackReason,
+  isDbConfigured,
+} from "@/lib/data/db";
 
 import { jsonOk } from "../_lib/handler";
 
@@ -26,11 +31,16 @@ export async function GET() {
 
   const llm = describeLlmMode();
   const dataMode = getDataMode();
+  // An active probe, not just the last query's outcome — see
+  // `checkDatabaseConnectivity`'s docstring for why that distinction matters
+  // right after a cold start.
+  const reachable = await checkDatabaseConnectivity();
 
   return jsonOk({
     status: "ok",
     database: {
       configured: isDbConfigured(),
+      reachable,
       mode: dataMode,
       // Explains *why* the process is serving fixtures, which is the one piece of
       // detail an operator needs and an attacker cannot use.

@@ -172,6 +172,17 @@ function normalisePositiveInt(value: number, fallback: number): number {
 export const apiRateLimiter = new RateLimiter();
 
 /**
+ * The active rate limiter, behind a factory so a Phase B swap to a shared
+ * store (Redis/Upstash — the only way multiple server instances can agree on
+ * one quota) is a one-function change. `consume()` is synchronous today;
+ * call sites `await` it so that swap does not also require touching them —
+ * `await` on a plain value resolves immediately and changes nothing now.
+ */
+export function getRateLimiter(): RateLimiter {
+  return apiRateLimiter;
+}
+
+/**
  * Rate limit configured for one API key.
  *
  * Precedence: a key carrying the `rate:unlimited` scope is exempted outright;

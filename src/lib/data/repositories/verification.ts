@@ -30,6 +30,46 @@ import {
 import { getInventory } from "./calculation";
 import { getMrvCoverage } from "./mrv";
 
+/**
+ * Fraction of the engagement's submitted evidence packages that have been
+ * accepted. A package still `pending`/`submitted` counts as incomplete, and so
+ * does one that was `rejected` — it must be resubmitted before it counts.
+ */
+export async function computeEvidenceCompleteness(engagementId: string): Promise<number> {
+  return withDb(
+    async () => {
+      const packages = await prisma.evidencePackage.findMany({
+        where: { engagementId },
+        select: { status: true },
+      });
+      if (packages.length === 0) return 0;
+      const accepted = packages.filter((row) => row.status === "accepted").length;
+      return accepted / packages.length;
+    },
+    // Demo fixture: no packages exist to measure, so this is a stated placeholder
+    // value rather than an average of real rows — matches readinessScore()'s own
+    // 60-point default for an unset dimension being too pessimistic for a demo.
+    () => 0.86,
+  );
+}
+
+/** Average `DataQualityScore.overallScore` (0..100) across the organisation's activity data for the year. */
+export async function computeDataQualityScore(
+  organizationId: string,
+  reportingYear: number,
+): Promise<number> {
+  return withDb(
+    async () => {
+      const result = await prisma.dataQualityScore.aggregate({
+        where: { activityDataEntry: { activityData: { organizationId, reportingYear } } },
+        _avg: { overallScore: true },
+      });
+      return result._avg.overallScore ?? 60;
+    },
+    () => 82,
+  );
+}
+
 export type FindingRow = VerificationFindingLike & {
   readonly engagementId: string;
   readonly misstatementAmount: number | null;
@@ -133,12 +173,15 @@ export async function getVerificationView(
   if (!engagement) return null;
 
   const asOf = options.asOf ?? new Date(Date.UTC(DEMO_CURRENT_YEAR + 1, 1, 15));
-  const [scopes, findings, inventory, coverage] = await Promise.all([
-    listVerificationScopes(engagement.id),
-    listFindings(engagement.id),
-    getInventory(organizationId, DEMO_CURRENT_YEAR),
-    getMrvCoverage(organizationId),
-  ]);
+  const [scopes, findings, inventory, coverage, evidenceCompleteness, dataQualityScore] =
+    await Promise.all([
+      listVerificationScopes(engagement.id),
+      listFindings(engagement.id),
+      getInventory(organizationId, DEMO_CURRENT_YEAR),
+      getMrvCoverage(organizationId),
+      computeEvidenceCompleteness(engagement.id),
+      computeDataQualityScore(organizationId, DEMO_CURRENT_YEAR),
+    ]);
 
   const rollup = severityRollup(findings, asOf);
   const misstatements = aggregateMisstatements(
@@ -166,8 +209,8 @@ export async function getVerificationView(
       id: engagement.id,
       name: engagement.name,
       findings,
-      evidenceCompleteness: 0.86,
-      dataQualityScore: 82,
+      evidenceCompleteness,
+      dataQualityScore,
       monitoringCoverage: coverage.coverage?.coverage,
       measurementCompleteness: coverage.completeness?.completeness,
       asOf,
