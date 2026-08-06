@@ -162,6 +162,8 @@ describe("EntryForm", () => {
     await user.click(screen.getByRole("button", { name: /Save entry/ }));
 
     expect(await screen.findByTestId("action-demo-mode")).toBeTruthy();
-    expect(screen.getByText(/Not saved — no database is configured/)).toBeTruthy();
+    // Korean is the app default locale; this banner's chrome now goes through
+    // the dictionary rather than a hardcoded English string.
+    expect(screen.getByText(/데이터베이스가 구성되지 않았습니다/)).toBeTruthy();
   });
 });

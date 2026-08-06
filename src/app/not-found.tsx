@@ -8,38 +8,40 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { getDictionary } from "@/lib/i18n/server";
 
 export const metadata = {
   title: "Not found — CIOS",
 };
 
 /** Root 404: reachable both from an unknown URL and from `notFound()`. */
-export default function NotFound() {
+export default async function NotFound() {
+  const dict = await getDictionary();
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 p-6">
       <Card className="w-full max-w-lg">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Compass className="size-4 text-muted-foreground" />
-            That page does not exist
+            {dict["common.notFound"]}
           </CardTitle>
           <CardDescription>
-            The address you followed is not one of the eighteen CIOS modules. Pick a
-            starting point below.
+            {dict["common.notFoundDescription"]}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
           <LinkButton size="sm" href="/dashboard">
-            Dashboard
+            {dict["nav.dashboard"]}
           </LinkButton>
           <LinkButton size="sm" variant="outline" href="/emission-engine">
-            Emission engine
+            {dict["nav.emissionEngine"]}
           </LinkButton>
           <LinkButton size="sm" variant="outline" href="/esg-disclosure">
-            ESG disclosure
+            {dict["nav.esgDisclosure"]}
           </LinkButton>
           <LinkButton size="sm" variant="ghost" href="/">
-            Home
+            {dict["landing.cta"]}
           </LinkButton>
         </CardContent>
       </Card>

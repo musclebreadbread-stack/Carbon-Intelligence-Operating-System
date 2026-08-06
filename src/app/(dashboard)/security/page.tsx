@@ -35,9 +35,11 @@ import {
 import { isDbConfigured } from "@/lib/data/db";
 import { formatDate, formatDateTime, formatNumber, humaniseEnum } from "@/lib/format";
 import { SETUP_GUIDE_PATH } from "@/lib/i18n/messages";
+import { getDictionary } from "@/lib/i18n/server";
 
 export default async function SecurityPage() {
   await connection();
+  const dict = await getDictionary();
 
   const organizationId = await activeOrganizationId();
 
@@ -80,52 +82,51 @@ export default async function SecurityPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Security"
-        description="Users, roles, the permission matrix, API keys, sessions and attribute-based access policies."
+        title={dict["security.title"]}
+        description={dict["security.desc"]}
         meta={[
-          { label: "Users", value: formatNumber(users.length) },
-          { label: "Roles", value: formatNumber(roles.length) },
-          { label: "Permissions", value: formatNumber(permissions.length) },
+          { label: dict["security.meta.users"], value: formatNumber(users.length) },
+          { label: dict["security.meta.roles"], value: formatNumber(roles.length) },
+          { label: dict["security.meta.permissions"], value: formatNumber(permissions.length) },
         ]}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          title="Active users"
+          title={dict["security.kpi.activeUsers"]}
           value={formatNumber(users.filter((user) => user.isActive).length)}
           icon={Users}
-          description={`${users.filter((user) => !user.emailVerified).length} with an unverified email`}
+          description={`${users.filter((user) => !user.emailVerified).length} ${dict["security.kpi.activeUsersDesc"]}`}
           source="listUsers()"
         />
         <KpiCard
-          title="Roles"
+          title={dict["security.kpi.rolesKpi"]}
           value={formatNumber(roles.length)}
           icon={UserCheck}
-          description={`${roles.filter((role) => role.isSystem).length} system roles`}
+          description={`${roles.filter((role) => role.isSystem).length} ${dict["security.kpi.rolesDesc"]}`}
           source="listRoles()"
         />
         <KpiCard
-          title="API keys"
+          title={dict["security.kpi.apiKeysKpi"]}
           value={formatNumber(apiKeys.length)}
           icon={KeyRound}
-          description={`${apiKeys.filter((key) => key.isActive).length} active`}
+          description={`${apiKeys.filter((key) => key.isActive).length} ${dict["security.kpi.apiKeysActive"]}`}
           source="listApiKeys()"
         />
         <KpiCard
-          title="Access policies"
+          title={dict["security.kpi.accessPolicies"]}
           value={formatNumber(policies.length)}
           icon={Lock}
-          description={`${policies.filter((policy) => policy.effect === "deny").length} deny, evaluated first`}
+          description={`${policies.filter((policy) => policy.effect === "deny").length} ${dict["security.kpi.accessPoliciesDesc"]}`}
           source="listAccessPolicies()"
         />
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Permission matrix</CardTitle>
+          <CardTitle>{dict["security.card.permissionMatrix"]}</CardTitle>
           <CardDescription>
-            Rendered from the same `Permission` rows `can()` evaluates. A wildcard permission
-            fills its whole row, which is why the administrator role shows as fully granted.
+            {dict["security.card.permissionMatrixDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -149,7 +150,7 @@ export default async function SecurityPage() {
                     <thead>
                       <tr>
                         <th className="px-2 py-1 text-left font-medium text-muted-foreground">
-                          Resource
+                          {dict["security.table.resource"]}
                         </th>
                         {actions.map((action) => (
                           <th
@@ -199,20 +200,19 @@ export default async function SecurityPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Users, keys and sessions</CardTitle>
+          <CardTitle>{dict["security.card.usersKeysAndSessions"]}</CardTitle>
           <CardDescription>
-            Credentials themselves live in Supabase Auth; `User.passwordHash` is only populated
-            by the offline seed, and API key digests are never returned by the repository.
+            {dict["security.card.usersKeysAndSessionsDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="users">
             <TabsList className="flex-wrap" variant="line">
-              <TabsTrigger value="users">Users ({users.length})</TabsTrigger>
-              <TabsTrigger value="keys">API keys ({apiKeys.length})</TabsTrigger>
-              <TabsTrigger value="sessions">Sessions ({sessions.length})</TabsTrigger>
-              <TabsTrigger value="policies">Policies ({policies.length})</TabsTrigger>
-              <TabsTrigger value="audit">Audit log</TabsTrigger>
+              <TabsTrigger value="users">{dict["security.tab.users"]} ({users.length})</TabsTrigger>
+              <TabsTrigger value="keys">{dict["security.tab.apiKeys"]} ({apiKeys.length})</TabsTrigger>
+              <TabsTrigger value="sessions">{dict["security.tab.sessions"]} ({sessions.length})</TabsTrigger>
+              <TabsTrigger value="policies">{dict["security.tab.policies"]} ({policies.length})</TabsTrigger>
+              <TabsTrigger value="audit">{dict["security.tab.auditLog"]}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="users" className="space-y-1.5 pt-3">
@@ -243,7 +243,7 @@ export default async function SecurityPage() {
 
             <TabsContent value="keys" className="space-y-2 pt-3">
               {apiKeys.length === 0 ? (
-                <EmptyState title="No API keys" />
+                <EmptyState title={dict["security.empty.noApiKeys"]} />
               ) : (
                 apiKeys.map((key) => (
                   <div key={key.id} className="rounded-md border p-2.5 text-sm">
@@ -283,8 +283,8 @@ export default async function SecurityPage() {
             <TabsContent value="sessions" className="space-y-1.5 pt-3">
               {sessions.length === 0 ? (
                 <EmptyState
-                  title="No active sessions"
-                  description="Sessions are persisted rows; with Supabase unconfigured the demo session is synthesised per request and is not stored."
+                  title={dict["security.empty.noSessions"]}
+                  description={dict["security.empty.noSessionsDesc"]}
                 />
               ) : (
                 sessions.map((session) => (
@@ -343,8 +343,8 @@ export default async function SecurityPage() {
             <TabsContent value="audit" className="pt-3">
               {auditTrail.length === 0 ? (
                 <EmptyState
-                  title="No audit entries"
-                  description="Every mutation writes an AuditTrail row with a field-level diff; passwordHash, mfaSecret and credentials are redacted before the row is written."
+                  title={dict["security.empty.noAuditEntries"]}
+                  description={dict["security.empty.noAuditEntriesDesc"]}
                 />
               ) : (
                 <ul className="space-y-1">

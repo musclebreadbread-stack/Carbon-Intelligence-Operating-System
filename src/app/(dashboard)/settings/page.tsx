@@ -44,8 +44,7 @@ import { getInventory } from "@/lib/data/repositories/calculation";
 import { getOrganization } from "@/lib/data/repositories/organization";
 import { formatEmissions, formatNumber, humaniseEnum } from "@/lib/format";
 import { SETUP_GUIDE_PATH } from "@/lib/i18n/messages";
-
-import { LocaleToggle } from "./_components/locale-toggle";
+import { getDictionary } from "@/lib/i18n/server";
 
 const MONTHS = [
   "January",
@@ -146,6 +145,7 @@ const ENVIRONMENT: readonly {
 
 export default async function SettingsPage() {
   await connection();
+  const dict = await getDictionary();
 
   const organizationId = await activeOrganizationId();
   const years = await listReportingYears(organizationId);
@@ -163,73 +163,57 @@ export default async function SettingsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Settings"
-        description="Organisation profile, reporting conventions and the configuration status of every external dependency."
+        title={dict["settings.title"]}
+        description={dict["settings.desc"]}
         meta={[
-          { label: "Data mode", value: dataMode },
-          { label: "GWP", value: inventory.gwpVersion },
-          { label: "Consolidation", value: humaniseEnum(inventory.consolidationApproach) },
+          { label: dict["settings.meta.dataMode"], value: dataMode },
+          { label: dict["settings.meta.gwp"], value: inventory.gwpVersion },
+          { label: dict["settings.meta.consolidation"], value: humaniseEnum(inventory.consolidationApproach) },
         ]}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          title="Dependencies configured"
+          title={dict["settings.kpi.dependenciesConfigured"]}
           value={`${configured} / ${ENVIRONMENT.length}`}
           icon={SettingsIcon}
           description={
             dataMode === "demo"
-              ? "running in demo mode — figures computed, nothing persisted"
-              : "running against a live database"
+              ? dict["settings.kpi.dependenciesDescDemo"]
+              : dict["settings.kpi.dependenciesDescLive"]
           }
           source="process.env"
           goodDirection="up"
         />
         <KpiCard
-          title="Fiscal year starts"
+          title={dict["settings.kpi.fiscalYearStarts"]}
           value={MONTHS[(organization?.fiscalYearStart ?? 1) - 1]?.label ?? "January"}
           icon={Building2}
-          description="drives every reporting-period boundary"
+          description={dict["settings.kpi.fiscalYearStartsDesc"]}
           source="Organization.fiscalYearStart"
         />
         <KpiCard
-          title="Base currency"
+          title={dict["settings.kpi.baseCurrency"]}
           value={organization?.baseCurrency ?? "USD"}
           icon={Building2}
-          description="used by MACC, investment appraisal and carbon pricing"
+          description={dict["settings.kpi.baseCurrencyDesc"]}
           source="Organization.baseCurrency"
         />
         <KpiCard
-          title={`${reportingYear} inventory`}
+          title={`${reportingYear} ${dict["settings.kpi.inventory"]}`}
           value={formatEmissions(inventory.totals.totalEmissions)}
           unit={inventory.totals.unit}
           icon={Database}
-          description={`${formatNumber(inventory.totals.resultCount)} emission results`}
+          description={`${formatNumber(inventory.totals.resultCount)} ${dict["settings.kpi.inventoryDesc"]}`}
           source="buildInventory()"
         />
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Display language</CardTitle>
+          <CardTitle>{dict["settings.card.environmentConfig"]}</CardTitle>
           <CardDescription>
-            Switches the message-table keys `action-error.tsx` resolves — validation, demo-mode
-            and error copy. The application UI itself stays English by design; see{" "}
-            <code>src/lib/i18n/messages.ts</code>.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <LocaleToggle />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Environment configuration</CardTitle>
-          <CardDescription>
-            Each variable is checked with the same predicate the runtime uses, so this panel
-            cannot disagree with the application&apos;s behaviour. Nothing here reveals a value —
-            only whether one is present and usable.
+            {dict["settings.card.environmentConfigDescDetailed"]}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -245,9 +229,11 @@ export default async function SettingsPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <code className="text-sm font-medium break-all">{entry.name}</code>
                     <Badge variant={ok ? "secondary" : "outline"}>
-                      {ok ? "configured" : "not configured"}
+                      {ok ? dict["apiGateway.label.configured"] : dict["apiGateway.label.notConfigured"]}
                     </Badge>
-                    {entry.required && !ok && <Badge variant="destructive">required</Badge>}
+                    {entry.required && !ok && (
+                      <Badge variant="destructive">{dict["settings.label.required"]}</Badge>
+                    )}
                   </div>
                   {!ok && (
                     <p className="mt-1 text-xs text-muted-foreground">{entry.degradation}</p>
@@ -272,10 +258,9 @@ export default async function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Organisation profile and reporting conventions</CardTitle>
+          <CardTitle>{dict["settings.card.orgProfileAndConventions"]}</CardTitle>
           <CardDescription>
-            The fiscal year, base currency and reporting year set here are read by every module;
-            changing them changes period boundaries and intensity denominators everywhere.
+            {dict["settings.card.orgProfileAndConventionsDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -338,16 +323,14 @@ export default async function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Calculation conventions</CardTitle>
+          <CardTitle>{dict["settings.card.calculationConventions"]}</CardTitle>
           <CardDescription>
-            These are chosen per calculation run rather than stored as a single organisation
-            setting, because a re-statement under a different GWP vintage or consolidation
-            approach has to be an explicit, auditable act.
+            {dict["settings.card.calculationConventionsDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-3">
           <div>
-            <p className="text-xs text-muted-foreground">GWP version in use</p>
+            <p className="text-xs text-muted-foreground">{dict["settings.label.gwpInUse"]}</p>
             <p className="text-lg font-semibold">{inventory.gwpVersion}</p>
             <p className="text-[11px] text-muted-foreground">
               Available: {GWP_VERSIONS.join(", ")}. AR6 puts fossil CH₄ at 29.8 and AR5 at 30, so
@@ -355,7 +338,7 @@ export default async function SettingsPage() {
             </p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Consolidation approach</p>
+            <p className="text-xs text-muted-foreground">{dict["settings.label.consolidationApproach"]}</p>
             <p className="text-lg font-semibold">
               {humaniseEnum(inventory.consolidationApproach)}
             </p>
@@ -364,7 +347,7 @@ export default async function SettingsPage() {
             </p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Scope 2 basis for the total</p>
+            <p className="text-xs text-muted-foreground">{dict["settings.label.scope2BasisForTotal"]}</p>
             <p className="text-lg font-semibold">
               {humaniseEnum(inventory.totals.scope2Basis)}
             </p>
@@ -379,10 +362,9 @@ export default async function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Notification preferences</CardTitle>
+          <CardTitle>{dict["settings.card.notificationPreferences"]}</CardTitle>
           <CardDescription>
-            Notification delivery needs a persisted `NotificationPreference` row and an outbound
-            channel, neither of which exists without a database and a mail or webhook provider.
+            {dict["settings.card.notificationPreferencesDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-1.5 text-xs text-muted-foreground">

@@ -43,6 +43,7 @@ import ForgotPasswordPage from "./forgot-password/page";
 import LoginPage from "./login/page";
 import ResetPasswordPage from "./reset-password/page";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { LocaleProvider } from "@/components/providers/locale-provider";
 
 const ORIGINAL_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const ORIGINAL_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -73,14 +74,18 @@ describe("isSupabaseConfigured", () => {
 describe("login page", () => {
   it("renders the Korean unconfigured-Supabase notice instead of failing on submit", async () => {
     const user = userEvent.setup();
-    render(<LoginPage />);
+    render(
+      <LocaleProvider locale="ko">
+        <LoginPage />
+      </LocaleProvider>,
+    );
 
     expect(screen.getByTestId("supabase-not-configured")).toBeTruthy();
     expect(screen.getByText("Supabase가 구성되지 않았습니다")).toBeTruthy();
 
-    await user.type(screen.getByLabelText("Email"), "someone@example.com");
-    await user.type(screen.getByLabelText("Password"), "hunter2hunter2");
-    await user.click(screen.getByRole("button", { name: "Sign In" }));
+    await user.type(screen.getByLabelText("이메일"), "someone@example.com");
+    await user.type(screen.getByLabelText("비밀번호"), "hunter2hunter2");
+    await user.click(screen.getByRole("button", { name: "로그인" }));
 
     // The page refuses locally with an explanation; no network call is attempted.
     expect(signInWithPassword).not.toHaveBeenCalled();
@@ -89,8 +94,12 @@ describe("login page", () => {
   });
 
   it("links the forgot-password page rather than a dead anchor", () => {
-    render(<LoginPage />);
-    const link = screen.getByRole("link", { name: "Forgot password?" });
+    render(
+      <LocaleProvider locale="ko">
+        <LoginPage />
+      </LocaleProvider>,
+    );
+    const link = screen.getByRole("link", { name: "비밀번호 찾기" });
     expect(link.getAttribute("href")).toBe("/forgot-password");
   });
 
@@ -107,12 +116,16 @@ describe("login page", () => {
 describe("forgot-password page", () => {
   it("validates the email format before calling Supabase", async () => {
     const user = userEvent.setup();
-    render(<ForgotPasswordPage />);
+    render(
+      <LocaleProvider locale="ko">
+        <ForgotPasswordPage />
+      </LocaleProvider>,
+    );
 
-    await user.type(screen.getByLabelText("Email"), "not-an-email");
-    await user.click(screen.getByRole("button", { name: "Send reset link" }));
+    await user.type(screen.getByLabelText("이메일"), "not-an-email");
+    await user.click(screen.getByRole("button", { name: "재설정 링크 전송" }));
 
-    expect(await screen.findByText("Enter a valid email address")).toBeTruthy();
+    expect(await screen.findByText("유효한 이메일 주소를 입력하세요")).toBeTruthy();
     expect(resetPasswordForEmail).not.toHaveBeenCalled();
   });
 
@@ -122,11 +135,15 @@ describe("forgot-password page", () => {
     resetPasswordForEmail.mockResolvedValue({ error: null });
 
     const user = userEvent.setup();
-    render(<ForgotPasswordPage />);
+    render(
+      <LocaleProvider locale="ko">
+        <ForgotPasswordPage />
+      </LocaleProvider>,
+    );
 
     expect(screen.queryByTestId("supabase-not-configured")).toBeNull();
-    await user.type(screen.getByLabelText("Email"), "someone@example.com");
-    await user.click(screen.getByRole("button", { name: "Send reset link" }));
+    await user.type(screen.getByLabelText("이메일"), "someone@example.com");
+    await user.click(screen.getByRole("button", { name: "재설정 링크 전송" }));
 
     expect(await screen.findByTestId("reset-email-sent")).toBeTruthy();
     expect(resetPasswordForEmail).toHaveBeenCalledTimes(1);
@@ -136,23 +153,31 @@ describe("forgot-password page", () => {
 
 describe("reset-password page", () => {
   it("shows the unconfigured notice and no recovery-session error at once", () => {
-    render(<ResetPasswordPage />);
+    render(
+      <LocaleProvider locale="ko">
+        <ResetPasswordPage />
+      </LocaleProvider>,
+    );
     expect(screen.getByTestId("supabase-not-configured")).toBeTruthy();
     expect(screen.queryByTestId("no-recovery-session")).toBeNull();
   });
 
   it("requires a minimum password length and a matching confirmation", async () => {
     const user = userEvent.setup();
-    render(<ResetPasswordPage />);
+    render(
+      <LocaleProvider locale="ko">
+        <ResetPasswordPage />
+      </LocaleProvider>,
+    );
 
-    await user.type(screen.getByLabelText("New password"), "short");
-    await user.click(screen.getByRole("button", { name: "Set new password" }));
-    expect(await screen.findByText("Use at least 8 characters")).toBeTruthy();
+    await user.type(screen.getByLabelText("새 비밀번호"), "short");
+    await user.click(screen.getByRole("button", { name: "비밀번호 변경" }));
+    expect(await screen.findByText("최소 8자 이상 입력하세요")).toBeTruthy();
 
-    await user.clear(screen.getByLabelText("New password"));
-    await user.type(screen.getByLabelText("New password"), "longenoughpassword");
-    await user.type(screen.getByLabelText("Confirm new password"), "different-password");
-    await user.click(screen.getByRole("button", { name: "Set new password" }));
-    expect(await screen.findByText("The two passwords do not match")).toBeTruthy();
+    await user.clear(screen.getByLabelText("새 비밀번호"));
+    await user.type(screen.getByLabelText("새 비밀번호"), "longenoughpassword");
+    await user.type(screen.getByLabelText("비밀번호 확인"), "different-password");
+    await user.click(screen.getByRole("button", { name: "비밀번호 변경" }));
+    expect(await screen.findByText("두 비밀번호가 일치하지 않습니다")).toBeTruthy();
   });
 });

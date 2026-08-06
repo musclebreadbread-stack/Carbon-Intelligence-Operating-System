@@ -47,6 +47,7 @@ import {
   scopeLabel,
 } from "@/lib/format";
 import { toProvenanceTree } from "@/lib/domain/lineage/graph";
+import { getDictionary } from "@/lib/i18n/server";
 
 import { RunCalculationPanel } from "./_components/run-calculation-panel";
 import { ScopeTotals } from "./_components/scope-totals";
@@ -54,6 +55,7 @@ import { TraceDrawer, type TracedResult } from "./_components/trace-drawer";
 
 export default async function EmissionEnginePage() {
   await connection();
+  const dict = await getDictionary();
 
   const organizationId = await activeOrganizationId();
   const years = await listReportingYears(organizationId);
@@ -103,35 +105,35 @@ export default async function EmissionEnginePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Emission engine"
-        description="Scope 1, 2 and 3 calculation, uncertainty propagation, calculation traces and data lineage."
+        title={dict["engine.title"]}
+        description={dict["engine.desc"]}
         meta={[
-          { label: "Reporting year", value: String(reportingYear) },
-          { label: "GWP", value: inventory.gwpVersion },
-          { label: "Consolidation", value: humaniseEnum(inventory.consolidationApproach) },
-          { label: "Scope 2 basis", value: humaniseEnum(inventory.totals.scope2Basis) },
+          { label: dict["engine.meta.reportingYear"], value: String(reportingYear) },
+          { label: dict["engine.meta.gwp"], value: inventory.gwpVersion },
+          { label: dict["engine.meta.consolidation"], value: humaniseEnum(inventory.consolidationApproach) },
+          { label: dict["engine.meta.scope2Basis"], value: humaniseEnum(inventory.totals.scope2Basis) },
         ]}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          title="Total emissions"
+          title={dict["engine.kpi.totalEmissions"]}
           value={formatEmissions(inventory.totals.totalEmissions)}
           unit={inventory.totals.unit}
           icon={Calculator}
-          description={`${inventory.totals.resultCount} emission results`}
+          description={`${inventory.totals.resultCount} ${dict["engine.kpi.emissionResults"]}`}
           source="buildInventory() over the calculated results"
         />
         <KpiCard
-          title="Overall uncertainty"
+          title={dict["engine.kpi.overallUncertainty"]}
           value={`±${formatNumber(uncertainty.overallUncertainty, 2)}`}
           unit="%"
           icon={Gauge}
-          description={`${formatNumber(uncertainty.confidenceLevel, 0)}% confidence interval`}
+          description={`${formatNumber(uncertainty.confidenceLevel, 0)}% ${dict["engine.kpi.confidenceInterval"]}`}
           source="propagateUncertainty() quadrature"
         />
         <KpiCard
-          title="Data quality"
+          title={dict["engine.kpi.dataQuality"]}
           value={formatNumber(outcome.quality.aggregate.overallScore, 1)}
           unit="/ 100"
           icon={Activity}
@@ -140,23 +142,21 @@ export default async function EmissionEnginePage() {
           goodDirection="up"
         />
         <KpiCard
-          title="Trace steps"
+          title={dict["engine.kpi.traceSteps"]}
           value={formatNumber(
             outcome.traces.reduce((total, trace) => total + trace.steps.length, 0),
           )}
           icon={Sigma}
-          description={`${outcome.traces.length} traced results`}
+          description={`${outcome.traces.length} ${dict["engine.kpi.tracedResults"]}`}
           source="runCalculation() traces"
         />
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Inventory by scope</CardTitle>
+          <CardTitle>{dict["engine.card.inventoryByScope"]}</CardTitle>
           <CardDescription>
-            Gross figures with the consolidated equivalent alongside, plus the Scope 3
-            category split. Dual Scope 2 reporting is shown because the GHG Protocol
-            requires both bases.
+            {dict["engine.card.inventoryByScopeDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -167,7 +167,7 @@ export default async function EmissionEnginePage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Uncertainty</CardTitle>
+            <CardTitle>{dict["engine.card.uncertainty"]}</CardTitle>
             <CardDescription>
               {uncertainty.methodology}
               {uncertainty.notes ? ` ${uncertainty.notes}` : ""}
@@ -179,7 +179,7 @@ export default async function EmissionEnginePage() {
                 {formatEmissions(uncertainty.lowerBound)} {inventory.totals.unit}
               </span>
               <span className="text-xs text-muted-foreground">
-                {formatNumber(uncertainty.confidenceLevel, 0)}% interval
+                {formatNumber(uncertainty.confidenceLevel, 0)}% {dict["engine.kpi.confidenceInterval"]}
               </span>
               <span className="font-mono">
                 {formatEmissions(uncertainty.upperBound)} {inventory.totals.unit}
@@ -197,19 +197,19 @@ export default async function EmissionEnginePage() {
             </div>
             <div className="grid gap-2 text-xs sm:grid-cols-3">
               <div>
-                <p className="text-muted-foreground">Activity data</p>
+                <p className="text-muted-foreground">{dict["engine.card.uncertaintyLabel.activityData"]}</p>
                 <p className="font-mono">
                   ±{formatNumber(uncertainty.activityDataUncertainty ?? 0, 2)}%
                 </p>
               </div>
               <div>
-                <p className="text-muted-foreground">Emission factor</p>
+                <p className="text-muted-foreground">{dict["engine.card.uncertaintyLabel.emissionFactor"]}</p>
                 <p className="font-mono">
                   ±{formatNumber(uncertainty.emissionFactorUncertainty ?? 0, 2)}%
                 </p>
               </div>
               <div>
-                <p className="text-muted-foreground">Methodology</p>
+                <p className="text-muted-foreground">{dict["engine.card.uncertaintyLabel.methodology"]}</p>
                 <p className="font-mono">
                   ±{formatNumber(uncertainty.methodologyUncertainty ?? 0, 2)}%
                 </p>
@@ -226,10 +226,9 @@ export default async function EmissionEnginePage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Run a calculation</CardTitle>
+            <CardTitle>{dict["engine.card.runCalculation"]}</CardTitle>
             <CardDescription>
-              Preview is read-only and works with no database; running persists the
-              calculation, results, uncertainty, traces and lineage in one transaction.
+              {dict["engine.card.runCalculationDesc"]}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -257,17 +256,17 @@ export default async function EmissionEnginePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Calculations, traces and lineage</CardTitle>
+          <CardTitle>{dict["engine.card.tracesAndLineage"]}</CardTitle>
           <CardDescription>
-            The audit view: what ran, how each number was derived, and where it came from.
+            {dict["engine.card.tracesAndLineageDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="traces">
             <TabsList variant="line">
-              <TabsTrigger value="traces">Traces</TabsTrigger>
-              <TabsTrigger value="calculations">Calculation records</TabsTrigger>
-              <TabsTrigger value="lineage">Lineage</TabsTrigger>
+              <TabsTrigger value="traces">{dict["engine.tab.traces"]}</TabsTrigger>
+              <TabsTrigger value="calculations">{dict["engine.tab.calculationRecords"]}</TabsTrigger>
+              <TabsTrigger value="lineage">{dict["engine.tab.lineage"]}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="traces" className="pt-3">
@@ -277,8 +276,8 @@ export default async function EmissionEnginePage() {
             <TabsContent value="calculations" className="space-y-2 pt-3">
               {calculations.length === 0 ? (
                 <EmptyState
-                  title="No calculation records"
-                  description="Run a calculation to persist one record per scope group."
+                  title={dict["engine.empty.noCalculationRecords"]}
+                  description={dict["engine.empty.noCalculationRecordsDesc"]}
                 />
               ) : (
                 calculations.map((calculation) => (
@@ -320,8 +319,8 @@ export default async function EmissionEnginePage() {
                 </>
               ) : (
                 <EmptyState
-                  title="No lineage graph"
-                  description="Lineage is emitted by a calculation run; there are no results to trace."
+                  title={dict["engine.empty.noLineageGraph"]}
+                  description={dict["engine.empty.noLineageGraphDesc"]}
                 />
               )}
             </TabsContent>

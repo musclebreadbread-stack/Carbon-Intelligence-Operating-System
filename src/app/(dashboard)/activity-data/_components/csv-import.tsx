@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ActionError } from "@/components/shared/form/action-error";
+import { useT } from "@/components/providers/locale-provider";
 import { IDLE_ACTION_STATE, type ActionState } from "@/lib/actions/types";
 import { SETUP_GUIDE_PATH } from "@/lib/i18n/messages";
 
@@ -118,6 +119,7 @@ export type CsvImportProps = {
 };
 
 export function CsvImport({ databaseConfigured, activityDataOptions, commitImport }: CsvImportProps) {
+  const t = useT();
   const [raw, setRaw] = React.useState("");
   const [jobName, setJobName] = React.useState("");
   const [activityDataId, setActivityDataId] = React.useState(activityDataOptions[0]?.value ?? "");
@@ -200,14 +202,12 @@ export function CsvImport({ databaseConfigured, activityDataOptions, commitImpor
     <div className="space-y-4" data-testid="csv-import">
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="csv-file">CSV file</Label>
+          <Label htmlFor="csv-file">{t("csvImport.csvFile")}</Label>
           <Input id="csv-file" type="file" accept=".csv,text/csv" onChange={onFile} />
-          <p className="text-xs text-muted-foreground">
-            Parsed in the browser. Nothing leaves the page until the job is committed.
-          </p>
+          <p className="text-xs text-muted-foreground">{t("csvImport.csvFileHint")}</p>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="csv-job-name">Import job name</Label>
+          <Label htmlFor="csv-job-name">{t("csvImport.importJobName")}</Label>
           <Input
             id="csv-job-name"
             value={jobName}
@@ -216,14 +216,16 @@ export function CsvImport({ databaseConfigured, activityDataOptions, commitImpor
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="csv-activity-data">Activity data set</Label>
+          <Label htmlFor="csv-activity-data">{t("csvImport.activityDataSet")}</Label>
           <select
             id="csv-activity-data"
             value={activityDataId}
             onChange={(event) => setActivityDataId(event.target.value)}
             className="h-9 w-full rounded-lg border border-input bg-background px-2 text-sm"
           >
-            {activityDataOptions.length === 0 && <option value="">— no data sets —</option>}
+            {activityDataOptions.length === 0 && (
+              <option value="">{t("csvImport.noDataSetsOption")}</option>
+            )}
             {activityDataOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
@@ -231,13 +233,14 @@ export function CsvImport({ databaseConfigured, activityDataOptions, commitImpor
             ))}
           </select>
           <p className="text-xs text-muted-foreground">
-            Every imported row is created as an <code>ActivityDataEntry</code> under this set.
+            {t("csvImport.everyImportedRowPrefix")} <code>ActivityDataEntry</code>{" "}
+            {t("csvImport.everyImportedRowSuffix")}
           </p>
         </div>
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="csv-paste">Or paste CSV</Label>
+        <Label htmlFor="csv-paste">{t("csvImport.orPasteCsv")}</Label>
         <Textarea
           id="csv-paste"
           rows={4}
@@ -251,7 +254,7 @@ export function CsvImport({ databaseConfigured, activityDataOptions, commitImpor
       {headers.length > 0 && (
         <>
           <div className="space-y-2">
-            <p className="text-sm font-medium">Column mapping</p>
+            <p className="text-sm font-medium">{t("csvImport.columnMapping")}</p>
             <div className="grid gap-2 sm:grid-cols-2">
               {headers.map((header) => (
                 <div key={header} className="flex items-center gap-2">
@@ -263,7 +266,7 @@ export function CsvImport({ databaseConfigured, activityDataOptions, commitImpor
                   </span>
                   <span className="text-muted-foreground">→</span>
                   <select
-                    aria-label={`Map column ${header}`}
+                    aria-label={`${t("csvImport.mapColumnAriaLabel")} ${header}`}
                     value={mapping[header] ?? ""}
                     onChange={(event) =>
                       setMapping((previous) => ({ ...previous, [header]: event.target.value }))
@@ -284,8 +287,9 @@ export function CsvImport({ databaseConfigured, activityDataOptions, commitImpor
 
           <div className="space-y-2">
             <p className="text-sm font-medium">
-              Preview — first {rows.length} data row{rows.length === 1 ? "" : "s"} of{" "}
-              {dataLines.length}
+              {t("csvImport.previewFirst")} {rows.length}{" "}
+              {rows.length === 1 ? t("csvImport.dataRow") : t("csvImport.dataRows")}{" "}
+              {t("csvImport.of")} {dataLines.length}
             </p>
             <div className="overflow-x-auto rounded-lg border">
               <table className="w-full text-xs">
@@ -293,7 +297,9 @@ export function CsvImport({ databaseConfigured, activityDataOptions, commitImpor
                   <tr>
                     {headers.map((header) => (
                       <th key={header} className="px-2 py-1.5 text-left font-medium">
-                        {mapping[header] || <span className="text-muted-foreground">ignored</span>}
+                        {mapping[header] || (
+                          <span className="text-muted-foreground">{t("csvImport.ignored")}</span>
+                        )}
                       </th>
                     ))}
                   </tr>
@@ -316,9 +322,11 @@ export function CsvImport({ databaseConfigured, activityDataOptions, commitImpor
           {missing.length > 0 ? (
             <Alert variant="destructive">
               <FileSpreadsheet />
-              <AlertTitle>Mapping incomplete</AlertTitle>
+              <AlertTitle>{t("csvImport.mappingIncompleteTitle")}</AlertTitle>
               <AlertDescription>
-                Required target field{missing.length === 1 ? "" : "s"} not mapped:{" "}
+                {missing.length === 1
+                  ? t("csvImport.requiredFieldNotMapped")
+                  : t("csvImport.requiredFieldsNotMapped")}{" "}
                 {missing.map((field) => (
                   <Badge key={field} variant="outline" className="ml-1">
                     {field}
@@ -329,12 +337,14 @@ export function CsvImport({ databaseConfigured, activityDataOptions, commitImpor
           ) : (
             <Alert className="border-emerald-500/40">
               <FileSpreadsheet className="text-emerald-600" />
-              <AlertTitle>Mapping complete</AlertTitle>
+              <AlertTitle>{t("csvImport.mappingCompleteTitle")}</AlertTitle>
               <AlertDescription>
-                {dataLines.length} row{dataLines.length === 1 ? "" : "s"} ready, mapped onto{" "}
-                {mapped.length} field{mapped.length === 1 ? "" : "s"}. Each row will be validated
-                by <code>activityDataEntryInputSchema</code> and run through the active rule
-                sets, exactly as a manually entered row is.
+                {dataLines.length} {dataLines.length === 1 ? t("csvImport.row") : t("csvImport.rows")}{" "}
+                {t("csvImport.readyMappedOnto")}{" "}
+                {mapped.length} {mapped.length === 1 ? t("csvImport.field") : t("csvImport.fields")}.{" "}
+                {t("csvImport.mappingCompleteDetailPrefix")}{" "}
+                <code>activityDataEntryInputSchema</code>{" "}
+                {t("csvImport.mappingCompleteDetailSuffix")}
               </AlertDescription>
             </Alert>
           )}
@@ -352,25 +362,33 @@ export function CsvImport({ databaseConfigured, activityDataOptions, commitImpor
             className={state.data.errorRows > 0 ? "text-amber-600" : "text-emerald-600"}
           />
           <AlertTitle>
-            Imported {state.data.processedRows} of {state.data.totalRows} row(s)
+            {t("csvImport.importedPrefix")} {state.data.processedRows} {t("csvImport.of")}{" "}
+            {state.data.totalRows} {t("csvImport.rowsParenS")}
           </AlertTitle>
           <AlertDescription>
             {state.data.errorRows > 0 ? (
               <>
-                <p>{state.data.errorRows} row(s) were rejected and not saved:</p>
+                <p>
+                  {state.data.errorRows} {t("csvImport.rowsParenS")}{" "}
+                  {t("csvImport.rowsRejectedSuffix")}
+                </p>
                 <ul className="mt-1 list-inside list-disc text-xs">
                   {state.data.rowErrors.slice(0, 10).map((rowError) => (
                     <li key={rowError.rowIndex}>
-                      Row {rowError.rowIndex + 1}: {rowError.errors.join("; ")}
+                      {t("csvImport.rowLabel")} {rowError.rowIndex + 1}:{" "}
+                      {rowError.errors.join("; ")}
                     </li>
                   ))}
                   {state.data.rowErrors.length > 10 && (
-                    <li>…and {state.data.rowErrors.length - 10} more.</li>
+                    <li>
+                      {t("csvImport.andMorePrefix")} {state.data.rowErrors.length - 10}{" "}
+                      {t("csvImport.moreSuffix")}
+                    </li>
                   )}
                 </ul>
               </>
             ) : (
-              "Every row passed validation and the active rule sets."
+              t("csvImport.everyRowPassed")
             )}
           </AlertDescription>
         </Alert>
@@ -379,17 +397,18 @@ export function CsvImport({ databaseConfigured, activityDataOptions, commitImpor
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" disabled={!canCommit || pending} onClick={onCommit}>
           <Upload className="size-3.5" />
-          {pending ? "Committing…" : "Commit import job"}
+          {pending ? t("csvImport.committing") : t("csvImport.commitImportJob")}
         </Button>
         {!databaseConfigured && (
           <span className="text-xs text-muted-foreground">
-            Committing an import writes a <code>DataImportJob</code> plus one entry per row, so it
-            needs <code>DATABASE_URL</code>. See <code>{SETUP_GUIDE_PATH}</code>.
+            {t("csvImport.databaseUrlHintPrefix")} <code>DataImportJob</code>{" "}
+            {t("csvImport.databaseUrlHintMiddle")} <code>DATABASE_URL</code>.{" "}
+            {t("csvImport.databaseUrlHintSuffix")} <code>{SETUP_GUIDE_PATH}</code>.
           </span>
         )}
         {databaseConfigured && activityDataOptions.length === 0 && (
           <span className="text-xs text-muted-foreground">
-            Create an activity data set on the &quot;New entry&quot; tab before importing.
+            {t("csvImport.createActivityDataSetHint")}
           </span>
         )}
       </div>

@@ -24,6 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import { useT } from "@/components/providers/locale-provider";
 
 import { SupabaseNotice } from "../_components/supabase-notice";
 
@@ -31,6 +32,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 export default function ForgotPasswordPage() {
   const configured = isSupabaseConfigured();
+  const t = useT();
   const [email, setEmail] = useState("");
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -43,11 +45,11 @@ export default function ForgotPasswordPage() {
     setFieldError(null);
 
     if (!EMAIL_PATTERN.test(email.trim())) {
-      setFieldError("Enter a valid email address");
+      setFieldError(t("auth.invalidEmail"));
       return;
     }
     if (!configured) {
-      setError("Supabase가 구성되지 않아 재설정 메일을 보낼 수 없습니다.");
+      setError(t("auth.supabaseNotConfigured"));
       return;
     }
 
@@ -68,10 +70,8 @@ export default function ForgotPasswordPage() {
   return (
     <Card>
       <CardHeader className="text-center">
-        <CardTitle className="text-xl">Reset your password</CardTitle>
-        <CardDescription>
-          We will email you a link that signs you in once so you can set a new password.
-        </CardDescription>
+        <CardTitle className="text-xl">{t("auth.resetPassword")}</CardTitle>
+        <CardDescription>{t("auth.forgotPasswordDescription")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <SupabaseNotice configured={configured} />
@@ -88,27 +88,32 @@ export default function ForgotPasswordPage() {
         {sent ? (
           <Alert className="border-emerald-500/40" data-testid="reset-email-sent">
             <MailCheck className="text-emerald-600" />
-            <AlertTitle>Check your email</AlertTitle>
+            <AlertTitle>{t("auth.checkYourEmail")}</AlertTitle>
             <AlertDescription className="space-y-1 text-xs">
               <p>
-                If <strong>{email}</strong> has an account, a reset link is on its way. The link
-                expires after one hour.
+                {(() => {
+                  const [before, after] = t("auth.resetLinkSent").split("{{email}}");
+                  return (
+                    <>
+                      {before}
+                      <strong>{email}</strong>
+                      {after}
+                    </>
+                  );
+                })()}
               </p>
-              <p>
-                Nothing arrived? Check the spam folder, then try again — we do not reveal whether
-                an address is registered, so the message above is the same either way.
-              </p>
+              <p>{t("auth.resetLinkSentHint")}</p>
             </AlertDescription>
           </Alert>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t("auth.email")}</Label>
               <Input
                 id="email"
                 name="email"
                 type="email"
-                placeholder="name@company.com"
+                placeholder={t("auth.placeholder.email")}
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 aria-invalid={fieldError !== null || undefined}
@@ -122,15 +127,15 @@ export default function ForgotPasswordPage() {
               )}
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Sending…" : "Send reset link"}
+              {loading ? t("auth.sendingResetLink") : t("auth.sendResetLink")}
             </Button>
           </form>
         )}
 
         <p className="text-center text-xs text-muted-foreground">
-          Remembered it?{" "}
+          {t("auth.rememberedIt")}{" "}
           <Link href="/login" className="font-medium text-foreground hover:underline">
-            Back to sign in
+            {t("auth.backToSignIn")}
           </Link>
         </p>
       </CardContent>

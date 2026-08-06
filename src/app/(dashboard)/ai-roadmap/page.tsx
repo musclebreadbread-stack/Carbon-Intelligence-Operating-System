@@ -40,6 +40,7 @@ import {
   formatPercent,
   humaniseEnum,
 } from "@/lib/format";
+import { getDictionary } from "@/lib/i18n/server";
 
 type InvestmentRow = {
   readonly technologyId: string;
@@ -141,6 +142,7 @@ const investmentColumns: ColumnDef<InvestmentRow, unknown>[] = [
 
 export default async function AiRoadmapPage() {
   await connection();
+  const dict = await getDictionary();
 
   const organizationId = await activeOrganizationId();
   const years = await listReportingYears(organizationId);
@@ -174,13 +176,13 @@ export default async function AiRoadmapPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="AI roadmap"
-        description="Decarbonisation sequencing, marginal abatement cost curve, least-cost portfolio and investment appraisal."
+        title={dict["roadmap.title"]}
+        description={dict["roadmap.desc"]}
         meta={[
-          { label: "MACC year", value: String(macc.year) },
-          { label: "Measures", value: formatNumber(macc.curve.points.length) },
+          { label: dict["roadmap.meta.maccYear"], value: String(macc.year) },
+          { label: dict["roadmap.meta.measures"], value: formatNumber(macc.curve.points.length) },
           {
-            label: "Abatement target",
+            label: dict["roadmap.meta.abatementTarget"],
             value: `${formatEmissions(macc.abatementTarget)} tCO2e`,
           },
         ]}
@@ -188,40 +190,40 @@ export default async function AiRoadmapPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          title="Required reduction"
+          title={dict["roadmap.kpi.requiredReduction"]}
           value={formatEmissions(plan?.plan.requiredReduction ?? 0)}
           unit={plan?.plan.unit ?? "tCO2e"}
           icon={Target}
           description={
             plan
               ? `${plan.plan.roadmap.baselineYear} → ${plan.plan.roadmap.targetYear}`
-              : "no roadmap"
+              : dict["roadmap.kpi.noRoadmap"]
           }
           source="buildRoadmap()"
         />
         <KpiCard
-          title="Planned reduction"
+          title={dict["roadmap.kpi.plannedReduction"]}
           value={formatEmissions(plan?.plan.plannedReduction ?? 0)}
           unit={plan?.plan.unit ?? "tCO2e"}
           icon={MapIcon}
-          description={`${plan?.plan.actions.length ?? 0} sequenced actions`}
+          description={`${plan?.plan.actions.length ?? 0} ${dict["roadmap.kpi.sequencedActions"]}`}
           source="buildRoadmap()"
           goodDirection="up"
         />
         <KpiCard
-          title="Residual gap"
+          title={dict["roadmap.kpi.residualGap"]}
           value={formatEmissions(plan?.plan.residualGap ?? 0)}
           unit={plan?.plan.unit ?? "tCO2e"}
           icon={TrendingDown}
           description={
             plan
-              ? `${formatPercent(plan.plan.residualGapPercent * 100)} of the required reduction`
+              ? `${formatPercent(plan.plan.residualGapPercent * 100)} ${dict["roadmap.kpi.residualGapDesc"]}`
               : "—"
           }
           source="requiredReduction − plannedReduction"
         />
         <KpiCard
-          title="Portfolio cost"
+          title={dict["roadmap.kpi.portfolioCost"]}
           value={formatCurrency(macc.portfolio.totalCost, macc.portfolio.currency)}
           icon={Coins}
           description={`${formatEmissions(macc.portfolio.totalAbatement)} tCO2e at ${formatCurrency(macc.portfolio.averageCost, macc.portfolio.currency, 2)}/tCO2e`}
@@ -255,10 +257,9 @@ export default async function AiRoadmapPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Marginal abatement cost curve</CardTitle>
+          <CardTitle>{dict["roadmap.card.macc"]}</CardTitle>
           <CardDescription>
-            Measures ordered cheapest first. Negative-cost measures pay for themselves; the
-            marker shows where the cumulative abatement meets the target.
+            {dict["roadmap.card.maccDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -271,38 +272,38 @@ export default async function AiRoadmapPage() {
               />
               <div className="grid gap-2 text-xs sm:grid-cols-4">
                 <div>
-                  <p className="text-muted-foreground">Total potential</p>
+                  <p className="text-muted-foreground">{dict["roadmap.card.maccLabel.totalPotential"]}</p>
                   <p className="font-mono">
                     {formatEmissions(macc.curve.totalAbatementPotential)} tCO2e
                   </p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Negative-cost abatement</p>
+                  <p className="text-muted-foreground">{dict["roadmap.card.maccLabel.negativeCost"]}</p>
                   <p className="font-mono">
                     {formatEmissions(macc.curve.negativeCostAbatement)} tCO2e
                   </p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Average cost</p>
+                  <p className="text-muted-foreground">{dict["roadmap.card.maccLabel.averageCost"]}</p>
                   <p className="font-mono">
                     {formatCurrency(macc.curve.averageCost, macc.curve.currency, 2)}/tCO2e
                   </p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Target met by the portfolio</p>
+                  <p className="text-muted-foreground">{dict["roadmap.card.maccLabel.targetMet"]}</p>
                   <p className="font-mono">{macc.portfolio.meetsTarget ? "yes" : "no"}</p>
                 </div>
               </div>
             </>
           ) : (
-            <EmptyState title="No abatement technologies" />
+            <EmptyState title={dict["roadmap.empty.noAbatementTech"]} />
           )}
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Least-cost portfolio</CardTitle>
+          <CardTitle>{dict["roadmap.card.leastCostPortfolio"]}</CardTitle>
           <CardDescription>
             {macc.portfolio.methodology}
             {macc.portfolio.unmetAbatement > 0
@@ -312,7 +313,7 @@ export default async function AiRoadmapPage() {
         </CardHeader>
         <CardContent className="space-y-1.5">
           {macc.portfolio.selections.length === 0 ? (
-            <EmptyState title="Nothing selected" />
+            <EmptyState title={dict["roadmap.empty.nothingSelected"]} />
           ) : (
             macc.portfolio.selections.map((selection) => (
               <div
@@ -348,7 +349,7 @@ export default async function AiRoadmapPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Roadmap milestones</CardTitle>
+          <CardTitle>{dict["roadmap.card.roadmapMilestones"]}</CardTitle>
           <CardDescription>
             {plan
               ? `${plan.roadmap.name} — actions sequenced by priority and completion year.`
@@ -395,11 +396,11 @@ export default async function AiRoadmapPage() {
                 <table className="w-full text-xs">
                   <thead className="bg-muted/50">
                     <tr>
-                      <th className="px-2 py-1.5 text-left font-medium">Year</th>
-                      <th className="px-2 py-1.5 text-right font-medium">Target</th>
-                      <th className="px-2 py-1.5 text-right font-medium">Planned</th>
-                      <th className="px-2 py-1.5 text-right font-medium">Cumulative reduction</th>
-                      <th className="px-2 py-1.5 text-right font-medium">Gap to target</th>
+                      <th className="px-2 py-1.5 text-left font-medium">{dict["roadmap.table.year"]}</th>
+                      <th className="px-2 py-1.5 text-right font-medium">{dict["roadmap.table.target"]}</th>
+                      <th className="px-2 py-1.5 text-right font-medium">{dict["roadmap.table.planned"]}</th>
+                      <th className="px-2 py-1.5 text-right font-medium">{dict["roadmap.table.cumulativeReduction"]}</th>
+                      <th className="px-2 py-1.5 text-right font-medium">{dict["roadmap.table.gapToTarget"]}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -427,17 +428,16 @@ export default async function AiRoadmapPage() {
               </div>
             </>
           ) : (
-            <EmptyState title="No roadmap" />
+            <EmptyState title={dict["roadmap.empty.noRoadmapRow"]} />
           )}
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Investment appraisal</CardTitle>
+          <CardTitle>{dict["roadmap.card.investmentAppraisal"]}</CardTitle>
           <CardDescription>
-            NPV, IRR (bisection; `no solution` when the cash flow never crosses zero), payback,
-            ROI and levelised cost of abatement per measure.
+            {dict["roadmap.card.investmentAppraisalDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -447,16 +447,16 @@ export default async function AiRoadmapPage() {
             data={investmentRows}
             pageSize={10}
             searchPlaceholder="Filter measures…"
-            emptyState={<EmptyState title="No capex measures to appraise" />}
+            emptyState={<EmptyState title={dict["roadmap.empty.noCapexMeasures"]} />}
           />
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Abatement technologies</CardTitle>
+          <CardTitle>{dict["roadmap.card.abatementTechnologies"]}</CardTitle>
           <CardDescription>
-            The reference catalogue the MACC and the roadmap actions draw on.
+            {dict["roadmap.card.abatementTechnologiesDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-1.5">

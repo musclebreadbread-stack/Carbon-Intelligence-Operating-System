@@ -28,7 +28,7 @@ import {
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { LinkButton } from "@/components/shared/link-button";
-import { useLocale } from "@/components/shared/locale-provider";
+import { useLocale, useT } from "@/components/providers/locale-provider";
 import { SETUP_GUIDE_PATH, resolveMessage } from "@/lib/i18n/messages";
 import type { ActionState } from "@/lib/actions/types";
 import { cn } from "@/lib/utils";
@@ -49,6 +49,7 @@ export function ActionError({
   className,
 }: ActionErrorProps) {
   const locale = useLocale();
+  const t = useT();
 
   if (state.status === "success") {
     if (!showSuccess) return null;
@@ -73,12 +74,11 @@ export function ActionError({
       return (
         <Alert className={cn("border-amber-400/60", className)} data-testid="action-demo-mode">
           <Database className="text-amber-600" />
-          <AlertTitle>Not saved — no database is configured</AlertTitle>
+          <AlertTitle>{t("actionError.demoModeTitle")}</AlertTitle>
           <AlertDescription className="space-y-1">
             <p>{message}</p>
             <p className="text-xs">
-              Provision PostgreSQL and set <code>DATABASE_URL</code> to enable writes. The
-              steps are in <code>{SETUP_GUIDE_PATH}</code>.
+              {t("actionError.demoModeSteps")} <code>{SETUP_GUIDE_PATH}</code>
             </p>
           </AlertDescription>
         </Alert>
@@ -88,11 +88,11 @@ export function ActionError({
       return (
         <Alert variant="destructive" className={className} data-testid="action-unauthorized">
           <KeyRound />
-          <AlertTitle>Your session has ended</AlertTitle>
+          <AlertTitle>{t("actionError.sessionEndedTitle")}</AlertTitle>
           <AlertDescription className="space-y-2">
             <p>{message}</p>
             <LinkButton size="sm" variant="outline" href="/login">
-              Sign in again
+              {t("actionError.signInAgain")}
             </LinkButton>
           </AlertDescription>
         </Alert>
@@ -102,14 +102,12 @@ export function ActionError({
       return (
         <Alert variant="destructive" className={className} data-testid="action-forbidden">
           <ShieldAlert />
-          <AlertTitle>You do not have permission for this</AlertTitle>
+          <AlertTitle>{t("actionError.noPermissionTitle")}</AlertTitle>
           <AlertDescription className="space-y-2">
             <p>{message}</p>
-            <p className="text-xs">
-              You are signed in — this is a missing permission, not a missing session.
-            </p>
+            <p className="text-xs">{t("actionError.noPermissionDetail")}</p>
             <LinkButton size="sm" variant="outline" href="/security">
-              View roles and permissions
+              {t("actionError.viewRolesPermissions")}
             </LinkButton>
           </AlertDescription>
         </Alert>
@@ -148,7 +146,9 @@ export function ActionError({
         <Alert variant="destructive" className={className} data-testid="action-error">
           <TriangleAlert />
           <AlertTitle>{message}</AlertTitle>
-          <AlertDescription className="text-xs">Code: {state.code}</AlertDescription>
+          <AlertDescription className="text-xs">
+            {t("actionError.codeLabel")}: {state.code}
+          </AlertDescription>
         </Alert>
       );
   }

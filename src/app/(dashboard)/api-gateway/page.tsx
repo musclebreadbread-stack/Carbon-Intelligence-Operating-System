@@ -27,6 +27,7 @@ import { listApiKeys } from "@/lib/data/repositories/security";
 import { DEFAULT_RATE_LIMIT, DEFAULT_WINDOW_MS, rateLimitForKey } from "@/lib/api/rate-limit";
 import { formatDate, formatDateTime, formatNumber } from "@/lib/format";
 import { SETUP_GUIDE_PATH } from "@/lib/i18n/messages";
+import { getDictionary } from "@/lib/i18n/server";
 
 import { listEndpoints, readHealth } from "./_lib/endpoints";
 
@@ -48,6 +49,7 @@ function booleanBadge(value: unknown, trueLabel: string, falseLabel: string) {
 
 export default async function ApiGatewayPage() {
   await connection();
+  const dict = await getDictionary();
 
   const organizationId = await activeOrganizationId();
 
@@ -74,46 +76,46 @@ export default async function ApiGatewayPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="API gateway"
-        description="REST surface, API-key authentication, rate limiting and the live health report."
+        title={dict["apiGateway.title"]}
+        description={dict["apiGateway.desc"]}
         meta={[
-          { label: "Version", value: "v1" },
-          { label: "Endpoints", value: formatNumber(endpoints.length) },
-          { label: "Operations", value: formatNumber(totalOperations) },
+          { label: dict["apiGateway.meta.version"], value: "v1" },
+          { label: dict["apiGateway.meta.endpoints"], value: formatNumber(endpoints.length) },
+          { label: dict["apiGateway.meta.operations"], value: formatNumber(totalOperations) },
         ]}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          title="Endpoints"
+          title={dict["apiGateway.kpi.endpoints"]}
           value={formatNumber(endpoints.length)}
           icon={Globe}
-          description={`${totalOperations} operations across GET and POST`}
+          description={`${totalOperations} ${dict["apiGateway.kpi.endpointsDesc"]}`}
           source="generated from the route handlers' method exports"
         />
         <KpiCard
-          title="API keys"
+          title={dict["apiGateway.kpi.apiKeys"]}
           value={formatNumber(apiKeys.length)}
           icon={KeyRound}
-          description={`${apiKeys.filter((key) => key.isActive).length} active`}
+          description={`${apiKeys.filter((key) => key.isActive).length} ${dict["apiGateway.kpi.apiKeysActive"]}`}
           source="listApiKeys()"
         />
         <KpiCard
-          title="Rate limit"
+          title={dict["apiGateway.kpi.rateLimit"]}
           value={formatNumber(limit)}
           unit={`req / ${DEFAULT_WINDOW_MS / 1000}s`}
           icon={Timer}
-          description="token bucket, shared per process; a key with rate:unlimited is exempt"
+          description={dict["apiGateway.kpi.rateLimitDesc"]}
           source="apiRateLimiter"
         />
         <KpiCard
-          title="Accepting writes"
-          value={health?.writable === true ? "yes" : "no"}
+          title={dict["apiGateway.kpi.acceptingWrites"]}
+          value={health?.writable === true ? dict["apiGateway.kpi.yes"] : dict["apiGateway.kpi.no"]}
           icon={Activity}
           description={
             health?.writable === true
-              ? "a database is reachable"
-              : "demo mode: reads are computed, writes are refused"
+              ? dict["apiGateway.kpi.dbReachable"]
+              : dict["apiGateway.kpi.demoMode"]
           }
           source="/api/v1/health"
         />
@@ -121,24 +123,21 @@ export default async function ApiGatewayPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Live health report</CardTitle>
+          <CardTitle>{dict["apiGateway.card.liveHealth"]}</CardTitle>
           <CardDescription>
-            The exact payload <code>GET /api/v1/health</code> returns. It is unauthenticated on
-            purpose — &quot;is the deployment misconfigured?&quot; must be answerable before a key
-            exists — and reports only *whether* each dependency is configured, never a URL or a
-            key.
+            {dict["apiGateway.card.liveHealthDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {health === null ? (
-            <EmptyState title="Health handler returned no payload" />
+            <EmptyState title={dict["apiGateway.empty.noHealth"]} />
           ) : (
             <>
               <div className="grid gap-3 sm:grid-cols-3">
                 <div className="rounded-lg border p-3">
-                  <p className="text-xs text-muted-foreground">Database</p>
+                  <p className="text-xs text-muted-foreground">{dict["apiGateway.label.database"]}</p>
                   <div className="mt-1 flex flex-wrap gap-1.5">
-                    {booleanBadge(database.configured, "configured", "not configured")}
+                    {booleanBadge(database.configured, dict["apiGateway.label.configured"], dict["apiGateway.label.notConfigured"])}
                     <Badge variant="outline">mode {String(database.mode ?? "unknown")}</Badge>
                   </div>
                   {typeof database.fallbackReason === "string" && (
@@ -148,18 +147,18 @@ export default async function ApiGatewayPage() {
                   )}
                 </div>
                 <div className="rounded-lg border p-3">
-                  <p className="text-xs text-muted-foreground">Supabase</p>
+                  <p className="text-xs text-muted-foreground">{dict["apiGateway.label.supabase"]}</p>
                   <div className="mt-1">
-                    {booleanBadge(supabase.configured, "configured", "not configured")}
+                    {booleanBadge(supabase.configured, dict["apiGateway.label.configured"], dict["apiGateway.label.notConfigured"])}
                   </div>
                   <p className="mt-1 text-[11px] text-muted-foreground">
                     Without it, a demo administrator session is used and sign-in is disabled.
                   </p>
                 </div>
                 <div className="rounded-lg border p-3">
-                  <p className="text-xs text-muted-foreground">Language model</p>
+                  <p className="text-xs text-muted-foreground">{dict["apiGateway.label.languageModel"]}</p>
                   <div className="mt-1 flex flex-wrap gap-1.5">
-                    {booleanBadge(llmHealth.configured, "configured", "not configured")}
+                    {booleanBadge(llmHealth.configured, dict["apiGateway.label.configured"], dict["apiGateway.label.notConfigured"])}
                     <Badge variant="outline">{String(llmHealth.model ?? llm.model)}</Badge>
                   </div>
                   <p className="mt-1 text-[11px] text-muted-foreground">
@@ -177,11 +176,9 @@ export default async function ApiGatewayPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Endpoint catalogue</CardTitle>
+          <CardTitle>{dict["apiGateway.card.endpointCatalogue"]}</CardTitle>
           <CardDescription>
-            Generated by importing each handler module and listing the HTTP methods it actually
-            exports, so this table cannot drift from the implementation. Every response uses the
-            same <code>{"{ data, meta }"}</code> / <code>{"{ error }"}</code> envelope.
+            {dict["apiGateway.card.endpointCatalogueDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -189,10 +186,10 @@ export default async function ApiGatewayPage() {
             <table className="w-full text-xs">
               <thead className="bg-muted/50">
                 <tr>
-                  <th className="px-2 py-1.5 text-left font-medium">Path</th>
-                  <th className="px-2 py-1.5 text-left font-medium">Methods</th>
-                  <th className="px-2 py-1.5 text-left font-medium">Auth</th>
-                  <th className="px-2 py-1.5 text-left font-medium">Description</th>
+                  <th className="px-2 py-1.5 text-left font-medium">{dict["apiGateway.table.path"]}</th>
+                  <th className="px-2 py-1.5 text-left font-medium">{dict["apiGateway.table.methods"]}</th>
+                  <th className="px-2 py-1.5 text-left font-medium">{dict["apiGateway.table.auth"]}</th>
+                  <th className="px-2 py-1.5 text-left font-medium">{dict["apiGateway.table.description"]}</th>
                 </tr>
               </thead>
               <tbody>
@@ -229,7 +226,7 @@ export default async function ApiGatewayPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Authentication and rate limiting</CardTitle>
+            <CardTitle>{dict["apiGateway.card.authAndRateLimit"]}</CardTitle>
             <CardDescription>
               `Authorization: Bearer &lt;apiKey&gt;`, hashed and matched against the `APIKey`
               table with `expiresAt` and `isActive` checked.
@@ -266,15 +263,14 @@ export default async function ApiGatewayPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>API keys</CardTitle>
+            <CardTitle>{dict["apiGateway.card.apiKeysCard"]}</CardTitle>
             <CardDescription>
-              Digests are never returned by the repository; only the prefix is shown so a key can
-              be identified in a log without being reconstructed.
+              {dict["apiGateway.card.apiKeysCardDesc"]}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
             {apiKeys.length === 0 ? (
-              <EmptyState title="No API keys" />
+              <EmptyState title={dict["apiGateway.empty.noApiKeys"]} />
             ) : (
               apiKeys.map((key) => (
                 <div key={key.id} className="rounded-md border p-2.5 text-xs">
@@ -286,10 +282,10 @@ export default async function ApiGatewayPage() {
                     <Badge variant={key.isActive ? "secondary" : "destructive"}>
                       {key.isActive ? "active" : "revoked"}
                     </Badge>
-                    <Badge variant="outline" title="Effective requests-per-minute ceiling">
+                    <Badge variant="outline" title={dict["apiGateway.badge.rateLimitTitle"]}>
                       {key.scopes.includes("rate:unlimited")
-                        ? "unlimited"
-                        : `${formatNumber(rateLimitForKey(key.scopes, key.rateLimitPerMinute))}/min${key.rateLimitPerMinute === null ? " (default)" : ""}`}
+                        ? dict["apiGateway.badge.unlimited"]
+                        : `${formatNumber(rateLimitForKey(key.scopes, key.rateLimitPerMinute))}${dict["apiGateway.badge.perMinuteSuffix"]}${key.rateLimitPerMinute === null ? dict["apiGateway.badge.defaultSuffix"] : ""}`}
                     </Badge>
                     <span className="ml-auto text-muted-foreground">
                       last used {formatDateTime(key.lastUsedAt)} · expires{" "}

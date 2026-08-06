@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import { useT } from "@/components/providers/locale-provider";
 import { SupabaseNotice } from "../_components/supabase-notice";
 
 /**
@@ -31,6 +32,7 @@ function isEmailNotConfirmed(error: { code?: string; message: string }): boolean
 export default function LoginPage() {
   const configured = isSupabaseConfigured();
   const router = useRouter();
+  const t = useT();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +46,7 @@ export default function LoginPage() {
     setNeedsConfirmation(false);
 
     if (!configured) {
-      setError("Supabase가 구성되지 않아 로그인할 수 없습니다.");
+      setError(t("auth.supabaseNotConfigured"));
       return;
     }
 
@@ -91,7 +93,7 @@ export default function LoginPage() {
   async function handleOAuthLogin(provider: "google" | "azure") {
     setError(null);
     if (!configured) {
-      setError("Supabase가 구성되지 않아 소셜 로그인을 사용할 수 없습니다.");
+      setError(t("auth.supabaseNotConfigured"));
       return;
     }
     const supabase = createClient();
@@ -110,10 +112,8 @@ export default function LoginPage() {
   return (
     <Card>
       <CardHeader className="text-center">
-        <CardTitle className="text-xl">Welcome back</CardTitle>
-        <CardDescription>
-          Sign in to your Carbon Intelligence account
-        </CardDescription>
+        <CardTitle className="text-xl">{t("auth.welcomeBack")}</CardTitle>
+        <CardDescription>{t("auth.signInDescription")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <SupabaseNotice configured={configured} />
@@ -129,12 +129,10 @@ export default function LoginPage() {
             className="space-y-2 rounded-md border border-amber-400/60 p-3 text-sm"
             data-testid="email-not-confirmed"
           >
-            <p className="font-medium">Confirm your email first</p>
+            <p className="font-medium">{t("auth.emailNotConfirmed")}</p>
             <p className="text-xs text-muted-foreground">
-              The account exists but the address has not been verified, so sign-in is blocked.
-              {resendState === "sent"
-                ? " A new confirmation link is on its way."
-                : " Send yourself another confirmation link."}
+              {t("auth.emailNotConfirmedDescription")}
+              {resendState === "sent" && ` ${t("auth.confirmationSent")}`}
             </p>
             <Button
               type="button"
@@ -144,10 +142,10 @@ export default function LoginPage() {
               disabled={resendState !== "idle"}
             >
               {resendState === "sending"
-                ? "Sending…"
+                ? t("auth.sending")
                 : resendState === "sent"
-                  ? "Confirmation link sent"
-                  : "Resend confirmation email"}
+                  ? t("auth.confirmationSent")
+                  : t("auth.resendConfirmation")}
             </Button>
           </div>
         )}
@@ -178,7 +176,7 @@ export default function LoginPage() {
                 fill="#EA4335"
               />
             </svg>
-            Continue with Google
+            {t("auth.continueWithGoogle")}
           </Button>
           <Button
             variant="outline"
@@ -189,26 +187,26 @@ export default function LoginPage() {
             <svg className="mr-2 size-4" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z" />
             </svg>
-            Continue with Microsoft
+            {t("auth.continueWithMicrosoft")}
           </Button>
         </div>
 
         <div className="relative">
           <Separator />
           <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
-            or continue with email
+            {t("auth.orContinueWithEmail")}
           </span>
         </div>
 
         {/* Email/Password Form */}
         <form onSubmit={handleEmailLogin} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">{t("auth.email")}</Label>
             <Input
               id="email"
               name="email"
               type="email"
-              placeholder="name@company.com"
+              placeholder={t("auth.placeholder.email")}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -216,33 +214,33 @@ export default function LoginPage() {
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t("auth.password")}</Label>
               <Link
                 href="/forgot-password"
                 className="text-xs text-muted-foreground hover:text-foreground"
               >
-                Forgot password?
+                {t("auth.forgotPassword")}
               </Link>
             </div>
             <Input
               id="password"
               name="password"
               type="password"
-              placeholder="Enter your password"
+              placeholder={t("auth.placeholder.password")}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
             />
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Signing in..." : "Sign In"}
+            {loading ? t("auth.signingIn") : t("auth.signIn")}
           </Button>
         </form>
 
         <p className="text-center text-xs text-muted-foreground">
-          Don&apos;t have an account?{" "}
+          {t("auth.noAccount")}{" "}
           <Link href="/register" className="font-medium text-foreground hover:underline">
-            Sign up
+            {t("auth.register")}
           </Link>
         </p>
       </CardContent>

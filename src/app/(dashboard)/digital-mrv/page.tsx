@@ -37,9 +37,11 @@ import {
   scopeLabel,
 } from "@/lib/format";
 import { UNIT_REGISTRY } from "@/lib/reference/units";
+import { getDictionary } from "@/lib/i18n/server";
 
 export default async function DigitalMrvPage() {
   await connection();
+  const dict = await getDictionary();
 
   const organizationId = await activeOrganizationId();
   const years = await listReportingYears(organizationId);
@@ -58,12 +60,12 @@ export default async function DigitalMrvPage() {
     return (
       <div className="space-y-6">
         <PageHeader
-          title="Digital MRV"
-          description="Monitoring, reporting and verification plans with their coverage and completeness."
+          title={dict["mrv.title"]}
+          description={dict["mrv.desc"]}
         />
         <EmptyState
-          title="No MRV plan"
-          description="Create an MRVPlan and a MonitoringPlan to measure coverage against the emission-source inventory."
+          title={dict["mrv.empty.noMrvPlan"]}
+          description={dict["mrv.empty.noMrvPlanDesc"]}
         />
       </div>
     );
@@ -74,35 +76,35 @@ export default async function DigitalMrvPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Digital MRV"
-        description="Monitoring plan coverage, parameter completeness and the meter and sensor readings behind them."
+        title={dict["mrv.title"]}
+        description={dict["mrv.desc"]}
         meta={[
-          { label: "Plan", value: plan.name },
-          { label: "Framework", value: plan.framework || "—" },
-          { label: "Status", value: humaniseEnum(plan.status) },
-          { label: "Reporting year", value: String(reportingYear) },
+          { label: dict["mrv.meta.plan"], value: plan.name },
+          { label: dict["mrv.meta.framework"], value: plan.framework || "—" },
+          { label: dict["mrv.meta.status"], value: humaniseEnum(plan.status) },
+          { label: dict["mrv.meta.reportingYear"], value: String(reportingYear) },
         ]}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          title="Source coverage"
+          title={dict["mrv.kpi.sourceCoverage"]}
           value={formatPercent(coverage.coverage * 100)}
           icon={Radio}
-          description={`${coverage.coveredSourceCount} of ${coverage.sourceCount} sources monitored`}
+          description={`${coverage.coveredSourceCount} of ${coverage.sourceCount} ${dict["mrv.kpi.sourceCoverageDesc"]}`}
           source="monitoringPlanCoverage()"
           goodDirection="up"
         />
         <KpiCard
-          title="Measurement completeness"
+          title={dict["mrv.kpi.measurementCompleteness"]}
           value={formatPercent(completeness.completeness * 100)}
           icon={Gauge}
-          description={`${formatNumber(completeness.totalRecorded)} of ${formatNumber(completeness.totalExpected)} expected readings`}
+          description={`${formatNumber(completeness.totalRecorded)} of ${formatNumber(completeness.totalExpected)} ${dict["mrv.kpi.measurementCompletenessDesc"]}`}
           source="measurementCompleteness()"
           goodDirection="up"
         />
         <KpiCard
-          title="Verified readings"
+          title={dict["mrv.kpi.verifiedReadings"]}
           value={formatPercent(completeness.verifiedShare * 100)}
           icon={Ruler}
           description={`${formatNumber(completeness.totalVerified)} readings verified`}
@@ -110,7 +112,7 @@ export default async function DigitalMrvPage() {
           goodDirection="up"
         />
         <KpiCard
-          title="Monitored parameters"
+          title={dict["mrv.kpi.monitoredParameters"]}
           value={formatNumber(parameters.length)}
           icon={Activity}
           description={`plan frequency ${humaniseEnum(monitoringPlan.frequency)}`}
@@ -120,11 +122,9 @@ export default async function DigitalMrvPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Coverage by scope</CardTitle>
+          <CardTitle>{dict["mrv.card.coverageByScope"]}</CardTitle>
           <CardDescription>
-            Only *active* sources are required to be covered; a parameter that points at a
-            source outside the boundary is reported as an orphan, because measuring something
-            out of scope is as much a finding as missing something in scope.
+            {dict["mrv.card.coverageByScopeDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -150,7 +150,7 @@ export default async function DigitalMrvPage() {
           {coverage.uncovered.length > 0 && (
             <div>
               <p className="mb-1 text-sm font-medium">
-                Coverage gaps ({coverage.uncovered.length})
+                {dict["mrv.card.coverageGaps"]} ({coverage.uncovered.length})
               </p>
               <ul className="space-y-1">
                 {coverage.uncovered.map((gap) => (
@@ -185,19 +185,18 @@ export default async function DigitalMrvPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Parameters, readings and devices</CardTitle>
+          <CardTitle>{dict["mrv.card.parametersReadingsDevices"]}</CardTitle>
           <CardDescription>
-            Expected reading counts come from each parameter&apos;s frequency over the reporting
-            period — HOURLY over 30 days expects 720 readings.
+            {dict["mrv.card.parametersReadingsDevicesDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="completeness">
             <TabsList className="flex-wrap" variant="line">
-              <TabsTrigger value="completeness">Completeness</TabsTrigger>
-              <TabsTrigger value="parameters">Parameters ({parameters.length})</TabsTrigger>
-              <TabsTrigger value="readings">Readings ({measurements.length})</TabsTrigger>
-              <TabsTrigger value="meter">Record a meter reading</TabsTrigger>
+              <TabsTrigger value="completeness">{dict["mrv.tab.completeness"]}</TabsTrigger>
+              <TabsTrigger value="parameters">{dict["mrv.tab.parameters"]} ({parameters.length})</TabsTrigger>
+              <TabsTrigger value="readings">{dict["mrv.tab.readings"]} ({measurements.length})</TabsTrigger>
+              <TabsTrigger value="meter">{dict["mrv.tab.recordMeterReading"]}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="completeness" className="space-y-3 pt-3">
@@ -213,13 +212,13 @@ export default async function DigitalMrvPage() {
                 <table className="w-full text-xs">
                   <thead className="bg-muted/50">
                     <tr>
-                      <th className="px-2 py-1.5 text-left font-medium">Parameter</th>
-                      <th className="px-2 py-1.5 text-left font-medium">Frequency</th>
-                      <th className="px-2 py-1.5 text-right font-medium">Expected</th>
-                      <th className="px-2 py-1.5 text-right font-medium">Recorded</th>
-                      <th className="px-2 py-1.5 text-right font-medium">Verified</th>
-                      <th className="px-2 py-1.5 text-right font-medium">Missing</th>
-                      <th className="px-2 py-1.5 text-right font-medium">Completeness</th>
+                      <th className="px-2 py-1.5 text-left font-medium">{dict["mrv.table.parameter"]}</th>
+                      <th className="px-2 py-1.5 text-left font-medium">{dict["mrv.table.frequency"]}</th>
+                      <th className="px-2 py-1.5 text-right font-medium">{dict["mrv.table.expected"]}</th>
+                      <th className="px-2 py-1.5 text-right font-medium">{dict["mrv.table.recorded"]}</th>
+                      <th className="px-2 py-1.5 text-right font-medium">{dict["mrv.table.verified"]}</th>
+                      <th className="px-2 py-1.5 text-right font-medium">{dict["mrv.table.missing"]}</th>
+                      <th className="px-2 py-1.5 text-right font-medium">{dict["mrv.table.completeness"]}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -286,17 +285,17 @@ export default async function DigitalMrvPage() {
 
             <TabsContent value="readings" className="pt-3">
               {measurements.length === 0 ? (
-                <EmptyState title="No readings for this period" />
+                <EmptyState title={dict["mrv.empty.noReadings"]} />
               ) : (
                 <div className="overflow-x-auto rounded-lg border">
                   <table className="w-full text-xs">
                     <thead className="bg-muted/50">
                       <tr>
-                        <th className="px-2 py-1.5 text-left font-medium">Measured at</th>
-                        <th className="px-2 py-1.5 text-left font-medium">Parameter</th>
-                        <th className="px-2 py-1.5 text-right font-medium">Value</th>
-                        <th className="px-2 py-1.5 text-right font-medium">Uncertainty</th>
-                        <th className="px-2 py-1.5 text-left font-medium">Verified</th>
+                        <th className="px-2 py-1.5 text-left font-medium">{dict["mrv.table.measuredAt"]}</th>
+                        <th className="px-2 py-1.5 text-left font-medium">{dict["mrv.table.parameter"]}</th>
+                        <th className="px-2 py-1.5 text-right font-medium">{dict["mrv.table.value"]}</th>
+                        <th className="px-2 py-1.5 text-right font-medium">{dict["mrv.table.uncertainty"]}</th>
+                        <th className="px-2 py-1.5 text-left font-medium">{dict["mrv.table.verified"]}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -390,9 +389,9 @@ export default async function DigitalMrvPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Monitored sources</CardTitle>
+          <CardTitle>{dict["mrv.card.monitoredSources"]}</CardTitle>
           <CardDescription>
-            Which parameters cover which source, and at what frequency.
+            {dict["mrv.card.monitoredSourcesDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-1.5">

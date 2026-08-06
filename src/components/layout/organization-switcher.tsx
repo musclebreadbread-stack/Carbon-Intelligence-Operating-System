@@ -23,11 +23,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useSession } from "@/components/providers/session-provider";
+import { useT } from "@/components/providers/locale-provider";
 import { setActiveOrganizationAction } from "@/lib/actions/auth";
 
 export function OrganizationSwitcher() {
   const { session, organizations, dataMode } = useSession();
   const [pending, startTransition] = React.useTransition();
+  const t = useT();
 
   const activeId = session?.organizationId ?? organizations[0]?.id ?? null;
   const activeName =
@@ -44,7 +46,7 @@ export function OrganizationSwitcher() {
         <Building2 className="size-4 text-muted-foreground" />
         <span className="hidden sm:inline">{activeName}</span>
         {dataMode === "demo" && (
-          <span className="text-xs text-muted-foreground">(sample)</span>
+          <span className="text-xs text-muted-foreground">({t("shell.demoData")})</span>
         )}
       </div>
     );

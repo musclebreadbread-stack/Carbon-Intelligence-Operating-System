@@ -14,6 +14,7 @@ import { AlertOctagon, KeyRound, RefreshCw, ShieldAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { LinkButton } from "@/components/shared/link-button";
+import { useT } from "@/components/providers/locale-provider";
 import {
   Card,
   CardContent,
@@ -32,6 +33,8 @@ export type ModuleErrorProps = {
 };
 
 export function ModuleError({ error, retry, segment }: ModuleErrorProps) {
+  const t = useT();
+
   React.useEffect(() => {
     console.error(`[boundary${segment ? `:${segment}` : ""}]`, error);
   }, [error, segment]);
@@ -59,7 +62,7 @@ export function ModuleError({ error, retry, segment }: ModuleErrorProps) {
           {copy.retryable && retry && (
             <Button size="sm" onClick={() => retry()}>
               <RefreshCw className="size-3.5" />
-              Try again
+              {t("common.retry")}
             </Button>
           )}
           {copy.actionHref && copy.actionLabel && (

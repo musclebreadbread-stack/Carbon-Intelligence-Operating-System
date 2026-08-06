@@ -56,11 +56,13 @@ import {
   formatPercent,
   scopeLabel,
 } from "@/lib/format";
+import { getDictionary } from "@/lib/i18n/server";
 
 export default async function DashboardPage() {
   await connection();
 
   const organizationId = await activeOrganizationId();
+  const dict = await getDictionary();
   const years = await listReportingYears(organizationId);
   const currentYear = years[0] ?? new Date().getUTCFullYear();
   const priorYear = years[1] ?? currentYear - 1;
@@ -136,21 +138,21 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Dashboard"
-        description="Carbon Intelligence Operating System — inventory, targets, finance and data-quality overview."
+        title={dict["dashboard.title"]}
+        description={dict["app.description"]}
         meta={[
-          { label: "Reporting year", value: String(currentYear) },
-          { label: "Comparison", value: String(priorYear) },
-          { label: "GWP", value: current.gwpVersion },
-          { label: "Scope 2 basis", value: current.totals.scope2Basis },
+          { label: dict["dashboard.meta.reportingYear"], value: String(currentYear) },
+          { label: dict["dashboard.meta.comparison"], value: String(priorYear) },
+          { label: dict["dashboard.meta.gwp"], value: current.gwpVersion },
+          { label: dict["dashboard.meta.scope2Basis"], value: current.totals.scope2Basis },
         ]}
         actions={
           <>
             <LinkButton size="sm" variant="outline" href="/emission-engine">
-              Run a calculation
+              {dict["dashboard.btn.runCalculation"]}
             </LinkButton>
             <LinkButton size="sm" href="/esg-disclosure">
-              Disclosure status
+              {dict["dashboard.btn.disclosureStatus"]}
             </LinkButton>
           </>
         }
@@ -158,77 +160,77 @@ export default async function DashboardPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          title="Total emissions"
+          title={dict["dashboard.kpi.totalEmissions"]}
           value={formatEmissions(current.totals.totalEmissions)}
           unit={current.totals.unit}
           icon={Factory}
           change={change(current.totals.totalEmissions, prior.totals.totalEmissions)}
-          description={`vs ${priorYear}`}
+          description={`${dict["dashboard.label.vs"]} ${priorYear}`}
           source="buildInventory()"
         />
         <KpiCard
-          title="Emission intensity"
+          title={dict["dashboard.kpi.emissionIntensity"]}
           value={formatNumber(intensity.value, 5)}
           unit={intensity.unit}
           icon={Gauge}
-          description="per unit of recorded activity"
+          description={dict["dashboard.kpi.intensityDesc"]}
           source="intensity()"
         />
         <KpiCard
-          title="Scope 1 (direct)"
+          title={dict["dashboard.kpi.scope1Direct"]}
           value={formatEmissions(current.totals.scope1Total)}
           unit={current.totals.unit}
           icon={Zap}
           change={change(current.totals.scope1Total, prior.totals.scope1Total)}
-          description={`vs ${priorYear}`}
+          description={`${dict["dashboard.label.vs"]} ${priorYear}`}
           source="buildInventory()"
         />
         <KpiCard
-          title="Scope 2 (location)"
+          title={dict["dashboard.kpi.scope2Location"]}
           value={formatEmissions(current.totals.scope2Location)}
           unit={current.totals.unit}
           icon={Zap}
           change={change(current.totals.scope2Location, prior.totals.scope2Location)}
-          description={`market basis ${formatEmissions(current.totals.scope2Market)}`}
+          description={`${dict["dashboard.kpi.marketBasis"]} ${formatEmissions(current.totals.scope2Market)}`}
           source="buildInventory()"
         />
         <KpiCard
-          title="Scope 3 (value chain)"
+          title={dict["dashboard.kpi.scope3ValueChain"]}
           value={formatEmissions(current.totals.scope3Total)}
           unit={current.totals.unit}
           icon={Zap}
           change={change(current.totals.scope3Total, prior.totals.scope3Total)}
-          description={`${Object.keys(current.totals.scope3ByCategory).length} of 15 categories`}
+          description={`${Object.keys(current.totals.scope3ByCategory).length} ${dict["dashboard.kpi.categoriesOf15"]}`}
           source="buildInventory()"
         />
         <KpiCard
-          title="Net emissions"
+          title={dict["dashboard.kpi.netEmissions"]}
           value={formatEmissions(finance.net.netEmissions)}
           unit={finance.net.unit}
           icon={Leaf}
-          description={`${formatPercent(finance.net.offsetShare * 100)} covered by retirements`}
+          description={`${formatPercent(finance.net.offsetShare * 100)} ${dict["dashboard.kpi.coveredByRetirements"]}`}
           source="netEmissions()"
         />
         <KpiCard
-          title="Target progress"
+          title={dict["dashboard.kpi.targetProgress"]}
           value={
             pathway?.progress?.latest
               ? formatPercent(pathway.progress.latest.reductionPercent)
-              : "no target"
+              : dict["dashboard.kpi.noTarget"]
           }
           icon={Target}
           description={
             pathway?.progress?.latest
               ? pathway.progress.isOnTrack
-                ? "on track against the pathway"
-                : `${formatEmissions(pathway.progress.latest.gapToPathway ?? 0)} ${current.totals.unit} behind the pathway`
-              : "define a science-based target"
+                ? dict["dashboard.kpi.onTrack"]
+                : `${formatEmissions(pathway.progress.latest.gapToPathway ?? 0)} ${current.totals.unit} ${dict["dashboard.kpi.behindPathway"]}`
+              : dict["dashboard.kpi.defineTarget"]
           }
           source="evaluateProgress()"
           goodDirection="up"
         />
         <KpiCard
-          title="Data quality"
+          title={dict["dashboard.kpi.dataQuality"]}
           value={formatNumber(outcome.quality.aggregate.overallScore, 1)}
           unit="/ 100"
           icon={Activity}
@@ -241,27 +243,25 @@ export default async function DashboardPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Emissions trend</CardTitle>
+            <CardTitle>{dict["dashboard.card.emissionsTrend"]}</CardTitle>
             <CardDescription>
-              Monthly, by scope, attributed to each entry&apos;s activity period.
+              {dict["dashboard.card.emissionsTrendDesc"]}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {trendPoints.length > 0 ? (
               <EmissionsTrendChart points={trendPoints} unit={current.totals.unit} />
             ) : (
-              <EmptyState title="No monthly series yet" />
+              <EmptyState title={dict["dashboard.empty.noMonthlySeries"]} />
             )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Scope breakdown</CardTitle>
+            <CardTitle>{dict["dashboard.card.scopeBreakdown"]}</CardTitle>
             <CardDescription>
-              Share of the {formatEmissions(current.totals.totalEmissions)}{" "}
-              {current.totals.unit} total, on the {current.totals.scope2Basis.toLowerCase()}{" "}
-              Scope 2 basis.
+              {dict["dashboard.card.scopeBreakdownDesc"]}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -292,15 +292,14 @@ export default async function DashboardPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Targets and net zero</CardTitle>
+            <CardTitle>{dict["dashboard.card.targetsAndNetZero"]}</CardTitle>
             <CardDescription>
-              SBTi absolute-contraction pathway and the residual volume that has to be
-              neutralised.
+              {dict["dashboard.card.targetsAndNetZeroDesc"]}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {targets.length === 0 ? (
-              <EmptyState title="No science-based targets" />
+              <EmptyState title={dict["dashboard.empty.noTargets"]} />
             ) : (
               targets.map((target) => (
                 <div key={target.id} className="rounded-md border p-2.5 text-sm">
@@ -349,21 +348,21 @@ export default async function DashboardPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Attention required</CardTitle>
+                <CardTitle>{dict["dashboard.card.attentionRequired"]}</CardTitle>
                 <CardDescription>
-                  Anomalies detected in the current activity data, most severe first.
+                  {dict["dashboard.card.attentionRequiredDesc"]}
                 </CardDescription>
               </div>
               <Badge variant={criticalAnomalies.length > 0 ? "destructive" : "secondary"}>
-                {criticalAnomalies.length} high or critical
+                {criticalAnomalies.length} {dict["dashboard.badge.highOrCritical"]}
               </Badge>
             </div>
           </CardHeader>
           <CardContent className="space-y-1.5">
             {anomalies.length === 0 ? (
               <EmptyState
-                title="Nothing flagged"
-                description="detectAnomalies() ran over every activity series and found nothing outside its threshold."
+                title={dict["dashboard.empty.nothingFlagged"]}
+                description={dict["dashboard.empty.nothingFlaggedDesc"]}
               />
             ) : (
               anomalies.slice(0, 8).map((anomaly, index) => (
@@ -384,7 +383,7 @@ export default async function DashboardPage() {
             )}
             {anomalies.length > 8 && (
               <LinkButton size="xs" variant="ghost" href="/ai-engine">
-                View all {anomalies.length} anomalies
+                {dict["dashboard.btn.viewAllAnomalies"]} ({anomalies.length})
               </LinkButton>
             )}
           </CardContent>
@@ -395,21 +394,23 @@ export default async function DashboardPage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Recent activity</CardTitle>
+              <CardTitle>{dict["dashboard.card.recentActivity"]}</CardTitle>
               <CardDescription>
-                The audit trail: every mutation with its actor and a field-level diff.
+                {dict["dashboard.card.recentActivityDesc"]}
               </CardDescription>
             </div>
             <Badge variant="secondary">
-              {current.computedFromFixtures ? "computed from fixtures" : "live"}
+              {current.computedFromFixtures
+                ? dict["dashboard.badge.computedFromFixtures"]
+                : dict["dashboard.badge.live"]}
             </Badge>
           </div>
         </CardHeader>
         <CardContent>
           {auditTrail.length === 0 ? (
             <EmptyState
-              title="No audit entries"
-              description="Audit rows are written by the server actions on every mutation. With no database configured, reads are computed and nothing is written, so this feed stays empty."
+              title={dict["dashboard.empty.noAuditEntries"]}
+              description={dict["dashboard.empty.noAuditEntriesDesc"]}
             />
           ) : (
             <div className="space-y-2">
@@ -439,10 +440,9 @@ export default async function DashboardPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Where the numbers come from</CardTitle>
+          <CardTitle>{dict["dashboard.card.whereNumbersCome"]}</CardTitle>
           <CardDescription>
-            Nothing on this page is a stored summary. Each KPI names the domain function that
-            produced it.
+            {dict["dashboard.card.whereNumbersComeDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">

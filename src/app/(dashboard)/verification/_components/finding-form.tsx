@@ -15,6 +15,7 @@ import { FilePlus2 } from "lucide-react";
 import { FormField } from "@/components/shared/form/form-field";
 import { SubmitButton } from "@/components/shared/form/submit-button";
 import { ActionError } from "@/components/shared/form/action-error";
+import { useT } from "@/components/providers/locale-provider";
 import { IDLE_ACTION_STATE, type ActionState } from "@/lib/actions/types";
 
 type Option = { readonly value: string; readonly label: string };
@@ -34,6 +35,7 @@ export function FindingForm({
   readonly users: readonly Option[];
   readonly recordFinding: (input: unknown) => Promise<ActionState<{ readonly id: string }>>;
 }) {
+  const t = useT();
   const [state, formAction, pending] = React.useActionState<
     ActionState<{ readonly id: string }>,
     FormData
@@ -64,52 +66,52 @@ export function FindingForm({
   return (
     <form action={formAction} className="space-y-4" data-testid="finding-form">
       <div className="grid gap-3 sm:grid-cols-2">
-        <FormField name="title" label="Title" required className="sm:col-span-2" />
-        <FormField name="type" label="Type" type="select" required options={findingTypes} />
-        <FormField name="severity" label="Severity" type="select" required options={severities} />
+        <FormField name="title" label={t("verification.form.title")} required className="sm:col-span-2" />
+        <FormField name="type" label={t("verification.form.type")} type="select" required options={findingTypes} />
+        <FormField name="severity" label={t("verification.table.severity")} type="select" required options={severities} />
         <FormField
           name="misstatementAmount"
-          label="Misstatement amount (tCO2e)"
+          label={t("verification.form.misstatementAmount")}
           type="number"
           step="any"
           className="sm:col-span-2"
-          description="Quantify the misstatement whenever it can be measured: assessMateriality() aggregates only quantified findings, so leaving this blank means the engagement will always return an unqualified opinion."
+          description={t("verification.form.misstatementAmountDesc")}
         />
         <FormField
           name="estimatedFinancialImpact"
-          label="Estimated financial impact"
+          label={t("verification.form.estimatedFinancialImpact")}
           type="number"
           step="any"
-          description="Informational only — not used by assessMateriality(), which has no monetary threshold to weigh it against."
+          description={t("verification.form.estimatedFinancialImpactDesc")}
         />
         <FormField
           name="impactCurrency"
-          label="Impact currency (ISO 4217)"
+          label={t("verification.form.impactCurrency")}
           placeholder="USD"
         />
-        <FormField name="status" label="Status" type="select" required options={statuses} defaultValue="open" />
+        <FormField name="status" label={t("verification.meta.status")} type="select" required options={statuses} defaultValue="open" />
         <FormField
           name="assignedToId"
-          label="Assigned to"
+          label={t("verification.form.assignedTo")}
           type="select"
           options={users}
         />
-        <FormField name="dueDate" label="Due date" type="date" />
+        <FormField name="dueDate" label={t("verification.form.dueDate")} type="date" />
         <FormField
           name="resolvedAt"
-          label="Resolved at"
+          label={t("verification.form.resolvedAt")}
           type="date"
-          description="Required when the status is resolved, closed or accepted."
+          description={t("verification.form.resolvedAtDesc")}
         />
         <FormField
           name="description"
-          label="Description"
+          label={t("verification.form.description")}
           type="textarea"
           className="sm:col-span-2"
         />
         <FormField
           name="recommendation"
-          label="Recommendation"
+          label={t("verification.form.recommendation")}
           type="textarea"
           className="sm:col-span-2"
         />
@@ -133,9 +135,9 @@ export function FindingForm({
         ]}
       />
 
-      <SubmitButton pending={pending} pendingLabel="Recording…">
+      <SubmitButton pending={pending} pendingLabel={t("verification.form.recording")}>
         <FilePlus2 className="size-3.5" />
-        Record finding
+        {t("verification.tab.recordFinding")}
       </SubmitButton>
     </form>
   );

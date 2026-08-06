@@ -34,6 +34,7 @@ import {
 import { describeLlmMode, isLlmConfigured } from "@/lib/ai/llm/factory";
 import { getSession, isSupabaseConfigured } from "@/lib/auth/session";
 import { getDataMode, isDbConfigured } from "@/lib/data/db";
+import { getDictionary } from "@/lib/i18n/server";
 import { SETUP_GUIDE_PATH } from "@/lib/i18n/messages";
 
 export const metadata = {
@@ -45,49 +46,50 @@ export const metadata = {
 const MODULES = [
   {
     icon: Database,
-    title: "Inventory and master data",
-    body: "Seven-level organisational hierarchy, versioned emission factors with citations, and activity data with per-entry data-quality scoring.",
+    titleKey: "landing.module.inventory.title",
+    bodyKey: "landing.module.inventory.body",
   },
   {
     icon: Flame,
-    title: "Calculation engines",
-    body: "Scope 1 (stationary, mobile, process, fugitive), dual-basis Scope 2, all fifteen Scope 3 categories, uncertainty propagation and Monte Carlo.",
+    titleKey: "landing.module.engines.title",
+    bodyKey: "landing.module.engines.body",
   },
   {
     icon: Brain,
-    title: "Statistical AI",
-    body: "Anomaly detection, forecasting, gap detection and confidence scoring as deterministic statistics — reproducible and defensible in an audit.",
+    titleKey: "landing.module.ai.title",
+    bodyKey: "landing.module.ai.body",
   },
   {
     icon: BarChart3,
-    title: "Targets and scenarios",
-    body: "SBTi absolute-contraction pathways, net-zero planning, carbon budgets and scenario projection against IEA lever sets.",
+    titleKey: "landing.module.targets.title",
+    bodyKey: "landing.module.targets.body",
   },
   {
     icon: Coins,
-    title: "Carbon finance",
-    body: "MACC curves, NPV/IRR appraisal, credit registry with FIFO retirement, ETS position and REC/PPA coverage.",
+    titleKey: "landing.module.finance.title",
+    bodyKey: "landing.module.finance.body",
   },
   {
     icon: FileText,
-    title: "Disclosure",
-    body: "CDP, ISSB, CSRD/ESRS, TCFD, GRI and SASB mapping with numeric datapoints auto-populated from the calculated inventory.",
+    titleKey: "landing.module.disclosure.title",
+    bodyKey: "landing.module.disclosure.body",
   },
   {
     icon: FileCheck,
-    title: "MRV and verification",
-    body: "Monitoring plan coverage, measurement completeness, findings with materiality-driven opinion forming and hashed evidence packages.",
+    titleKey: "landing.module.mrv.title",
+    bodyKey: "landing.module.mrv.body",
   },
   {
     icon: Bot,
-    title: "Agents and API",
-    body: "A bounded tool-call runtime over the same domain functions, MCP server connections, and a rate-limited REST gateway.",
+    titleKey: "landing.module.agents.title",
+    bodyKey: "landing.module.agents.body",
   },
 ] as const;
 
 export default async function Home() {
   await connection();
 
+  const dict = await getDictionary();
   const session = await getSession();
   const supabaseConfigured = isSupabaseConfigured();
   const dataMode = getDataMode();
@@ -100,26 +102,26 @@ export default async function Home() {
           <Leaf className="size-5 text-emerald-600" />
           <span className="text-sm font-semibold">CIOS</span>
           <Badge variant="outline" className="ml-1">
-            {dataMode === "demo" ? "demo mode" : "live"}
+            {dataMode === "demo" ? dict["demo.banner"] : dict["dashboard.badge.live"]}
           </Badge>
         </div>
         <div className="flex items-center gap-2">
           {session ? (
             <LinkButton size="sm" href="/dashboard">
-              Open the dashboard
+              {dict["landing.openDashboard"]}
             </LinkButton>
           ) : supabaseConfigured ? (
             <>
               <LinkButton size="sm" variant="ghost" href="/register">
-                Create an account
+                {dict["auth.createAccount"]}
               </LinkButton>
               <LinkButton size="sm" href="/login">
-                Sign in
+                {dict["auth.login"]}
               </LinkButton>
             </>
           ) : (
             <LinkButton size="sm" href="/dashboard">
-              Explore the demo
+              {dict["landing.exploreDemo"]}
             </LinkButton>
           )}
         </div>
@@ -128,28 +130,24 @@ export default async function Home() {
       <main className="mx-auto w-full max-w-5xl flex-1 space-y-8 px-6 py-12">
         <section className="space-y-4">
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            Carbon Intelligence Operating System
+            {dict["landing.title"]}
           </h1>
           <p className="max-w-3xl text-sm text-muted-foreground sm:text-base">
-            An enterprise greenhouse-gas platform built the other way round from most: the
-            calculation engines are pure, tested TypeScript with no database or framework
-            imports, and the interface reads through them. Every figure on every screen names
-            the function that produced it, because an inventory number you cannot re-perform is
-            not an inventory number.
+            {dict["landing.heroBody"]}
           </p>
           <div className="flex flex-wrap gap-2">
             {session ? (
-              <LinkButton href="/dashboard">Open the dashboard</LinkButton>
+              <LinkButton href="/dashboard">{dict["landing.openDashboard"]}</LinkButton>
             ) : (
               <LinkButton href="/dashboard">
-                {supabaseConfigured ? "Open the dashboard" : "Explore with sample data"}
+                {supabaseConfigured ? dict["landing.openDashboard"] : dict["landing.exploreSampleData"]}
               </LinkButton>
             )}
             <LinkButton variant="outline" href="/emission-engine">
-              See the calculation engine
+              {dict["landing.seeEngine"]}
             </LinkButton>
             <LinkButton variant="ghost" href="/api-gateway">
-              REST API
+              {dict["landing.restApi"]}
             </LinkButton>
           </div>
         </section>
@@ -158,39 +156,38 @@ export default async function Home() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <ShieldCheck className="size-4 text-muted-foreground" />
-              This deployment
+              {dict["landing.deployment.title"]}
             </CardTitle>
             <CardDescription>
-              Reported from the same predicates the runtime uses, so it cannot disagree with how
-              the application behaves.
+              {dict["landing.deployment.description"]}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="rounded-lg border p-3">
-                <p className="text-xs text-muted-foreground">Database</p>
+                <p className="text-xs text-muted-foreground">{dict["apiGateway.label.database"]}</p>
                 <Badge variant={isDbConfigured() ? "secondary" : "outline"}>
-                  {isDbConfigured() ? "configured" : "not configured"}
+                  {isDbConfigured() ? dict["apiGateway.label.configured"] : dict["apiGateway.label.notConfigured"]}
                 </Badge>
                 <p className="mt-1 text-[11px] text-muted-foreground">
                   {isDbConfigured()
-                    ? "Reads and writes go to PostgreSQL."
-                    : "Reads come from the bundled sample dataset — computed by the real engines — and writes are refused."}
+                    ? dict["landing.deployment.dbConfiguredDesc"]
+                    : dict["landing.deployment.dbNotConfiguredDesc"]}
                 </p>
               </div>
               <div className="rounded-lg border p-3">
-                <p className="text-xs text-muted-foreground">Authentication</p>
+                <p className="text-xs text-muted-foreground">{dict["landing.deployment.authLabel"]}</p>
                 <Badge variant={supabaseConfigured ? "secondary" : "outline"}>
-                  {supabaseConfigured ? "Supabase" : "demo session"}
+                  {supabaseConfigured ? dict["apiGateway.label.supabase"] : dict["landing.deployment.demoSessionBadge"]}
                 </Badge>
                 <p className="mt-1 text-[11px] text-muted-foreground">
                   {supabaseConfigured
-                    ? "Email, Google and Microsoft sign-in are available."
+                    ? dict["landing.deployment.authConfiguredDesc"]
                     : "Supabase가 구성되지 않아 데모 관리자 세션으로 동작합니다."}
                 </p>
               </div>
               <div className="rounded-lg border p-3">
-                <p className="text-xs text-muted-foreground">Narrative generation</p>
+                <p className="text-xs text-muted-foreground">{dict["landing.deployment.narrativeLabel"]}</p>
                 <Badge variant={isLlmConfigured() ? "secondary" : "outline"}>
                   {llm.mode}
                 </Badge>
@@ -210,15 +207,15 @@ export default async function Home() {
           {MODULES.map((module) => {
             const Icon = module.icon;
             return (
-              <Card key={module.title}>
+              <Card key={module.titleKey}>
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-sm">
                     <Icon className="size-4 text-emerald-600" />
-                    {module.title}
+                    {dict[module.titleKey]}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-xs text-muted-foreground">{module.body}</p>
+                  <p className="text-xs text-muted-foreground">{dict[module.bodyKey]}</p>
                 </CardContent>
               </Card>
             );
@@ -227,8 +224,7 @@ export default async function Home() {
       </main>
 
       <footer className="border-t bg-background px-6 py-4 text-center text-xs text-muted-foreground">
-        Carbon Intelligence Operating System · GHG Protocol · ISO 14064 · SBTi · CDP · ISSB ·
-        CSRD/ESRS
+        {dict["landing.footer"]}
       </footer>
     </div>
   );

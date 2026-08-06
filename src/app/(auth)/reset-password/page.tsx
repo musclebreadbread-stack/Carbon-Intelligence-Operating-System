@@ -27,6 +27,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import { useT } from "@/components/providers/locale-provider";
 
 import { SupabaseNotice } from "../_components/supabase-notice";
 
@@ -35,6 +36,7 @@ const MIN_PASSWORD_LENGTH = 8;
 export default function ResetPasswordPage() {
   const configured = isSupabaseConfigured();
   const router = useRouter();
+  const t = useT();
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [passwordError, setPasswordError] = useState<string | null>(null);
@@ -68,15 +70,15 @@ export default function ResetPasswordPage() {
     setConfirmationError(null);
 
     if (password.length < MIN_PASSWORD_LENGTH) {
-      setPasswordError(`Use at least ${MIN_PASSWORD_LENGTH} characters`);
+      setPasswordError(t("auth.passwordMinLength"));
       return;
     }
     if (password !== confirmation) {
-      setConfirmationError("The two passwords do not match");
+      setConfirmationError(t("auth.passwordMismatch"));
       return;
     }
     if (!configured) {
-      setError("Supabase가 구성되지 않아 비밀번호를 변경할 수 없습니다.");
+      setError(t("auth.supabaseNotConfigured"));
       return;
     }
 
@@ -95,10 +97,8 @@ export default function ResetPasswordPage() {
   return (
     <Card>
       <CardHeader className="text-center">
-        <CardTitle className="text-xl">Choose a new password</CardTitle>
-        <CardDescription>
-          At least {MIN_PASSWORD_LENGTH} characters. You will stay signed in on this device.
-        </CardDescription>
+        <CardTitle className="text-xl">{t("auth.updatePassword")}</CardTitle>
+        <CardDescription>{t("auth.resetPasswordDescription")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <SupabaseNotice configured={configured} />
@@ -106,14 +106,11 @@ export default function ResetPasswordPage() {
         {configured && hasRecoverySession === false && (
           <Alert variant="destructive" data-testid="no-recovery-session">
             <LinkIcon />
-            <AlertTitle>This reset link is no longer valid</AlertTitle>
+            <AlertTitle>{t("auth.linkNoLongerValid")}</AlertTitle>
             <AlertDescription className="space-y-2 text-xs">
-              <p>
-                Recovery links sign you in for a short window and expire after one hour. Request a
-                new one and open it from the same browser.
-              </p>
+              <p>{t("auth.linkExpiredHint")}</p>
               <LinkButton size="sm" variant="outline" href="/forgot-password">
-                Request a new link
+                {t("auth.requestNewLink")}
               </LinkButton>
             </AlertDescription>
           </Alert>
@@ -128,9 +125,9 @@ export default function ResetPasswordPage() {
         {done ? (
           <Alert className="border-emerald-500/40" data-testid="password-updated">
             <CheckCircle2 className="text-emerald-600" />
-            <AlertTitle>Password updated</AlertTitle>
+            <AlertTitle>{t("auth.passwordUpdatedTitle")}</AlertTitle>
             <AlertDescription className="space-y-2 text-xs">
-              <p>Use the new password next time you sign in.</p>
+              <p>{t("auth.passwordUpdatedHint")}</p>
               <Button
                 size="sm"
                 onClick={() => {
@@ -138,14 +135,14 @@ export default function ResetPasswordPage() {
                   router.refresh();
                 }}
               >
-                Go to the dashboard
+                {t("testAccount.cta")}
               </Button>
             </AlertDescription>
           </Alert>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             <div className="space-y-2">
-              <Label htmlFor="password">New password</Label>
+              <Label htmlFor="password">{t("auth.newPassword")}</Label>
               <Input
                 id="password"
                 name="password"
@@ -163,7 +160,7 @@ export default function ResetPasswordPage() {
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="confirmation">Confirm new password</Label>
+              <Label htmlFor="confirmation">{t("auth.confirmPassword")}</Label>
               <Input
                 id="confirmation"
                 name="confirmation"
@@ -181,14 +178,14 @@ export default function ResetPasswordPage() {
               )}
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Saving…" : "Set new password"}
+              {loading ? t("auth.updatingPassword") : t("auth.updatePassword")}
             </Button>
           </form>
         )}
 
         <p className="text-center text-xs text-muted-foreground">
           <Link href="/login" className="font-medium text-foreground hover:underline">
-            Back to sign in
+            {t("auth.backToSignIn")}
           </Link>
         </p>
       </CardContent>

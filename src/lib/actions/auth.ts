@@ -16,6 +16,7 @@ import { revalidatePath } from "next/cache";
 import { isSupabaseConfigured } from "@/lib/auth/session";
 import { ACTIVE_ORGANIZATION_COOKIE } from "@/lib/auth/active-organization";
 import { listOrganizations } from "@/lib/data/repositories/organization";
+import { LOCALE_COOKIE, parseLocale } from "@/lib/i18n/locales";
 
 import { actionError, actionSuccess, type ActionState } from "./types";
 
@@ -75,4 +76,24 @@ export async function setActiveOrganizationAction(
     "Switched organization.",
     "action.success.setActiveOrganization",
   );
+}
+
+/**
+ * Sets the user's locale preference via cookie.
+ *
+ * Only allowed values (`ko`, `en`) are written; anything else is silently
+ * normalised to the default. The cookie is httpOnly, one year, same-site lax —
+ * read server-side by `getLocale()` in the root layout, so switching locale
+ * revalidates the whole tree rather than relying on client-only state.
+ */
+export async function setLocaleAction(locale: unknown): Promise<void> {
+  const parsed = parseLocale(typeof locale === "string" ? locale : null);
+  const cookieStore = await cookies();
+  cookieStore.set(LOCALE_COOKIE, parsed, {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+  });
+  revalidatePath("/", "layout");
 }

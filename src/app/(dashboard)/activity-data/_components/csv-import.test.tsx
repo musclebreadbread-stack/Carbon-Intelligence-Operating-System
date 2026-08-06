@@ -4,6 +4,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
+import { LocaleProvider } from "@/components/providers/locale-provider";
 import { actionSuccess, type ActionState } from "@/lib/actions/types";
 
 import {
@@ -15,16 +16,20 @@ import {
 
 const activityDataOptions = [{ value: "ad-1", label: "Ulsan natural gas 2024" }];
 
+// The component reads from the shared dictionary, which defaults to Korean; these
+// assertions check the English strings, so every render is pinned to the "en" locale.
 function renderImporter(
   commitImport: (input: unknown) => Promise<ActionState<CommitDataImportJobResult>>,
   overrides: { readonly databaseConfigured?: boolean } = {},
 ) {
   return render(
-    <CsvImport
-      databaseConfigured={overrides.databaseConfigured ?? true}
-      activityDataOptions={activityDataOptions}
-      commitImport={commitImport}
-    />,
+    <LocaleProvider locale="en">
+      <CsvImport
+        databaseConfigured={overrides.databaseConfigured ?? true}
+        activityDataOptions={activityDataOptions}
+        commitImport={commitImport}
+      />
+    </LocaleProvider>,
   );
 }
 

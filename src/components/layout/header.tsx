@@ -1,7 +1,8 @@
 "use client";
 
 /**
- * Application header: tenant switcher, configuration badges and the user menu.
+ * Application header: mobile nav, tenant switcher, configuration badges,
+ * language switcher and the user menu.
  *
  * Everything it renders comes from the session context the server layout
  * populated, so the header performs no data access of its own. Sign-out is a real
@@ -25,13 +26,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
+import { LanguageSwitcher } from "@/components/layout/language-switcher";
+import { MobileDrawer } from "@/components/layout/mobile-drawer";
 import { OrganizationSwitcher } from "@/components/layout/organization-switcher";
 import { useSession } from "@/components/providers/session-provider";
+import { useT } from "@/components/providers/locale-provider";
 import { cn } from "@/lib/utils";
 
 export type HeaderProps = {
   /** `signOutAction` from `src/lib/actions/auth.ts`. */
   readonly signOut: () => void | Promise<void>;
+  /** `setLocaleAction` from `src/lib/actions/auth.ts`. */
+  readonly setLocale: (locale: string) => Promise<void>;
   readonly llmLabel: string;
   readonly llmConfigured: boolean;
   readonly openFindings: number;
@@ -44,22 +50,41 @@ function initials(name: string): string {
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 
-export function Header({ signOut, llmLabel, llmConfigured, openFindings }: HeaderProps) {
+export function Header({ signOut, setLocale, llmLabel, llmConfigured, openFindings }: HeaderProps) {
   const { session, dataMode } = useSession();
+  const t = useT();
 
   return (
     <header className="flex h-14 items-center justify-between border-b bg-background px-4">
       <div className="flex items-center gap-3">
+        <MobileDrawer>
+          <nav className="flex flex-col gap-1">
+            <Link href="/dashboard" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.dashboard")}</Link>
+            <Link href="/organization" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.organization")}</Link>
+            <Link href="/master-data" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.masterData")}</Link>
+            <Link href="/activity-data" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.activityData")}</Link>
+            <Link href="/emission-engine" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.emissionEngine")}</Link>
+            <Link href="/emission-factors" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.emissionFactors")}</Link>
+            <Link href="/ai-engine" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.aiEngine")}</Link>
+            <Link href="/ai-roadmap" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.aiRoadmap")}</Link>
+            <Link href="/ai-simulator" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.aiSimulator")}</Link>
+            <Link href="/ai-agents" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.aiAgents")}</Link>
+            <Link href="/digital-mrv" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.digitalMrv")}</Link>
+            <Link href="/verification" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.verification")}</Link>
+            <Link href="/esg-disclosure" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.esgDisclosure")}</Link>
+            <Link href="/carbon-finance" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.carbonFinance")}</Link>
+            <Link href="/analytics" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.analytics")}</Link>
+            <Link href="/api-gateway" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.apiGateway")}</Link>
+            <Link href="/security" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.security")}</Link>
+            <Link href="/settings" className="rounded-md px-3 py-2 text-sm hover:bg-muted">{t("nav.settings")}</Link>
+          </nav>
+        </MobileDrawer>
         <OrganizationSwitcher />
         <Badge
           variant={dataMode === "demo" ? "outline" : "secondary"}
-          title={
-            dataMode === "demo"
-              ? "No database configured — figures are computed from the bundled sample data"
-              : "Reading from the configured PostgreSQL database"
-          }
+          title={dataMode === "demo" ? t("shell.demoBadgeTitle") : t("shell.liveBadgeTitle")}
         >
-          {dataMode === "demo" ? "Demo data" : "Live database"}
+          {dataMode === "demo" ? t("shell.demoData") : t("shell.liveDatabase")}
         </Badge>
       </div>
 
@@ -70,12 +95,14 @@ export function Header({ signOut, llmLabel, llmConfigured, openFindings }: Heade
           title={llmLabel}
         >
           <Sparkles className="size-3" />
-          {llmConfigured ? "LLM: OpenAI" : "LLM: deterministic"}
+          {llmConfigured ? t("shell.llmOpenAI") : t("shell.llmDeterministic")}
         </Badge>
+
+        <LanguageSwitcher setLocale={setLocale} />
 
         <Link
           href="/verification"
-          aria-label={`Notifications (${openFindings} open findings)`}
+          aria-label={`${t("shell.notifications")} (${openFindings})`}
           className={cn(
             buttonVariants({ variant: "ghost", size: "icon-sm" }),
             "relative",
@@ -97,21 +124,25 @@ export function Header({ signOut, llmLabel, llmConfigured, openFindings }: Heade
               <Button variant="ghost" size="sm" className="gap-2">
                 <Avatar className="size-6">
                   <AvatarFallback className="text-xs">
-                    {initials(session?.name ?? "Guest")}
+                    {initials(session?.name ?? t("shell.guest"))}
                   </AvatarFallback>
                 </Avatar>
-                <span className="hidden text-sm sm:inline">{session?.name ?? "Guest"}</span>
+                <span className="hidden text-sm sm:inline">
+                  {session?.name ?? t("shell.guest")}
+                </span>
               </Button>
             }
           />
           <DropdownMenuContent align="end" className="w-72">
             <DropdownMenuLabel className="space-y-1">
-              <span className="block text-sm font-medium">{session?.name ?? "Guest"}</span>
-              <span className="block text-xs font-normal text-muted-foreground">
-                {session?.email ?? "not signed in"}
+              <span className="block text-sm font-medium">
+                {session?.name ?? t("shell.guest")}
               </span>
               <span className="block text-xs font-normal text-muted-foreground">
-                {session?.roles.length ? session.roles.join(", ") : "no roles assigned"}
+                {session?.email ?? t("shell.notSignedIn")}
+              </span>
+              <span className="block text-xs font-normal text-muted-foreground">
+                {session?.roles.length ? session.roles.join(", ") : t("shell.noRoles")}
               </span>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
@@ -119,21 +150,18 @@ export function Header({ signOut, llmLabel, llmConfigured, openFindings }: Heade
               <>
                 <div className="flex items-start gap-2 px-2 py-1.5 text-xs text-muted-foreground">
                   <ShieldAlert className="mt-0.5 size-3.5 shrink-0" />
-                  <span>
-                    Demo session — Supabase is not configured, so this is the bundled
-                    administrator account.
-                  </span>
+                  <span>{t("shell.demoSession")}</span>
                 </div>
                 <DropdownMenuSeparator />
               </>
             )}
             <DropdownMenuItem render={<Link href="/settings" />}>
               <Settings className="size-3.5" />
-              Settings
+              {t("shell.settings")}
             </DropdownMenuItem>
             <DropdownMenuItem render={<Link href="/security" />}>
               <User className="size-3.5" />
-              Users and roles
+              {t("shell.usersAndRoles")}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <form action={signOut}>
@@ -142,7 +170,7 @@ export function Header({ signOut, llmLabel, llmConfigured, openFindings }: Heade
                 className="flex w-full cursor-default items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-none hover:bg-muted"
               >
                 <LogOut className="size-3.5" />
-                Sign out
+                {t("shell.signOut")}
               </button>
             </form>
           </DropdownMenuContent>

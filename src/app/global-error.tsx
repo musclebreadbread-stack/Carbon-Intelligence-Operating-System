@@ -4,10 +4,12 @@
  * Last-resort boundary: replaces the root layout when it is the root layout itself
  * that failed, so it must render its own `<html>` and `<body>`.
  *
- * Per the bundled Next docs this file does not receive the application's global
- * stylesheet, so the styling here is inline rather than Tailwind — a broken theme
- * must not also mean an unreadable error page. `metadata` is unavailable in a
- * client component, hence the React `<title>` element.
+ * Since this component cannot access server-side locale resolution (it replaces
+ * the root layout), it renders hardcoded Korean text directly rather than going
+ * through the dictionary system. Per the bundled Next docs this file also does not
+ * receive the application's global stylesheet, so the styling here is inline rather
+ * than Tailwind — a broken theme must not also mean an unreadable error page.
+ * `metadata` is unavailable in a client component, hence the React `<title>` element.
  */
 
 export default function GlobalError({
@@ -18,7 +20,7 @@ export default function GlobalError({
   unstable_retry: () => void;
 }) {
   return (
-    <html lang="en">
+    <html lang="ko">
       <body
         style={{
           margin: 0,
@@ -30,15 +32,14 @@ export default function GlobalError({
             "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
         }}
       >
-        <title>CIOS — unexpected error</title>
+        <title>CIOS — 예상치 못한 오류</title>
         <main style={{ maxWidth: "36rem", padding: "1.5rem", lineHeight: 1.6 }}>
           <h1 style={{ fontSize: "1.25rem", margin: "0 0 0.5rem" }}>
-            The application failed to start
+            애플리케이션을 시작할 수 없습니다
           </h1>
           <p style={{ margin: "0 0 1rem", opacity: 0.8 }}>
-            An error escaped the root layout, so no part of the interface could be
-            rendered. Retrying re-runs the request; if it keeps failing, the server log
-            carries the matching error digest.
+            루트 레이아웃에서 오류가 발생하여 인터페이스를 렌더링할 수 없습니다. 다시
+            시도하시고, 문제가 지속되면 서버 로그를 확인하세요.
           </p>
           {error.digest && (
             <p style={{ margin: "0 0 1rem", fontSize: "0.8125rem", opacity: 0.7 }}>
@@ -59,7 +60,7 @@ export default function GlobalError({
                 fontSize: "0.875rem",
               }}
             >
-              Try again
+              다시 시도
             </button>
             <a
               href="/login"
@@ -72,7 +73,7 @@ export default function GlobalError({
                 color: "inherit",
               }}
             >
-              Go to sign in
+              로그인으로 이동
             </a>
           </div>
         </main>

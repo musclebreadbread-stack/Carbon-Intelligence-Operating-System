@@ -15,11 +15,13 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import { useT } from "@/components/providers/locale-provider";
 import { SupabaseNotice } from "../_components/supabase-notice";
 
 export default function RegisterPage() {
   const configured = isSupabaseConfigured();
   const router = useRouter();
+  const t = useT();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [company, setCompany] = useState("");
@@ -34,7 +36,7 @@ export default function RegisterPage() {
     setError(null);
 
     if (!configured) {
-      setError("Supabase가 구성되지 않아 회원가입을 진행할 수 없습니다.");
+      setError(t("auth.supabaseNotConfigured"));
       return;
     }
 
@@ -73,7 +75,7 @@ export default function RegisterPage() {
   async function handleOAuthSignUp(provider: "google" | "azure") {
     setError(null);
     if (!configured) {
-      setError("Supabase가 구성되지 않아 소셜 회원가입을 사용할 수 없습니다.");
+      setError(t("auth.supabaseNotConfigured"));
       return;
     }
     const supabase = createClient();
@@ -92,10 +94,8 @@ export default function RegisterPage() {
   return (
     <Card>
       <CardHeader className="text-center">
-        <CardTitle className="text-xl">Create an account</CardTitle>
-        <CardDescription>
-          Get started with Carbon Intelligence Operating System
-        </CardDescription>
+        <CardTitle className="text-xl">{t("auth.createAccount")}</CardTitle>
+        <CardDescription>{t("auth.createAccountDescription")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <SupabaseNotice configured={configured} />
@@ -109,19 +109,27 @@ export default function RegisterPage() {
         {confirmationSent ? (
           <div className="space-y-4 text-center">
             <div className="rounded-md bg-primary/10 p-4 text-sm text-primary">
-              <p className="font-medium">Check your email for verification</p>
+              <p className="font-medium">{t("auth.checkEmailTitle")}</p>
               <p className="mt-1 text-muted-foreground">
-                We sent a confirmation link to <strong>{email}</strong>. Please
-                check your inbox and click the link to activate your account.
+                {(() => {
+                  const [before, after] = t("auth.confirmationSentTo").split("{{email}}");
+                  return (
+                    <>
+                      {before}
+                      <strong>{email}</strong>
+                      {after}
+                    </>
+                  );
+                })()}
               </p>
             </div>
             <p className="text-xs text-muted-foreground">
-              Already verified?{" "}
+              {t("auth.alreadyVerified")}{" "}
               <Link
                 href="/login"
                 className="font-medium text-foreground hover:underline"
               >
-                Sign in
+                {t("auth.signIn")}
               </Link>
             </p>
           </div>
@@ -154,7 +162,7 @@ export default function RegisterPage() {
                 fill="#EA4335"
               />
             </svg>
-            Sign up with Google
+            {t("auth.continueWithGoogle")}
           </Button>
           <Button
             variant="outline"
@@ -165,14 +173,14 @@ export default function RegisterPage() {
             <svg className="mr-2 size-4" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z" />
             </svg>
-            Sign up with Microsoft
+            {t("auth.continueWithMicrosoft")}
           </Button>
         </div>
 
         <div className="relative">
           <Separator />
           <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
-            or continue with email
+            {t("auth.orContinueWithEmail")}
           </span>
         </div>
 
@@ -180,7 +188,7 @@ export default function RegisterPage() {
         <form onSubmit={handleRegister} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="first-name">First Name</Label>
+              <Label htmlFor="first-name">{t("auth.firstName")}</Label>
               <Input
                 id="first-name"
                 name="firstName"
@@ -191,7 +199,7 @@ export default function RegisterPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="last-name">Last Name</Label>
+              <Label htmlFor="last-name">{t("auth.lastName")}</Label>
               <Input
                 id="last-name"
                 name="lastName"
@@ -203,7 +211,7 @@ export default function RegisterPage() {
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="company">Company</Label>
+            <Label htmlFor="company">{t("auth.company")}</Label>
             <Input
               id="company"
               name="company"
@@ -213,24 +221,24 @@ export default function RegisterPage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="email">Work Email</Label>
+            <Label htmlFor="email">{t("auth.workEmail")}</Label>
             <Input
               id="email"
               name="email"
               type="email"
-              placeholder="name@company.com"
+              placeholder={t("auth.placeholder.email")}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">{t("auth.password")}</Label>
             <Input
               id="password"
               name="password"
               type="password"
-              placeholder="Create a password"
+              placeholder={t("auth.placeholder.password")}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -238,20 +246,18 @@ export default function RegisterPage() {
             />
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Creating account..." : "Create Account"}
+            {loading ? t("auth.signingUp") : t("auth.createAccount")}
           </Button>
         </form>
 
         <p className="text-center text-xs text-muted-foreground">
-          By creating an account you accept this deployment&apos;s terms of service and privacy
-          policy. Those documents are the operator&apos;s to publish — link them here once they
-          exist rather than pointing at a page that does not.
+          {t("auth.termsNotice")}
         </p>
 
         <p className="text-center text-xs text-muted-foreground">
-          Already have an account?{" "}
+          {t("auth.hasAccount")}{" "}
           <Link href="/login" className="font-medium text-foreground hover:underline">
-            Sign in
+            {t("auth.signIn")}
           </Link>
         </p>
         </>

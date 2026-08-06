@@ -1,5 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+
+import { LocaleProvider } from "@/components/providers/locale-provider";
+import { getDictionary, getLocale } from "@/lib/i18n/server";
+import { INTL_LOCALE } from "@/lib/i18n/locales";
+
 import "./globals.css";
 
 const geistSans = Geist({
@@ -12,23 +17,35 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "CIOS - Carbon Intelligence Operating System",
-  description:
-    "AI-native enterprise carbon management platform for GHG Protocol compliance, ESG disclosure, and decarbonization planning.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const dict = await getDictionary();
+  return {
+    title: dict["app.title"],
+    description: dict["app.description"],
+  };
+}
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
+
   return (
     <html
-      lang="en"
+      lang={INTL_LOCALE[locale]}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-4 focus:bg-background focus:text-foreground focus:underline"
+        >
+          Skip to content
+        </a>
+        <LocaleProvider locale={locale}>{children}</LocaleProvider>
+      </body>
     </html>
   );
 }

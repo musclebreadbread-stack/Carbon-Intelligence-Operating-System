@@ -41,6 +41,7 @@ import {
   formatPercent,
   humaniseEnum,
 } from "@/lib/format";
+import { getDictionary } from "@/lib/i18n/server";
 
 import { NetEmissionsPanel } from "./_components/net-emissions-panel";
 import { RetirementForm } from "./_components/retirement-form";
@@ -116,6 +117,7 @@ const creditColumns: ColumnDef<CreditRow, unknown>[] = [
 
 export default async function CarbonFinancePage() {
   await connection();
+  const dict = await getDictionary();
 
   const organizationId = await activeOrganizationId();
   const years = await listReportingYears(organizationId);
@@ -161,13 +163,13 @@ export default async function CarbonFinancePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Carbon finance"
-        description="Credit registry, retirement, gross-versus-net emissions, ETS position, REC/PPA coverage and internal carbon pricing."
+        title={dict["finance.title"]}
+        description={dict["finance.desc"]}
         meta={[
-          { label: "Reporting year", value: String(reportingYear) },
-          { label: "Credits", value: formatNumber(portfolio.credits.length) },
+          { label: dict["finance.meta.reportingYear"], value: String(reportingYear) },
+          { label: dict["finance.meta.credits"], value: formatNumber(portfolio.credits.length) },
           {
-            label: "Retirable",
+            label: dict["finance.meta.retirable"],
             value: `${formatEmissions(portfolio.balance.totalAvailable)} ${net.unit}`,
           },
         ]}
@@ -175,23 +177,23 @@ export default async function CarbonFinancePage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          title="Gross emissions"
+          title={dict["finance.kpi.grossEmissions"]}
           value={formatEmissions(net.grossEmissions)}
           unit={net.unit}
           icon={Scale}
-          description="the inventory figure, unchanged by offsetting"
+          description={dict["finance.kpi.grossEmissionsDesc"]}
           source="buildInventory()"
         />
         <KpiCard
-          title="Net emissions"
+          title={dict["finance.netEmissions"]}
           value={formatEmissions(net.netEmissions)}
           unit={net.unit}
           icon={Flame}
-          description={`${formatPercent(net.offsetShare * 100)} covered by retirements`}
+          description={`${formatPercent(net.offsetShare * 100)} ${dict["finance.kpi.netEmissionsDesc"]}`}
           source="netEmissions()"
         />
         <KpiCard
-          title="Portfolio market value"
+          title={dict["finance.kpi.portfolioMarketValue"]}
           value={formatCurrency(valuation.totalMarketValue, valuation.currency)}
           icon={Coins}
           description={`unrealised ${formatCurrency(valuation.totalUnrealisedGain, valuation.currency)} on ${formatEmissions(valuation.totalQuantity)} ${valuation.unit}`}
@@ -199,7 +201,7 @@ export default async function CarbonFinancePage() {
           goodDirection="up"
         />
         <KpiCard
-          title="ETS position"
+          title={dict["finance.kpi.etsPosition"]}
           value={formatEmissions(ets.position)}
           unit={ets.unit}
           icon={TrendingUp}
@@ -215,10 +217,9 @@ export default async function CarbonFinancePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Gross versus net</CardTitle>
+          <CardTitle>{dict["finance.card.grossVsNet"]}</CardTitle>
           <CardDescription>
-            Offsets never reduce the reported inventory: gross and net are disclosed side by
-            side, per the GHG Protocol.
+            {dict["finance.card.grossVsNetDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -228,10 +229,9 @@ export default async function CarbonFinancePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Credit registry</CardTitle>
+          <CardTitle>{dict["finance.card.creditRegistry"]}</CardTitle>
           <CardDescription>
-            Balances per credit from `creditBalance()`: issued, retired and the quantity still
-            retirable after status and expiry are applied.
+            {dict["finance.card.creditRegistryDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -241,11 +241,11 @@ export default async function CarbonFinancePage() {
             data={creditRows}
             pageSize={10}
             searchPlaceholder="Filter credits…"
-            emptyState={<EmptyState title="No carbon credits registered" />}
+            emptyState={<EmptyState title={dict["finance.empty.noCredits"]} />}
           />
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <p className="mb-1 text-sm font-medium">By vintage</p>
+              <p className="mb-1 text-sm font-medium">{dict["finance.label.byVintage"]}</p>
               <ul className="space-y-0.5 text-xs">
                 {portfolio.balance.byVintage.map((row) => (
                   <li key={String(row.vintage)} className="flex justify-between font-mono">
@@ -259,7 +259,7 @@ export default async function CarbonFinancePage() {
               </ul>
             </div>
             <div>
-              <p className="mb-1 text-sm font-medium">By status</p>
+              <p className="mb-1 text-sm font-medium">{dict["finance.label.byStatus"]}</p>
               <ul className="space-y-0.5 text-xs">
                 {portfolio.balance.byStatus.map((row) => (
                   <li key={row.status} className="flex justify-between font-mono">
@@ -286,10 +286,9 @@ export default async function CarbonFinancePage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Retire credits</CardTitle>
+            <CardTitle>{dict["finance.card.retireCredits"]}</CardTitle>
             <CardDescription>
-              FIFO by vintage, oldest first. Retiring more than is available is rejected rather
-              than partially fulfilled.
+              {dict["finance.card.retireCreditsDesc"]}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -307,10 +306,9 @@ export default async function CarbonFinancePage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Energy attribute coverage</CardTitle>
+            <CardTitle>{dict["finance.card.energyAttribute"]}</CardTitle>
             <CardDescription>
-              PPA and REC volumes applied against electricity consumption; contracted volume
-              beyond consumption cannot be claimed.
+              {dict["finance.card.energyAttributeDesc"]}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -352,7 +350,7 @@ export default async function CarbonFinancePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>ETS compliance and internal carbon price</CardTitle>
+          <CardTitle>{dict["finance.card.etsAndInternalPrice"]}</CardTitle>
           <CardDescription>
             {ets.scheme} compliance year {ets.complianceYear} — status {ets.status}.
           </CardDescription>
@@ -435,32 +433,31 @@ export default async function CarbonFinancePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Prices and new credits</CardTitle>
+          <CardTitle>{dict["finance.card.pricesAndNewCredits"]}</CardTitle>
           <CardDescription>
-            Market observations feeding `markToMarket()`, plus registration of a newly issued
-            credit.
+            {dict["finance.card.pricesAndNewCreditsDesc"]}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="prices">
             <TabsList variant="line">
-              <TabsTrigger value="prices">Price history</TabsTrigger>
-              <TabsTrigger value="valuation">Valuation detail</TabsTrigger>
-              <TabsTrigger value="new">Register a credit</TabsTrigger>
+              <TabsTrigger value="prices">{dict["finance.tab.priceHistory"]}</TabsTrigger>
+              <TabsTrigger value="valuation">{dict["finance.tab.valuationDetail"]}</TabsTrigger>
+              <TabsTrigger value="new">{dict["finance.tab.registerCredit"]}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="prices" className="pt-3">
               {latestPrices.length === 0 ? (
-                <EmptyState title="No carbon price observations" />
+                <EmptyState title={dict["finance.empty.noPriceObservations"]} />
               ) : (
                 <table className="w-full text-xs">
                   <thead className="text-muted-foreground">
                     <tr>
-                      <th className="text-left font-medium">Date</th>
-                      <th className="text-left font-medium">Market</th>
-                      <th className="text-left font-medium">Region</th>
-                      <th className="text-right font-medium">Price</th>
-                      <th className="text-left font-medium">Source</th>
+                      <th className="text-left font-medium">{dict["finance.table.date"]}</th>
+                      <th className="text-left font-medium">{dict["finance.table.market"]}</th>
+                      <th className="text-left font-medium">{dict["finance.table.region"]}</th>
+                      <th className="text-right font-medium">{dict["finance.table.price"]}</th>
+                      <th className="text-left font-medium">{dict["finance.table.source"]}</th>
                     </tr>
                   </thead>
                   <tbody>
