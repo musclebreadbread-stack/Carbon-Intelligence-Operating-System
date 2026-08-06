@@ -12,8 +12,10 @@
 
 import { NotFoundError, ValidationError } from "@/lib/core/errors";
 import { evaluateRuleSet } from "@/lib/domain/rules/evaluate";
-import { applyRuleSetActions } from "@/lib/domain/rules/actions";
+import { applyRuleSetActions, type RuleActionEffect } from "@/lib/domain/rules/actions";
 import { listRuleSets } from "@/lib/data/repositories/rules";
+import { resolveNotificationRecipients } from "@/lib/data/repositories/security";
+import { getNotificationChannel } from "@/lib/notifications/factory";
 import { prisma } from "@/lib/prisma";
 import {
   activityDataEntryInputSchema,
@@ -126,6 +128,7 @@ export async function createActivityEntryAction(
 
         const flags: string[] = [];
         const rejections: string[] = [];
+        const notifyEffects: RuleActionEffect[] = [];
         for (const ruleSet of ruleSets) {
           const evaluation = evaluateRuleSet(ruleSet, context);
           const outcome = applyRuleSetActions(ruleSet, evaluation, context, {
@@ -135,6 +138,7 @@ export async function createActivityEntryAction(
           for (const effect of outcome.effects) {
             if (effect.blocking) rejections.push(effect.message);
             else flags.push(`${effect.type}: ${effect.message}`);
+            if (effect.type === "notify") notifyEffects.push(effect);
           }
         }
         if (rejections.length > 0) {
@@ -165,6 +169,41 @@ export async function createActivityEntryAction(
             waterSourceId: input.waterSourceId ?? null,
           },
         });
+
+        // Best-effort: the entry is already saved and validated, so a downstream
+        // notification-provider outage must not turn into a failed save.
+        if (notifyEffects.length > 0) {
+          const channel = getNotificationChannel();
+          await Promise.all(
+            notifyEffects.map(async (effect) => {
+              try {
+                const recipients = await resolveNotificationRecipients(
+                  organizationId,
+                  effect.target,
+                );
+                if (recipients.length === 0) {
+                  console.warn(
+                    `[notification] no recipient resolved for target "${effect.target ?? "(none)"}"`,
+                  );
+                  return;
+                }
+                await Promise.all(
+                  recipients.map((recipient) =>
+                    channel.send({
+                      recipient,
+                      subject: `CIOS rule triggered: ${effect.ruleName}`,
+                      body: effect.message,
+                      severity: "info",
+                      metadata: { ruleId: effect.ruleId, entityId: created.id },
+                    }),
+                  ),
+                );
+              } catch (error) {
+                console.error("[notification] failed to dispatch", error);
+              }
+            }),
+          );
+        }
 
         return {
           data: { id: created.id, ruleFlags: flags },

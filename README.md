@@ -41,11 +41,12 @@ npm run db:seed             # idempotent reference data + demo tenant
 | `npm start` | Serves a production build. |
 | `npm run lint` | ESLint (flat config, `eslint-config-next`). |
 | `npm run typecheck` | `tsc --noEmit`. |
-| `npm test` | `vitest run` — the full suite (1,388 tests across 70 files). |
+| `npm test` | `vitest run` — the full suite (1,564 tests across 94 files). |
 | `npm run test:watch` | Vitest in watch mode. |
 | `npm test -- --coverage` | Coverage summary via `@vitest/coverage-v8`. |
 | `npm run db:seed` | `tsx prisma/seed.ts`. Idempotent; safe to re-run. |
 | `npm run docs:setup-guide` | Regenerates `docs/CIOS-직접-설정-가이드.docx`. |
+| `npm run embeddings:backfill` | `tsx scripts/backfill-emission-factor-embeddings.ts`. Needs a live pgvector-enabled database. |
 
 CI (`.github/workflows/ci.yml`) runs, in order: `npm ci`, `prisma generate`, `lint`, `typecheck`,
 `test -- --coverage`, `build`, `prisma validate`, a migration-drift check against
@@ -138,9 +139,13 @@ undocumented, or documented but unread.
 | `OPENAI_API_KEY` | no | Narrative text is generated deterministically from calculation traces; every numeric result is unaffected. |
 | `OPENAI_MODEL` / `OPENAI_BASE_URL` / `OPENAI_ORGANIZATION` / `OPENAI_TIMEOUT_MS` | no | Defaults: `gpt-4o-mini`, the public OpenAI endpoint, no organisation header, 60 s. |
 | `FIELD_ENCRYPTION_KEY` | no | Registering a data source with credentials fails rather than storing plaintext. |
+| `FIELD_ENCRYPTION_KEY_V2` | no | No key rotation is in progress; writes and reads both use `FIELD_ENCRYPTION_KEY` unchanged. |
 | `MAPBOX_ACCESS_TOKEN` | no | The organisation page lists facility coordinates instead of a map. |
 | `REDIS_URL` | no | Rate limiting stays in-process per instance. |
-| `API_RATE_LIMIT_PER_MINUTE` | no | Default 60 requests/minute per API key (`rate:unlimited` scope exempt). |
+| `API_RATE_LIMIT_PER_MINUTE` | no | Default 60 requests/minute per API key (`rate:unlimited` scope, or the key's own `rateLimitPerMinute`, take precedence). |
+| `AUDIT_RETENTION_DAYS` | no | Audit-log archival uses the documented 365-day default. |
+| `CRON_SECRET` | no | `/api/cron/audit-archive` refuses every request — it fails closed, not open. |
+| `RESEND_API_KEY` / `NOTIFICATION_EMAIL_FROM` | no | Rule-engine `notify` effects are logged server-side instead of emailed to the resolved recipients. |
 | `SEED_ADMIN_PASSWORD` | no | The seed uses a documented default password and warns. |
 
 ## Testing
@@ -178,9 +183,14 @@ Vercel works with the defaults; register the environment variables in the projec
 
 ## Known gaps
 
-Tracked honestly in section 12 of `docs/CIOS-직접-설정-가이드.docx`: the CSV import commit action,
-notification delivery channels, Korean UI copy (the `ko` column exists in
-`src/lib/i18n/messages.ts`; UI copy is English by design), per-API-key rate limits, the interactive
-Mapbox map, pgvector semantic search, a dedicated misstatement-amount column, field-encryption key
-rotation, audit-log archival, commercial factor libraries, and third-party verification and
-regulatory submissions — the last two being work only the operating organisation can do.
+Tracked honestly in section 12 of `docs/CIOS-직접-설정-가이드.docx`. The CSV import commit action,
+per-API-key rate limits, a dedicated misstatement-amount column, notification delivery (Resend or
+logged-only), field-encryption key rotation, and audit-log archival are all implemented in code —
+what remains for each is provisioning the credential or infrastructure it needs (`RESEND_API_KEY`,
+`CRON_SECRET` + a scheduler trigger, etc.), documented per variable in section 12's table. Still
+genuinely open: full Korean UI copy (only the error-message keys and a locale toggle exist; success
+messages and page copy stay English by design), pgvector semantic search (the embedding client and
+schema exist, but the raw-SQL query and vector index need a live pgvector database to verify), the
+interactive Mapbox map (works once a token is set, unverified without one), commercial factor
+libraries, and third-party verification and regulatory submissions — the last two being work only
+the operating organisation can do.

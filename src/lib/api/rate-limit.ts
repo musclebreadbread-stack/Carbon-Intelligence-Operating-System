@@ -174,18 +174,23 @@ export const apiRateLimiter = new RateLimiter();
 /**
  * Rate limit configured for one API key.
  *
- * The `APIKey` model has no rate-limit column, so the ceiling is resolved from
- * `API_RATE_LIMIT_PER_MINUTE` with a documented default, and a key carrying the
- * `rate:unlimited` scope is exempted. Storing a per-key limit would need a schema
- * change, and the baseline migration is frozen.
+ * Precedence: a key carrying the `rate:unlimited` scope is exempted outright;
+ * otherwise a finite, positive `perKeyLimit` from `APIKey.rateLimitPerMinute`
+ * wins; otherwise the ceiling falls back to `API_RATE_LIMIT_PER_MINUTE` with a
+ * documented default. Most keys carry no per-key value, so the global default is
+ * still what governs them.
  */
 export function rateLimitForKey(
   scopes: readonly string[],
+  perKeyLimit?: number | null,
   env: { readonly API_RATE_LIMIT_PER_MINUTE?: string | undefined } = process.env as {
     readonly API_RATE_LIMIT_PER_MINUTE?: string | undefined;
   },
 ): number {
   if (scopes.includes("rate:unlimited")) return Number.MAX_SAFE_INTEGER;
+  if (perKeyLimit !== undefined && perKeyLimit !== null && Number.isFinite(perKeyLimit) && perKeyLimit > 0) {
+    return Math.floor(perKeyLimit);
+  }
   const configured = Number(env.API_RATE_LIMIT_PER_MINUTE);
   return Number.isFinite(configured) && configured > 0
     ? Math.floor(configured)

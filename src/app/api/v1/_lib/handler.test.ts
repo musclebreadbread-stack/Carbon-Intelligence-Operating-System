@@ -50,6 +50,7 @@ const PRINCIPAL = {
   userId: "user-1",
   name: "Integration key",
   scopes: ["credits:retire"],
+  rateLimitPerMinute: null as number | null,
   isActive: true,
   expiresAt: null as Date | null,
 };
@@ -328,6 +329,14 @@ describe("withApiKey — rate limiting", () => {
     // A second key must be unaffected by the first key exhausting its quota.
     findApiKeyByHash.mockResolvedValue({ ...PRINCIPAL, id: "key-2" });
     expect((await endpoint(request())).status).toBe(200);
+  });
+
+  it("uses the key's own rateLimitPerMinute instead of the global default", async () => {
+    findApiKeyByHash.mockResolvedValue({ ...PRINCIPAL, rateLimitPerMinute: 10 });
+    const response = await withApiKey(async () => jsonOk({ ok: true }))(request());
+
+    expect(response.headers.get("X-RateLimit-Limit")).toBe("10");
+    expect(response.headers.get("X-RateLimit-Remaining")).toBe("9");
   });
 
   it("does not rate-limit before authentication succeeds", async () => {

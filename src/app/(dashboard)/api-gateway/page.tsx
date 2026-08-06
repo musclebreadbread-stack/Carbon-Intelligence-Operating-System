@@ -24,7 +24,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { activeOrganizationId } from "@/lib/auth/active-organization";
 import { describeLlmMode } from "@/lib/ai/llm/factory";
 import { listApiKeys } from "@/lib/data/repositories/security";
-import { DEFAULT_RATE_LIMIT, DEFAULT_WINDOW_MS } from "@/lib/api/rate-limit";
+import { DEFAULT_RATE_LIMIT, DEFAULT_WINDOW_MS, rateLimitForKey } from "@/lib/api/rate-limit";
 import { formatDate, formatDateTime, formatNumber } from "@/lib/format";
 import { SETUP_GUIDE_PATH } from "@/lib/i18n/messages";
 
@@ -285,6 +285,11 @@ export default async function ApiGatewayPage() {
                     </Badge>
                     <Badge variant={key.isActive ? "secondary" : "destructive"}>
                       {key.isActive ? "active" : "revoked"}
+                    </Badge>
+                    <Badge variant="outline" title="Effective requests-per-minute ceiling">
+                      {key.scopes.includes("rate:unlimited")
+                        ? "unlimited"
+                        : `${formatNumber(rateLimitForKey(key.scopes, key.rateLimitPerMinute))}/min${key.rateLimitPerMinute === null ? " (default)" : ""}`}
                     </Badge>
                     <span className="ml-auto text-muted-foreground">
                       last used {formatDateTime(key.lastUsedAt)} · expires{" "}

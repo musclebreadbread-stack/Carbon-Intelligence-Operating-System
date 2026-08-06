@@ -213,7 +213,7 @@ describe("required content", () => {
     const text = sectionText(section);
     for (const topic of [
       "importActivityDataAction",
-      "NotificationPreference",
+      "ResendNotificationChannel",
       "i18n",
       "rateLimit",
       "pgvector",

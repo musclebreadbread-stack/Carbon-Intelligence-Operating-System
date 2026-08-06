@@ -135,6 +135,12 @@ export const ENV_TABLE: readonly {
       "자격증명이 포함된 데이터 소스 등록이 실패합니다. AES-256-GCM 필드 암호화는 키가 없으면 평문 저장 대신 거부하도록 설계되어 있습니다.",
   },
   {
+    name: "FIELD_ENCRYPTION_KEY_V2",
+    requirement: "선택",
+    effect:
+      "키 회전이 진행되지 않습니다. 설정하면 신규 저장은 즉시 새 키를 사용하고, 기존 v1 행은 회전 액션을 실행하기 전까지 FIELD_ENCRYPTION_KEY로 계속 복호화됩니다.",
+  },
+  {
     name: "MAPBOX_ACCESS_TOKEN",
     requirement: "선택",
     effect: "조직(Organization) 화면이 인터랙티브 지도 대신 사업장 좌표 목록을 표시합니다.",
@@ -156,6 +162,28 @@ export const ENV_TABLE: readonly {
     requirement: "선택",
     effect:
       "API 키 기본 한도가 분당 60회로 적용됩니다. `rate:unlimited` 스코프를 가진 키는 한도에서 제외됩니다.",
+  },
+  {
+    name: "AUDIT_RETENTION_DAYS",
+    requirement: "선택",
+    effect: "감사 로그 보존 기간이 기본값 365일로 적용됩니다.",
+  },
+  {
+    name: "CRON_SECRET",
+    requirement: "선택",
+    effect:
+      "/api/cron/audit-archive 라우트가 모든 요청을 거부합니다(열림이 아닌 닫힘으로 실패). 스케줄러를 연결하려면 먼저 이 값을 설정해야 합니다.",
+  },
+  {
+    name: "RESEND_API_KEY",
+    requirement: "선택",
+    effect:
+      "규칙 엔진의 notify 효과가 실제 이메일 발송 대신 서버 로그로만 기록됩니다. 저장 동작 자체는 실패하지 않습니다.",
+  },
+  {
+    name: "NOTIFICATION_EMAIL_FROM",
+    requirement: "선택",
+    effect: "위 항목과 동일합니다. RESEND_API_KEY와 함께 설정해야 이메일이 발송됩니다.",
   },
 ];
 
@@ -683,38 +711,38 @@ export function buildSections(): readonly GuideSection[] {
           rows: [
             [
               "CSV 활동자료 일괄 등록(커밋)",
-              "업로드·컬럼 매핑·미리보기까지 동작하지만 저장을 수행하는 서버 액션(importActivityDataAction)이 없어 커밋 버튼이 비활성 상태입니다.",
-              "대량 등록이 필요하면 해당 서버 액션을 구현하거나, 그 전까지는 `POST /api/v1/activity-data` API로 스크립트 적재를 사용하십시오.",
+              "구현 완료. commitDataImportJobAction이 매핑된 각 행을 검증·규칙엔진 통과 후 DataImportJob과 ActivityDataEntry로 커밋하며, 행 단위 부분 성공을 지원합니다(예전 임시 이름 importActivityDataAction 대신 이 함수입니다).",
+              "추가 조치가 필요하지 않습니다. 대량 등록은 화면의 CSV import 탭 또는 `POST /api/v1/activity-data`로 수행하십시오.",
             ],
             [
               "알림 발송",
-              "알림 설정(NotificationPreference) 저장만 동작하며, 이메일·Slack 등 실제 발송 채널이 연결되어 있지 않습니다.",
-              "메일 공급자(Resend, SES 등) 또는 Slack Webhook을 선택해 발송 어댑터를 구현하고 자격증명을 등록하십시오.",
+              "구현 완료. 규칙엔진의 notify 효과가 LoggingNotificationChannel(기본, 로그만) 또는 ResendNotificationChannel로 발송되며, 대상 문자열은 이메일이거나 조직 내 역할명으로 해석됩니다.",
+              "실제 이메일 발송이 필요하면 4절이 아니라 이 표 다음에 있는 RESEND_API_KEY/NOTIFICATION_EMAIL_FROM을 설정하십시오. 미설정 시 발송 내역은 서버 로그로만 남습니다.",
             ],
             [
               "한국어 UI",
-              "메시지 테이블(src/lib/i18n/messages.ts)에 ko 컬럼이 있고 데모·오류·설정 안내는 한국어를 제공하지만, 화면 문구는 설계상 영어입니다.",
-              "전면 한국어화가 필요하면 각 페이지 문구를 메시지 테이블 경유로 전환하는 i18n 후속 작업을 진행하십시오.",
+              "부분 구현. 메시지 테이블(src/lib/i18n/messages.ts)의 오류 메시지 키는 전부 한국어가 채워져 있고, 쿠키 기반 로케일 전환(/settings의 Display language 토글, setLocaleAction)이 동작합니다. 화면 문구 자체는 설계상 영어로 유지됩니다.",
+              "전면 한국어화가 필요하면 각 페이지 문구를 메시지 테이블 경유로 전환하는 i18n 후속 작업을 진행하십시오. 성공 메시지(action.success.*) 약 50개는 아직 한국어가 없습니다.",
             ],
             [
               "API 키별 개별 레이트리밋",
-              "APIKey 모델에 rateLimit 컬럼이 없고 베이스라인 마이그레이션이 동결되어 있어, 전역 기본값(API_RATE_LIMIT_PER_MINUTE)과 `rate:unlimited` 스코프 예외만 지원합니다.",
-              "키별 한도가 필요하면 스키마에 컬럼을 추가하고 새 마이그레이션을 생성한 뒤 rateLimitForKey를 확장하십시오.",
+              "구현 완료. APIKey.rateLimitPerMinute 컬럼이 추가되었고, rateLimitForKey가 rate:unlimited 스코프 > 키별 값 > 전역 기본값(API_RATE_LIMIT_PER_MINUTE) 순으로 적용합니다. API 게이트웨이 화면에 유효 한도가 표시됩니다.",
+              "키별 한도를 설정하려면 데이터베이스에서 직접 해당 APIKey 행의 rateLimitPerMinute을 갱신하십시오. 키 발급·관리 UI 자체는 아직 없습니다.",
             ],
             [
               "인터랙티브 지도",
-              "Mapbox 토큰이 없으면 사업장 좌표 목록으로 대체되며, 지도 컴포넌트 자체도 아직 정적 대체 화면입니다.",
-              "6절에서 토큰을 발급하고 사업장 좌표를 입력하십시오. 완전한 지도 UI가 필요하면 mapbox-gl 컴포넌트를 추가 구현해야 합니다.",
+              "Mapbox 토큰이 없으면 사업장 좌표 목록으로 대체되며, 지도 컴포넌트 자체는 완성되어 있어 토큰만 있으면 즉시 동작합니다.",
+              "6절에서 토큰을 발급해 MAPBOX_ACCESS_TOKEN에 등록하십시오.",
             ],
             [
               "pgvector 시맨틱 검색",
-              "확장은 문서화·선언되어 있으나 벡터 컬럼과 임베딩 파이프라인은 사용하지 않습니다.",
-              "필요하면 임베딩 컬럼을 추가하고 임베딩 생성 배치를 구현하십시오(OpenAI embeddings 비용이 추가됩니다).",
+              "부분 구현. EmissionFactorEmbedding 테이블과 임베딩 클라이언트(OpenAI 또는 결정론적 대체)까지 구현되었으나, 코사인 유사도 원시 SQL과 벡터 인덱스는 실제 pgvector 데이터베이스에서만 검증할 수 있습니다.",
+              "3절대로 pgvector 확장을 활성화한 뒤 `npm run embeddings:backfill`을 실행하십시오. 벡터 인덱스(ivfflat/hnsw)는 Prisma DSL이 지원하지 않아 수기로 추가해야 할 수 있습니다.",
             ],
             [
               "검증 발견사항의 오기재 금액",
-              "VerificationFinding에 금액 컬럼이 없어 description에 `[misstatement:금액]` 마커로 인코딩합니다.",
-              "정식 컬럼이 필요하면 스키마를 확장하십시오. 그때까지는 마커 형식을 유지해야 중요성 판정이 정상 동작합니다.",
+              "구현 완료. VerificationFinding에 misstatementAmount(정량 오기재), estimatedFinancialImpact·impactCurrency(금액, 정보 제공용) 정식 컬럼이 있습니다. 과거의 description 마커 인코딩 방식은 제거되었습니다.",
+              "추가 조치가 필요하지 않습니다. estimatedFinancialImpact는 중요성 판정 계산에는 반영되지 않는 정보성 값입니다.",
             ],
             [
               "실제 데이터베이스 대상 실행 검증",
@@ -733,13 +761,13 @@ export function buildSections(): readonly GuideSection[] {
             ],
             [
               "필드 암호화 키 회전 자동화",
-              "AES-256-GCM 암·복호화는 동작하지만 기존 데이터를 새 키로 재암호화하는 스크립트가 없습니다.",
-              "키를 교체할 때는 해당 자격증명을 다시 등록하거나 재암호화 스크립트를 작성하십시오(5절).",
+              "구현 완료. field-crypto.ts가 v1/v2 버전 암호문을 동시에 지원하고, rotateFieldEncryptionAction이 DataSource.credentials 행을 새 키로 재암호화합니다.",
+              "키를 교체하려면 5절의 순서대로 FIELD_ENCRYPTION_KEY_V2를 설정한 뒤 rotateFieldEncryptionAction을 실행하고, 완료 후 기존 FIELD_ENCRYPTION_KEY를 새 값으로 교체하십시오.",
             ],
             [
               "감사 로그 아카이브 자동화",
-              "감사 로그는 계속 축적되며 보존기간 경과분을 자동 아카이브·삭제하지 않습니다.",
-              "11절 보존 기준에 맞춰 파티셔닝 또는 정기 export·삭제 배치를 운영 측에서 구성하십시오.",
+              "구현 완료. archiveAuditTrailAction과 /api/cron/audit-archive가 보존기간(AUDIT_RETENTION_DAYS, 기본 365일)을 초과한 AuditTrail 행을 ArchivedAuditTrail로 이관합니다. 실제 스케줄 트리거만 아직 연결되어 있지 않습니다.",
+              "11절대로 CRON_SECRET을 설정한 뒤, Vercel Cron(vercel.json의 crons 항목) 또는 외부 스케줄러가 /api/cron/audit-archive를 주기 호출하도록 구성하십시오.",
             ],
           ],
         },

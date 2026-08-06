@@ -183,6 +183,7 @@ describe("sessionFromApiKey", () => {
     userId: "demo-user-analyst",
     name: "Ingest key",
     scopes: ["activity_data:read", "activity_data:create"],
+    rateLimitPerMinute: null,
     isActive: true,
     expiresAt: null,
   };

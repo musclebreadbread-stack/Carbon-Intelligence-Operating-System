@@ -13,6 +13,7 @@ import {
   Building2,
   Database,
   KeyRound,
+  Mail,
   Map as MapIcon,
   Server,
   Settings as SettingsIcon,
@@ -34,6 +35,7 @@ import { updateOrganizationAction } from "@/lib/actions/organization";
 import { activeOrganizationId } from "@/lib/auth/active-organization";
 import { describeLlmMode, isLlmConfigured } from "@/lib/ai/llm/factory";
 import { isSupabaseConfigured } from "@/lib/auth/session";
+import { isNotificationConfigured } from "@/lib/notifications/factory";
 import { GWP_VERSIONS } from "@/lib/core/enums";
 import { CONSOLIDATION_APPROACHES } from "@/lib/domain/emissions/aggregate";
 import { getDataMode, getFallbackReason, isDbConfigured } from "@/lib/data/db";
@@ -42,6 +44,8 @@ import { getInventory } from "@/lib/data/repositories/calculation";
 import { getOrganization } from "@/lib/data/repositories/organization";
 import { formatEmissions, formatNumber, humaniseEnum } from "@/lib/format";
 import { SETUP_GUIDE_PATH } from "@/lib/i18n/messages";
+
+import { LocaleToggle } from "./_components/locale-toggle";
 
 const MONTHS = [
   "January",
@@ -107,12 +111,36 @@ const ENVIRONMENT: readonly {
       "Registering a data source with credentials fails: AES-256-GCM field encryption refuses to run without a key rather than storing plaintext.",
   },
   {
+    name: "FIELD_ENCRYPTION_KEY_V2",
+    icon: Server,
+    configured: () => (process.env.FIELD_ENCRYPTION_KEY_V2 ?? "").trim().length > 0,
+    required: false,
+    degradation:
+      "No key rotation is in progress; new writes and existing rows both use FIELD_ENCRYPTION_KEY unchanged.",
+  },
+  {
     name: "REDIS_URL",
     icon: Server,
     configured: () => (process.env.REDIS_URL ?? "").trim().length > 0,
     required: false,
     degradation:
       "Rate limiting stays in-process, so each server instance keeps its own token buckets.",
+  },
+  {
+    name: "RESEND_API_KEY / NOTIFICATION_EMAIL_FROM",
+    icon: Mail,
+    configured: () => isNotificationConfigured(),
+    required: false,
+    degradation:
+      "Rule-engine notify effects are logged server-side instead of emailed to the resolved recipients.",
+  },
+  {
+    name: "CRON_SECRET",
+    icon: Server,
+    configured: () => (process.env.CRON_SECRET ?? "").trim().length > 0,
+    required: false,
+    degradation:
+      "The /api/cron/audit-archive route refuses every request — it fails closed, not open.",
   },
 ];
 
@@ -180,6 +208,20 @@ export default async function SettingsPage() {
           source="buildInventory()"
         />
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Display language</CardTitle>
+          <CardDescription>
+            Switches the message-table keys `action-error.tsx` resolves — validation, demo-mode
+            and error copy. The application UI itself stays English by design; see{" "}
+            <code>src/lib/i18n/messages.ts</code>.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <LocaleToggle />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

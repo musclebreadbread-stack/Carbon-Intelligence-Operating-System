@@ -31,33 +31,6 @@ import type { ActionState } from "./types";
 
 const PATHS = ["/third-party-verification", "/digital-mrv", "/dashboard"] as const;
 
-/**
- * A quantified misstatement has no column of its own on `VerificationFinding`, so
- * it is carried in `description` behind this marker. Not ideal, but changing the
- * schema would invalidate the baseline migration.
- */
-const MISSTATEMENT_MARKER = "[misstatement:";
-
-function encodeMisstatement(
-  description: string | null,
-  amount: number | null | undefined,
-): string | null {
-  if (amount === null || amount === undefined) return description;
-  return `${description ?? ""}\n${MISSTATEMENT_MARKER}${amount}]`.trim();
-}
-
-function decodeMisstatement(description: string | null): number | null {
-  if (!description) return null;
-  const start = description.lastIndexOf(MISSTATEMENT_MARKER);
-  if (start === -1) return null;
-  const end = description.indexOf("]", start);
-  if (end === -1) return null;
-  const parsed = Number(
-    description.slice(start + MISSTATEMENT_MARKER.length, end),
-  );
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
 /** Opens a verification engagement. */
 export async function createVerificationEngagementAction(
   rawInput: unknown,
@@ -144,16 +117,16 @@ export async function recordFindingAction(
             type: input.type,
             severity: input.severity,
             title: input.title,
-            description: encodeMisstatement(
-              input.description ?? null,
-              input.misstatementAmount,
-            ),
+            description: input.description ?? null,
             recommendation: input.recommendation ?? null,
             response: input.response ?? null,
             status: input.status,
             dueDate: input.dueDate ?? null,
             resolvedAt: input.resolvedAt ?? null,
             assignedToId: input.assignedToId ?? null,
+            misstatementAmount: input.misstatementAmount ?? null,
+            estimatedFinancialImpact: input.estimatedFinancialImpact ?? null,
+            impactCurrency: input.impactCurrency ?? null,
           },
           select: { id: true },
         });
@@ -250,13 +223,13 @@ export async function assessMaterialityAction(
             title: true,
             type: true,
             status: true,
-            description: true,
+            misstatementAmount: true,
           },
         });
 
         const misstatements: readonly MisstatementLike[] = findings.flatMap(
           (finding): MisstatementLike[] => {
-            const deviation = decodeMisstatement(finding.description);
+            const deviation = finding.misstatementAmount;
             if (deviation === null) return [];
             return [
               {

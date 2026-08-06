@@ -28,6 +28,7 @@ import {
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { LinkButton } from "@/components/shared/link-button";
+import { useLocale } from "@/components/shared/locale-provider";
 import { SETUP_GUIDE_PATH, resolveMessage } from "@/lib/i18n/messages";
 import type { ActionState } from "@/lib/actions/types";
 import { cn } from "@/lib/utils";
@@ -47,12 +48,14 @@ export function ActionError({
   showSuccess = true,
   className,
 }: ActionErrorProps) {
+  const locale = useLocale();
+
   if (state.status === "success") {
     if (!showSuccess) return null;
     return (
       <Alert className={cn("border-emerald-500/40", className)} data-testid="action-success">
         <CheckCircle2 className="text-emerald-600" />
-        <AlertTitle>{resolveMessage(state.messageKey, state.message)}</AlertTitle>
+        <AlertTitle>{resolveMessage(state.messageKey, state.message, locale)}</AlertTitle>
       </Alert>
     );
   }
@@ -60,7 +63,7 @@ export function ActionError({
   // The idle state carries no message; nothing has been submitted yet.
   if (state.messageKey === "action.idle" || state.message === "") return null;
 
-  const message = resolveMessage(state.messageKey, state.message);
+  const message = resolveMessage(state.messageKey, state.message, locale);
   const unhandled = Object.entries(state.fieldErrors ?? {}).filter(
     ([path]) => !handledFields.includes(path),
   );

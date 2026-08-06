@@ -171,6 +171,29 @@ export const dataImportJobInputSchema = z.object({
 });
 export type DataImportJobInput = z.infer<typeof dataImportJobInputSchema>;
 
+/**
+ * `commitDataImportJobAction` — the CSV importer has already mapped each source
+ * column onto a target `ActivityDataEntry` field client-side (`csv-import.tsx`),
+ * so each row arrives as `{ targetField: rawStringValue }`. Row-level shape
+ * coercion and the `activityDataEntryInputSchema` checks happen per row in the
+ * action, so one malformed row does not fail the whole job.
+ */
+export const dataImportRowInputSchema = z.record(z.string(), z.string());
+
+export const commitDataImportJobInputSchema = z.object({
+  organizationId: idSchema,
+  activityDataId: idSchema,
+  name: nameSchema,
+  fileName: z.string().trim().max(300).nullish(),
+  fileType: z.enum(["csv", "xlsx", "json"]).nullish(),
+  mappings: z.array(dataImportMappingInputSchema).default([]),
+  rows: z
+    .array(dataImportRowInputSchema)
+    .min(1, "The import must contain at least one row")
+    .max(5000, "Import a maximum of 5000 rows per job"),
+});
+export type CommitDataImportJobInput = z.infer<typeof commitDataImportJobInputSchema>;
+
 /** `MeterReading` / `IoTReading` payload. */
 export const meterReadingInputSchema = z
   .object({

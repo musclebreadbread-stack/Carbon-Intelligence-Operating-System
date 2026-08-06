@@ -43,6 +43,7 @@ export function FindingForm({
       return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
     };
     const misstatement = text("misstatementAmount");
+    const financialImpact = text("estimatedFinancialImpact");
     return recordFinding({
       engagementId,
       type: text("type") ?? "OBSERVATION",
@@ -55,6 +56,8 @@ export function FindingForm({
       resolvedAt: text("resolvedAt"),
       assignedToId: text("assignedToId"),
       misstatementAmount: misstatement === null ? null : Number(misstatement),
+      estimatedFinancialImpact: financialImpact === null ? null : Number(financialImpact),
+      impactCurrency: text("impactCurrency"),
     });
   }, IDLE_ACTION_STATE as ActionState<{ readonly id: string }>);
 
@@ -71,6 +74,18 @@ export function FindingForm({
           step="any"
           className="sm:col-span-2"
           description="Quantify the misstatement whenever it can be measured: assessMateriality() aggregates only quantified findings, so leaving this blank means the engagement will always return an unqualified opinion."
+        />
+        <FormField
+          name="estimatedFinancialImpact"
+          label="Estimated financial impact"
+          type="number"
+          step="any"
+          description="Informational only — not used by assessMateriality(), which has no monetary threshold to weigh it against."
+        />
+        <FormField
+          name="impactCurrency"
+          label="Impact currency (ISO 4217)"
+          placeholder="USD"
         />
         <FormField name="status" label="Status" type="select" required options={statuses} defaultValue="open" />
         <FormField
@@ -107,6 +122,8 @@ export function FindingForm({
           "type",
           "severity",
           "misstatementAmount",
+          "estimatedFinancialImpact",
+          "impactCurrency",
           "status",
           "assignedToId",
           "dueDate",

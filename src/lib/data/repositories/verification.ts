@@ -33,6 +33,9 @@ import { getMrvCoverage } from "./mrv";
 export type FindingRow = VerificationFindingLike & {
   readonly engagementId: string;
   readonly misstatementAmount: number | null;
+  /** Informational only — not fed into materiality math. */
+  readonly estimatedFinancialImpact: number | null;
+  readonly impactCurrency: string | null;
 };
 
 export async function listVerificationEngagements(
@@ -109,10 +112,9 @@ export async function listFindings(engagementId: string): Promise<readonly Findi
         dueDate: row.dueDate,
         resolvedAt: row.resolvedAt,
         assignedToId: row.assignedToId,
-        // Not a column: the verifier records the quantified amount in the
-        // description, so a persisted engagement reports null here until the
-        // reviewer enters it.
-        misstatementAmount: null,
+        misstatementAmount: row.misstatementAmount,
+        estimatedFinancialImpact: row.estimatedFinancialImpact,
+        impactCurrency: row.impactCurrency,
       }));
     },
     () => DEMO_VERIFICATION_FINDINGS.filter((finding) => finding.engagementId === engagementId),

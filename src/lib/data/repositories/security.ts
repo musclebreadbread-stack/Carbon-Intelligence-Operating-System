@@ -25,6 +25,9 @@ import {
   type DemoUser,
 } from "../demo";
 
+/** Local, minimal recipient-shape check — kept independent of `src/lib/notifications`. */
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export async function listUsers(organizationId: string): Promise<readonly DemoUser[]> {
   return withDb<readonly DemoUser[]>(
     async () => {
@@ -173,6 +176,7 @@ export async function listApiKeys(
           name: true,
           prefix: true,
           scopes: true,
+          rateLimitPerMinute: true,
           lastUsedAt: true,
           expiresAt: true,
           isActive: true,
@@ -188,6 +192,7 @@ export async function listApiKeys(
         name: key.name,
         prefix: key.prefix,
         scopes: key.scopes,
+        rateLimitPerMinute: key.rateLimitPerMinute,
         lastUsedAt: key.lastUsedAt,
         expiresAt: key.expiresAt,
         isActive: key.isActive,
@@ -201,6 +206,7 @@ export type ApiKeyPrincipal = {
   readonly userId: string;
   readonly name: string;
   readonly scopes: readonly string[];
+  readonly rateLimitPerMinute: number | null;
   readonly isActive: boolean;
   readonly expiresAt: Date | null;
 };
@@ -224,6 +230,7 @@ export async function findApiKeyByHash(
           userId: true,
           name: true,
           scopes: true,
+          rateLimitPerMinute: true,
           isActive: true,
           expiresAt: true,
         },
@@ -255,6 +262,47 @@ export type SessionRow = {
   readonly expiresAt: Date;
   readonly createdAt: Date;
 };
+
+/**
+ * Resolves a rule effect's free-string `target` into notification recipients.
+ *
+ * An email-shaped target is used literally. Otherwise it is matched as a
+ * case-insensitive substring of a role name within the organization, and every
+ * active user holding that role receives it. An unresolvable target yields no
+ * recipients — the caller logs that rather than guessing an address.
+ */
+export async function resolveNotificationRecipients(
+  organizationId: string,
+  target: string | null,
+): Promise<readonly string[]> {
+  if (!target) return [];
+  if (EMAIL_PATTERN.test(target)) return [target];
+
+  return withDb<readonly string[]>(
+    async () => {
+      const rows = await prisma.user.findMany({
+        where: {
+          organizationId,
+          isActive: true,
+          userRoles: { some: { role: { name: { contains: target, mode: "insensitive" } } } },
+        },
+        select: { email: true },
+      });
+      return rows.map((row) => row.email);
+    },
+    () => {
+      const matchedRoleIds = DEMO_ROLES.filter((role) =>
+        role.name.toLowerCase().includes(target.toLowerCase()),
+      ).map((role) => role.id);
+      return DEMO_USERS.filter(
+        (user) =>
+          user.organizationId === organizationId &&
+          user.isActive &&
+          user.roleIds.some((roleId) => matchedRoleIds.includes(roleId)),
+      ).map((user) => user.email);
+    },
+  );
+}
 
 export async function listSessions(
   organizationId: string,

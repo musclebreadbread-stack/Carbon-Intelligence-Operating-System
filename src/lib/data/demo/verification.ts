@@ -340,6 +340,9 @@ export const DEMO_VERIFICATION_FINDINGS: readonly (VerificationFindingLike & {
   readonly description: string;
   readonly recommendation: string | null;
   readonly misstatementAmount: number | null;
+  /** Informational only — not fed into materiality math. */
+  readonly estimatedFinancialImpact: number | null;
+  readonly impactCurrency: string | null;
 })[] = [
   {
     id: "demo-finding-01",
@@ -355,6 +358,8 @@ export const DEMO_VERIFICATION_FINDINGS: readonly (VerificationFindingLike & {
     dueDate: new Date(Date.UTC(2025, 1, 14)),
     resolvedAt: null,
     misstatementAmount: 1_083,
+    estimatedFinancialImpact: 18_500,
+    impactCurrency: "USD",
   },
   {
     id: "demo-finding-02",
@@ -368,6 +373,8 @@ export const DEMO_VERIFICATION_FINDINGS: readonly (VerificationFindingLike & {
     dueDate: new Date(Date.UTC(2025, 1, 28)),
     resolvedAt: null,
     misstatementAmount: null,
+    estimatedFinancialImpact: null,
+    impactCurrency: null,
   },
   {
     id: "demo-finding-03",
@@ -381,6 +388,8 @@ export const DEMO_VERIFICATION_FINDINGS: readonly (VerificationFindingLike & {
     dueDate: new Date(Date.UTC(2025, 4, 30)),
     resolvedAt: null,
     misstatementAmount: null,
+    estimatedFinancialImpact: null,
+    impactCurrency: null,
   },
   {
     id: "demo-finding-04",
@@ -395,6 +404,8 @@ export const DEMO_VERIFICATION_FINDINGS: readonly (VerificationFindingLike & {
     dueDate: new Date(Date.UTC(2025, 0, 31)),
     resolvedAt: new Date(Date.UTC(2025, 0, 22)),
     misstatementAmount: null,
+    estimatedFinancialImpact: null,
+    impactCurrency: null,
   },
   {
     id: "demo-finding-05",
@@ -408,6 +419,8 @@ export const DEMO_VERIFICATION_FINDINGS: readonly (VerificationFindingLike & {
     dueDate: new Date(Date.UTC(2024, 11, 20)),
     resolvedAt: new Date(Date.UTC(2024, 11, 18)),
     misstatementAmount: 34,
+    estimatedFinancialImpact: 620,
+    impactCurrency: "USD",
   },
 ];
 

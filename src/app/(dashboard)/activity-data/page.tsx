@@ -23,6 +23,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { PageHeader } from "@/components/shared/page-header";
 import { createActivityEntryAction } from "@/lib/actions/activity-data";
+import { commitDataImportJobAction } from "@/lib/actions/data-import";
 import { executeRuleSetAction } from "@/lib/actions/rules";
 import { activeOrganizationId } from "@/lib/auth/active-organization";
 import { isDbConfigured } from "@/lib/data/db";
@@ -228,7 +229,14 @@ export default async function ActivityDataPage() {
             </TabsContent>
 
             <TabsContent value="import" className="pt-3">
-              <CsvImport databaseConfigured={isDbConfigured()} />
+              <CsvImport
+                databaseConfigured={isDbConfigured()}
+                activityDataOptions={headers.map((header) => ({
+                  value: header.id,
+                  label: `${header.name} (${header.reportingYear})`,
+                }))}
+                commitImport={commitDataImportJobAction}
+              />
             </TabsContent>
 
             <TabsContent value="rules" className="space-y-4 pt-3">

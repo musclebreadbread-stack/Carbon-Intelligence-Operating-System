@@ -32,6 +32,19 @@ import {
 import { AppError } from "@/lib/core/errors";
 
 export const FIELD_CRYPTO_VERSION = "v1";
+/**
+ * Every version this module can decrypt. `v2` exists so a key rotation can begin
+ * (set `FIELD_ENCRYPTION_KEY_V2`, run `rotateFieldEncryptionAction`) without
+ * invalidating rows still tagged `v1` under the original key — both keys can be
+ * live at once, which is what makes the rotation safe to run against a live table.
+ */
+export const FIELD_CRYPTO_VERSIONS = ["v1", "v2"] as const;
+export type FieldCryptoVersion = (typeof FIELD_CRYPTO_VERSIONS)[number];
+
+export function isFieldCryptoVersion(value: string): value is FieldCryptoVersion {
+  return (FIELD_CRYPTO_VERSIONS as readonly string[]).includes(value);
+}
+
 const ALGORITHM = "aes-256-gcm";
 const KEY_BYTES = 32;
 const IV_BYTES = 12;
@@ -44,10 +57,10 @@ export class FieldCryptoError extends AppError {
 }
 
 export class MissingEncryptionKeyError extends AppError {
-  constructor() {
+  constructor(envVar = "FIELD_ENCRYPTION_KEY") {
     super(
       "FIELD_ENCRYPTION_KEY_MISSING",
-      "FIELD_ENCRYPTION_KEY is not configured. Generate one with " +
+      `${envVar} is not configured. Generate one with ` +
         '`node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'base64\'))"` ' +
         "and set it in the environment before storing or reading encrypted fields.",
       {},
@@ -62,9 +75,17 @@ export class MissingEncryptionKeyError extends AppError {
  * error rather than something to pad or truncate — a silently weakened key is
  * worse than a failed start-up.
  */
-export function resolveKey(raw: string | undefined = process.env.FIELD_ENCRYPTION_KEY): Buffer {
+/**
+ * Not a default parameter for `raw`, deliberately: a default parameter applies
+ * whenever the argument is `undefined`, including when the caller passes an
+ * *explicitly* unset env var — which is exactly the case `resolveKeyForVersion`
+ * needs to distinguish for `FIELD_ENCRYPTION_KEY_V2`. Using an explicit `raw ??
+ * fallback` inside the body, instead, keeps "not configured" from silently
+ * resolving to a different key.
+ */
+function resolveNamedKey(raw: string | undefined, envVarName: string): Buffer {
   if (!raw || raw.trim().length === 0) {
-    throw new MissingEncryptionKeyError();
+    throw new MissingEncryptionKeyError(envVarName);
   }
   const value = raw.trim();
 
@@ -77,12 +98,33 @@ export function resolveKey(raw: string | undefined = process.env.FIELD_ENCRYPTIO
 
   if (key.length !== KEY_BYTES) {
     throw new FieldCryptoError(
-      `FIELD_ENCRYPTION_KEY must decode to ${KEY_BYTES} bytes; got ${key.length}. ` +
+      `${envVarName} must decode to ${KEY_BYTES} bytes; got ${key.length}. ` +
         "Use 32 random bytes encoded as base64 or 64 hex characters.",
       { decodedBytes: key.length },
     );
   }
   return key;
+}
+
+export function resolveKey(raw: string | undefined = process.env.FIELD_ENCRYPTION_KEY): Buffer {
+  return resolveNamedKey(raw, "FIELD_ENCRYPTION_KEY");
+}
+
+/** Resolves the key for a specific ciphertext version: `v1` → `FIELD_ENCRYPTION_KEY`, `v2` → `FIELD_ENCRYPTION_KEY_V2`. */
+export function resolveKeyForVersion(version: FieldCryptoVersion): Buffer {
+  return version === "v2"
+    ? resolveNamedKey(process.env.FIELD_ENCRYPTION_KEY_V2, "FIELD_ENCRYPTION_KEY_V2")
+    : resolveKey();
+}
+
+/**
+ * The version new writes should use. `v2` once `FIELD_ENCRYPTION_KEY_V2` is set —
+ * that is the signal a rotation is in progress — otherwise `v1`, unchanged from
+ * every deployment that has never rotated a key.
+ */
+export function currentFieldCryptoVersion(): FieldCryptoVersion {
+  const v2 = process.env.FIELD_ENCRYPTION_KEY_V2;
+  return v2 && v2.trim().length > 0 ? "v2" : "v1";
 }
 
 /** True when a usable key is configured; for the settings status panel. */
@@ -119,7 +161,8 @@ function decodeSegment(value: string, label: string, expectedBytes?: number): Bu
 
 /** True when a stored value looks like output of `encryptField`. */
 export function isEncrypted(value: string): boolean {
-  return value.startsWith(`${FIELD_CRYPTO_VERSION}.`) && value.split(".").length === 4;
+  const [version, ...rest] = value.split(".");
+  return isFieldCryptoVersion(version) && rest.length === 3;
 }
 
 /**
@@ -128,34 +171,42 @@ export function isEncrypted(value: string): boolean {
  * A fresh random IV is generated per call, so encrypting the same plaintext twice
  * yields different ciphertexts — required for GCM, and it also prevents an
  * attacker from spotting two users with the same secret.
+ *
+ * When `key` is omitted, both the key and the version tag are resolved from
+ * `currentFieldCryptoVersion()` — `v2` once a rotation is under way, `v1`
+ * otherwise. An explicitly supplied `key` keeps the historical default of tagging
+ * the output `v1` unless the caller also names a `version` (`rotateFieldValue`
+ * does, to write `v2` under the new key it was handed).
  */
 export function encryptField(
   plaintext: string,
-  key: Buffer = resolveKey(),
+  key?: Buffer,
+  version: FieldCryptoVersion = key ? FIELD_CRYPTO_VERSION : currentFieldCryptoVersion(),
 ): string {
   if (typeof plaintext !== "string") {
     throw new FieldCryptoError("encryptField expects a string", {
       received: typeof plaintext,
     });
   }
+  const resolvedKey = key ?? resolveKeyForVersion(version);
   const iv = randomBytes(IV_BYTES);
-  const cipher = createCipheriv(ALGORITHM, key, iv);
+  const cipher = createCipheriv(ALGORITHM, resolvedKey, iv);
   const ciphertext = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
   const authTag = cipher.getAuthTag();
 
-  return [
-    FIELD_CRYPTO_VERSION,
-    encodeSegment(iv),
-    encodeSegment(authTag),
-    encodeSegment(ciphertext),
-  ].join(".");
+  return [version, encodeSegment(iv), encodeSegment(authTag), encodeSegment(ciphertext)].join(".");
 }
 
 /**
  * Decrypts a value produced by `encryptField`.
+ *
+ * When `key` is omitted, it is resolved from the ciphertext's own version prefix
+ * (`v1` → `FIELD_ENCRYPTION_KEY`, `v2` → `FIELD_ENCRYPTION_KEY_V2`), so `v1` rows
+ * written before a rotation keep decrypting under the old key after
+ * `FIELD_ENCRYPTION_KEY_V2` is introduced.
  * @throws FieldCryptoError when the format is wrong or the auth tag fails.
  */
-export function decryptField(stored: string, key: Buffer = resolveKey()): string {
+export function decryptField(stored: string, key?: Buffer): string {
   if (typeof stored !== "string" || stored.length === 0) {
     throw new FieldCryptoError("decryptField expects a non-empty string", {});
   }
@@ -167,15 +218,16 @@ export function decryptField(stored: string, key: Buffer = resolveKey()): string
     );
   }
   const [version, ivPart, tagPart, dataPart] = parts;
-  if (version !== FIELD_CRYPTO_VERSION) {
+  if (!isFieldCryptoVersion(version)) {
     throw new FieldCryptoError(`Unsupported field-crypto version "${version}"`, { version });
   }
+  const resolvedKey = key ?? resolveKeyForVersion(version);
 
   const iv = decodeSegment(ivPart, "iv", IV_BYTES);
   const authTag = decodeSegment(tagPart, "authTag", AUTH_TAG_BYTES);
   const ciphertext = decodeSegment(dataPart, "ciphertext");
 
-  const decipher = createDecipheriv(ALGORITHM, key, iv);
+  const decipher = createDecipheriv(ALGORITHM, resolvedKey, iv);
   decipher.setAuthTag(authTag);
   try {
     return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf8");
@@ -190,12 +242,12 @@ export function decryptField(stored: string, key: Buffer = resolveKey()): string
 }
 
 /** Encrypts a JSON-serialisable value, e.g. `DataSource.credentials`. */
-export function encryptJson(value: unknown, key: Buffer = resolveKey()): string {
+export function encryptJson(value: unknown, key?: Buffer): string {
   return encryptField(JSON.stringify(value), key);
 }
 
 /** Decrypts and parses a value written by `encryptJson`. */
-export function decryptJson<T = unknown>(stored: string, key: Buffer = resolveKey()): T {
+export function decryptJson<T = unknown>(stored: string, key?: Buffer): T {
   const plaintext = decryptField(stored, key);
   try {
     return JSON.parse(plaintext) as T;
@@ -211,7 +263,23 @@ export function decryptFieldIfEncrypted(
 ): string | null {
   if (stored === null || stored === undefined) return null;
   if (!isEncrypted(stored)) return stored;
-  return decryptField(stored, key ?? resolveKey());
+  return decryptField(stored, key);
+}
+
+/**
+ * Decrypts a stored value under `oldKey` and re-encrypts it under `newKey`,
+ * tagged `newVersion`. Pure and synchronous — no env reads, no I/O — so the
+ * caller (`rotateFieldEncryptionAction`) resolves both keys once from the
+ * environment and this function does the actual per-row work.
+ */
+export function rotateFieldValue(
+  stored: string,
+  oldKey: Buffer,
+  newKey: Buffer,
+  newVersion: FieldCryptoVersion = "v2",
+): string {
+  const plaintext = decryptField(stored, oldKey);
+  return encryptField(plaintext, newKey, newVersion);
 }
 
 // ---------------------------------------------------------------------------

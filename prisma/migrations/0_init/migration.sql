@@ -201,6 +201,7 @@ CREATE TABLE "APIKey" (
     "keyHash" TEXT NOT NULL,
     "prefix" TEXT NOT NULL,
     "scopes" TEXT[],
+    "rateLimitPerMinute" INTEGER,
     "lastUsedAt" TIMESTAMP(3),
     "expiresAt" TIMESTAMP(3),
     "isActive" BOOLEAN NOT NULL DEFAULT true,
@@ -918,6 +919,16 @@ CREATE TABLE "EmissionFactor" (
 );
 
 -- CreateTable
+CREATE TABLE "EmissionFactorEmbedding" (
+    "emissionFactorId" TEXT NOT NULL,
+    "embedding" vector(1536) NOT NULL,
+    "model" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "EmissionFactorEmbedding_pkey" PRIMARY KEY ("emissionFactorId")
+);
+
+-- CreateTable
 CREATE TABLE "EmissionFactorSource" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -1581,6 +1592,23 @@ CREATE TABLE "AuditTrail" (
 );
 
 -- CreateTable
+CREATE TABLE "ArchivedAuditTrail" (
+    "id" TEXT NOT NULL,
+    "entityType" TEXT NOT NULL,
+    "entityId" TEXT NOT NULL,
+    "action" TEXT NOT NULL,
+    "changes" JSONB,
+    "reason" TEXT,
+    "performedBy" TEXT,
+    "ipAddress" TEXT,
+    "timestamp" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL,
+    "archivedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ArchivedAuditTrail_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "AuditEvidence" (
     "id" TEXT NOT NULL,
     "type" TEXT NOT NULL,
@@ -1612,6 +1640,9 @@ CREATE TABLE "VerificationFinding" (
     "status" TEXT NOT NULL DEFAULT 'open',
     "dueDate" TIMESTAMP(3),
     "resolvedAt" TIMESTAMP(3),
+    "misstatementAmount" DOUBLE PRECISION,
+    "estimatedFinancialImpact" DOUBLE PRECISION,
+    "impactCurrency" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "engagementId" TEXT NOT NULL,
@@ -3186,6 +3217,12 @@ CREATE INDEX "AuditTrail_timestamp_idx" ON "AuditTrail"("timestamp");
 CREATE INDEX "AuditTrail_performedBy_idx" ON "AuditTrail"("performedBy");
 
 -- CreateIndex
+CREATE INDEX "ArchivedAuditTrail_entityType_entityId_idx" ON "ArchivedAuditTrail"("entityType", "entityId");
+
+-- CreateIndex
+CREATE INDEX "ArchivedAuditTrail_timestamp_idx" ON "ArchivedAuditTrail"("timestamp");
+
+-- CreateIndex
 CREATE INDEX "AuditEvidence_auditTrailId_idx" ON "AuditEvidence"("auditTrailId");
 
 -- CreateIndex
@@ -3778,6 +3815,9 @@ ALTER TABLE "EmissionFactor" ADD CONSTRAINT "EmissionFactor_categoryId_fkey" FOR
 
 -- AddForeignKey
 ALTER TABLE "EmissionFactor" ADD CONSTRAINT "EmissionFactor_versionId_fkey" FOREIGN KEY ("versionId") REFERENCES "EmissionFactorVersion"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "EmissionFactorEmbedding" ADD CONSTRAINT "EmissionFactorEmbedding_emissionFactorId_fkey" FOREIGN KEY ("emissionFactorId") REFERENCES "EmissionFactor"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "EmissionFactorVersion" ADD CONSTRAINT "EmissionFactorVersion_sourceId_fkey" FOREIGN KEY ("sourceId") REFERENCES "EmissionFactorSource"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

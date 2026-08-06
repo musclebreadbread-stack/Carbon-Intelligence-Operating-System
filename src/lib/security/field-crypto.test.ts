@@ -6,6 +6,7 @@ import {
   FIELD_CRYPTO_VERSION,
   FieldCryptoError,
   MissingEncryptionKeyError,
+  currentFieldCryptoVersion,
   decryptField,
   decryptFieldIfEncrypted,
   decryptJson,
@@ -17,20 +18,28 @@ import {
   isEncrypted,
   isFieldCryptoConfigured,
   resolveKey,
+  resolveKeyForVersion,
+  rotateFieldValue,
   verifyPassword,
 } from "./field-crypto";
 
 const KEY = randomBytes(32);
 const KEY_BASE64 = KEY.toString("base64");
+const KEY_V2 = randomBytes(32);
+const KEY_V2_BASE64 = KEY_V2.toString("base64");
 const ORIGINAL_KEY = process.env.FIELD_ENCRYPTION_KEY;
+const ORIGINAL_KEY_V2 = process.env.FIELD_ENCRYPTION_KEY_V2;
 
 beforeEach(() => {
   process.env.FIELD_ENCRYPTION_KEY = KEY_BASE64;
+  delete process.env.FIELD_ENCRYPTION_KEY_V2;
 });
 
 afterEach(() => {
   if (ORIGINAL_KEY === undefined) delete process.env.FIELD_ENCRYPTION_KEY;
   else process.env.FIELD_ENCRYPTION_KEY = ORIGINAL_KEY;
+  if (ORIGINAL_KEY_V2 === undefined) delete process.env.FIELD_ENCRYPTION_KEY_V2;
+  else process.env.FIELD_ENCRYPTION_KEY_V2 = ORIGINAL_KEY_V2;
 });
 
 describe("resolveKey", () => {
@@ -139,7 +148,7 @@ describe("encryptField / decryptField", () => {
   it("rejects a malformed envelope", () => {
     expect(() => decryptField("not-encrypted")).toThrow(/must have the form/);
     expect(() => decryptField("v1.a.b")).toThrow(/must have the form/);
-    expect(() => decryptField("v2.a.b.c")).toThrow(/Unsupported field-crypto version/);
+    expect(() => decryptField("v3.a.b.c")).toThrow(/Unsupported field-crypto version/);
     expect(() => decryptField("")).toThrow(/non-empty string/);
   });
 
@@ -160,6 +169,64 @@ describe("encryptField / decryptField", () => {
     delete process.env.FIELD_ENCRYPTION_KEY;
     expect(() => encryptField("value")).toThrow(MissingEncryptionKeyError);
     expect(() => decryptField("v1.a.b.c")).toThrow(MissingEncryptionKeyError);
+  });
+});
+
+describe("key rotation (v1 -> v2)", () => {
+  it("defaults to v1 when no rotation key is configured", () => {
+    expect(currentFieldCryptoVersion()).toBe("v1");
+    expect(encryptField("value").startsWith("v1.")).toBe(true);
+  });
+
+  it("switches new writes to v2 once FIELD_ENCRYPTION_KEY_V2 is set", () => {
+    process.env.FIELD_ENCRYPTION_KEY_V2 = KEY_V2_BASE64;
+    expect(currentFieldCryptoVersion()).toBe("v2");
+
+    const stored = encryptField("value");
+    expect(stored.startsWith("v2.")).toBe(true);
+    // Decrypts under FIELD_ENCRYPTION_KEY_V2 automatically, from the prefix.
+    expect(decryptField(stored)).toBe("value");
+  });
+
+  it("still decrypts v1 rows after FIELD_ENCRYPTION_KEY_V2 is introduced", () => {
+    const v1Stored = encryptField("old secret");
+    process.env.FIELD_ENCRYPTION_KEY_V2 = KEY_V2_BASE64;
+
+    expect(decryptField(v1Stored)).toBe("old secret");
+  });
+
+  it("resolveKeyForVersion resolves the matching env var for each version", () => {
+    process.env.FIELD_ENCRYPTION_KEY_V2 = KEY_V2_BASE64;
+    expect(resolveKeyForVersion("v1").equals(KEY)).toBe(true);
+    expect(resolveKeyForVersion("v2").equals(KEY_V2)).toBe(true);
+  });
+
+  it("resolveKeyForVersion('v2') throws a v2-specific missing-key error", () => {
+    expect(() => resolveKeyForVersion("v2")).toThrow(MissingEncryptionKeyError);
+    try {
+      resolveKeyForVersion("v2");
+    } catch (error) {
+      expect((error as Error).message).toContain("FIELD_ENCRYPTION_KEY_V2");
+    }
+  });
+
+  it("rotateFieldValue re-encrypts under the new key and tags v2", () => {
+    const stored = encryptField("rotate-me", KEY);
+    expect(stored.startsWith("v1.")).toBe(true);
+
+    const rotated = rotateFieldValue(stored, KEY, KEY_V2);
+    expect(rotated.startsWith("v2.")).toBe(true);
+    expect(decryptField(rotated, KEY_V2)).toBe("rotate-me");
+    // The old key can no longer decrypt the rotated ciphertext.
+    expect(() => decryptField(rotated, KEY)).toThrow(FieldCryptoError);
+  });
+
+  it("rotateFieldValue round-trips through the env-resolved decrypt path", () => {
+    const stored = encryptField("value");
+    process.env.FIELD_ENCRYPTION_KEY_V2 = KEY_V2_BASE64;
+
+    const rotated = rotateFieldValue(stored, KEY, KEY_V2);
+    expect(decryptField(rotated)).toBe("value");
   });
 });
 

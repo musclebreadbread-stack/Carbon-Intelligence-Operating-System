@@ -1,9 +1,10 @@
 /**
  * Audit-trail repository.
  *
- * Reads only. Audit entries are *written* by the server actions through
- * `buildAuditEntry`, never here, so there is exactly one place a mutation can be
- * recorded from.
+ * Mostly reads. Audit entries are *written* by the server actions through
+ * `buildAuditEntry`, never here — except `archiveAuditTrailOlderThan`, which has
+ * to run outside a user session (a scheduled job has none) and so cannot go
+ * through the session-gated `runAction` pipeline every other write uses.
  */
 
 import type { AuditTrailQuery } from "@/lib/validation";
@@ -98,6 +99,41 @@ export async function listAuditEvidence(
     },
     () => [],
   );
+}
+
+export type ArchiveAuditTrailOutcome = {
+  readonly archived: number;
+};
+
+/**
+ * Moves every `AuditTrail` row older than `cutoff` into `ArchivedAuditTrail` and
+ * deletes it from the live table, in one transaction. No `withDb` fallback: an
+ * unavailable database must fail this outright, never silently report success
+ * on a batch it never touched.
+ */
+export async function archiveAuditTrailOlderThan(cutoff: Date): Promise<ArchiveAuditTrailOutcome> {
+  const rows = await prisma.auditTrail.findMany({ where: { timestamp: { lt: cutoff } } });
+  if (rows.length === 0) return { archived: 0 };
+
+  await prisma.$transaction([
+    prisma.archivedAuditTrail.createMany({
+      data: rows.map((row) => ({
+        id: row.id,
+        entityType: row.entityType,
+        entityId: row.entityId,
+        action: row.action,
+        changes: row.changes ?? undefined,
+        reason: row.reason,
+        performedBy: row.performedBy,
+        ipAddress: row.ipAddress,
+        timestamp: row.timestamp,
+        createdAt: row.createdAt,
+      })),
+    }),
+    prisma.auditTrail.deleteMany({ where: { id: { in: rows.map((row) => row.id) } } }),
+  ]);
+
+  return { archived: rows.length };
 }
 
 export type VersionHistoryRow = {

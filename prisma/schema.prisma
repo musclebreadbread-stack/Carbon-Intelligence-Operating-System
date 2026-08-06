@@ -436,16 +436,18 @@ model Session {
 }
 
 model APIKey {
-  id         String    @id @default(cuid())
-  name       String
-  keyHash    String    @unique
-  prefix     String
-  scopes     String[]
-  lastUsedAt DateTime?
-  expiresAt  DateTime?
-  isActive   Boolean   @default(true)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id                 String    @id @default(cuid())
+  name               String
+  keyHash            String    @unique
+  prefix             String
+  scopes             String[]
+  /** Per-key requests-per-minute ceiling; `null` defers to `API_RATE_LIMIT_PER_MINUTE`. */
+  rateLimitPerMinute Int?
+  lastUsedAt         DateTime?
+  expiresAt          DateTime?
+  isActive           Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   userId         String
   organizationId String
@@ -1338,12 +1340,31 @@ model EmissionFactor {
   version        EmissionFactorVersion?  @relation(fields: [versionId], references: [id])
 
   emissionResults EmissionResult[]
+  embedding       EmissionFactorEmbedding?
 
   @@index([organizationId])
   @@index([scope])
   @@index([region])
   @@index([sector])
   @@index([categoryId])
+}
+
+/**
+ * Semantic-search index for EmissionFactor, kept as a separate 1:1 table rather
+ * than a column on EmissionFactor itself — the vector index stays off the table
+ * every calculation-engine query touches, and "reference data" stays separate
+ * from "search index" as a concern. Prisma has no typed query support for the
+ * `vector` type or the `<=>` cosine-distance operator, so the repository reads
+ * and writes this table with raw SQL ($queryRaw/$executeRaw).
+ */
+model EmissionFactorEmbedding {
+  emissionFactorId String                   @id
+  embedding        Unsupported("vector(1536)")
+  /** Embedding model identifier, e.g. "text-embedding-3-small" or "deterministic". */
+  model            String
+  createdAt        DateTime                 @default(now())
+
+  emissionFactor EmissionFactor @relation(fields: [emissionFactorId], references: [id], onDelete: Cascade)
 }
 
 model EmissionFactorSource {
@@ -2148,6 +2169,28 @@ model AuditTrail {
   @@index([performedBy])
 }
 
+/**
+ * Cold-storage copy of `AuditTrail` rows past their retention window. A separate,
+ * structurally-identical table (not a soft-delete flag) so archived entries stay
+ * queryable — an audit trail that can't be re-read isn't provable.
+ */
+model ArchivedAuditTrail {
+  id          String   @id @default(cuid())
+  entityType  String
+  entityId    String
+  action      String
+  changes     Json?
+  reason      String?
+  performedBy String?
+  ipAddress   String?
+  timestamp   DateTime
+  createdAt   DateTime
+  archivedAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([timestamp])
+}
+
 model AuditEvidence {
   id          String    @id @default(cuid())
   type        String
@@ -2181,6 +2224,12 @@ model VerificationFinding {
   status         String    @default("open")
   dueDate        DateTime?
   resolvedAt     DateTime?
+  /** Absolute magnitude of the misstatement in tCO2e, when quantified. */
+  misstatementAmount       Float?
+  /** Informational only — not fed into materiality/opinion math (no monetary threshold exists there). */
+  estimatedFinancialImpact Float?
+  /** ISO 4217 currency code for `estimatedFinancialImpact`. */
+  impactCurrency           String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 

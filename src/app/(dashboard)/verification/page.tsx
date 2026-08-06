@@ -43,6 +43,7 @@ import {
   OPEN_FINDING_STATUSES,
 } from "@/lib/domain/verification/findings";
 import {
+  formatCurrency,
   formatDate,
   formatDateTime,
   formatEmissions,
@@ -296,6 +297,18 @@ export default async function VerificationPage() {
                     {finding.misstatementAmount !== null && (
                       <Badge variant="outline" className="font-mono">
                         {formatEmissions(finding.misstatementAmount)} {misstatements.unit}
+                      </Badge>
+                    )}
+                    {finding.estimatedFinancialImpact !== null && (
+                      <Badge
+                        variant="outline"
+                        className="font-mono"
+                        title="Informational only — not used by the materiality opinion"
+                      >
+                        {formatCurrency(
+                          finding.estimatedFinancialImpact,
+                          finding.impactCurrency ?? "USD",
+                        )}
                       </Badge>
                     )}
                     <span className="ml-auto text-xs text-muted-foreground">

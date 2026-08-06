@@ -54,6 +54,16 @@ vi.mock("@/lib/data/repositories/rules", () => ({
   listRuleSets: (...args: unknown[]) => listRuleSets(...args),
 }));
 
+const resolveNotificationRecipients = vi.fn();
+vi.mock("@/lib/data/repositories/security", () => ({
+  resolveNotificationRecipients: (...args: unknown[]) => resolveNotificationRecipients(...args),
+}));
+
+const notificationSend = vi.fn();
+vi.mock("@/lib/notifications/factory", () => ({
+  getNotificationChannel: () => ({ provider: "test", send: (...args: unknown[]) => notificationSend(...args) }),
+}));
+
 import { DEMO_CURRENT_YEAR, DEMO_ORGANIZATION_ID } from "@/lib/data/demo";
 
 import {
@@ -154,11 +164,15 @@ beforeEach(() => {
   activityDataEntryFindUnique.mockReset();
   activityDataEntryUpdate.mockReset();
   auditCreateMany.mockReset();
+  resolveNotificationRecipients.mockReset();
+  notificationSend.mockReset();
 
   requireSession.mockResolvedValue(SESSION);
   canWrite.mockResolvedValue(true);
   auditCreateMany.mockResolvedValue({ count: 1 });
   listRuleSets.mockResolvedValue([]);
+  resolveNotificationRecipients.mockResolvedValue([]);
+  notificationSend.mockResolvedValue({ delivered: true, provider: "test", durationMs: 0 });
   activityDataCreate.mockResolvedValue({ id: "ad-1" });
   activityDataFindUnique.mockResolvedValue({
     id: "ad-1",
@@ -286,6 +300,68 @@ describe("createActivityEntryAction", () => {
     if (state.status !== "error") throw new Error("expected an error state");
     expect(state.code).toBe("VALIDATION_ERROR");
     expect(listRuleSets).not.toHaveBeenCalled();
+  });
+});
+
+describe("createActivityEntryAction — notify dispatch", () => {
+  it("dispatches a notification to every resolved recipient for a notify effect", async () => {
+    listRuleSets.mockResolvedValue(ruleSetWith("notify", "Escalate to the facility lead"));
+    resolveNotificationRecipients.mockResolvedValue(["lead@example.com", "backup@example.com"]);
+
+    const state = await createActivityEntryAction(ENTRY_INPUT);
+
+    expect(state.status).toBe("success");
+    if (state.status !== "success") throw new Error(state.message);
+    // notify is non-blocking, so the entry is still written and flagged.
+    expect(activityDataEntryCreate).toHaveBeenCalledTimes(1);
+    expect(state.data.ruleFlags[0]).toContain("Escalate to the facility lead");
+
+    expect(notificationSend).toHaveBeenCalledTimes(2);
+    const recipients = notificationSend.mock.calls.map((call) => call[0].recipient).sort();
+    expect(recipients).toEqual(["backup@example.com", "lead@example.com"]);
+  });
+
+  it("logs and continues when no recipient resolves for the target", async () => {
+    listRuleSets.mockResolvedValue(ruleSetWith("notify", "Escalate to nobody in particular"));
+    resolveNotificationRecipients.mockResolvedValue([]);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const state = await createActivityEntryAction(ENTRY_INPUT);
+
+    expect(state.status).toBe("success");
+    expect(notificationSend).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("does not fail the save when the notification channel throws", async () => {
+    listRuleSets.mockResolvedValue(ruleSetWith("notify", "Escalate to the facility lead"));
+    resolveNotificationRecipients.mockResolvedValue(["lead@example.com"]);
+    notificationSend.mockRejectedValue(new Error("Resend is down"));
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const state = await createActivityEntryAction(ENTRY_INPUT);
+
+    expect(state.status).toBe("success");
+    if (state.status !== "success") throw new Error(state.message);
+    // The entry itself is unaffected by the delivery failure.
+    expect(activityDataEntryCreate).toHaveBeenCalledTimes(1);
+    expect(auditCreateMany).toHaveBeenCalledTimes(1);
+    expect(error).toHaveBeenCalled();
+    error.mockRestore();
+  });
+
+  it("never dispatches while in demo mode, because the mutation is refused before the handler runs", async () => {
+    canWrite.mockResolvedValue(false);
+    listRuleSets.mockResolvedValue(ruleSetWith("notify", "Escalate to the facility lead"));
+
+    const state = await createActivityEntryAction(ENTRY_INPUT);
+
+    expect(state.status).toBe("error");
+    if (state.status !== "error") throw new Error("expected an error state");
+    expect(state.code).toBe("DEMO_MODE");
+    expect(notificationSend).not.toHaveBeenCalled();
+    expect(resolveNotificationRecipients).not.toHaveBeenCalled();
   });
 });
 

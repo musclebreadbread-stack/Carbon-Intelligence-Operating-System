@@ -100,6 +100,10 @@ export const verificationFindingInputSchema = z
     assignedToId: idSchema.nullish(),
     /** Absolute magnitude of the misstatement in tCO2e, when quantified. */
     misstatementAmount: z.number().finite().nullish(),
+    /** Informational only — not fed into materiality math. */
+    estimatedFinancialImpact: z.number().finite().nonnegative().nullish(),
+    /** ISO 4217 currency code, required alongside `estimatedFinancialImpact`. */
+    impactCurrency: z.string().trim().length(3).toUpperCase().nullish(),
   })
   .superRefine((value, ctx) => {
     const isClosed = (CLOSED_FINDING_STATUSES as readonly string[]).includes(value.status);

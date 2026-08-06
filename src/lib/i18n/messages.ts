@@ -57,9 +57,11 @@ export const ERROR_MESSAGES: Readonly<Record<string, MessageEntry>> = {
   },
   "action.error.NOT_FOUND": {
     en: "That record no longer exists. Reload the page and try again.",
+    ko: "해당 레코드가 더 이상 존재하지 않습니다. 페이지를 새로고침한 후 다시 시도하세요.",
   },
   "action.error.CONFLICT": {
     en: "Someone else changed this record. Reload the page and try again.",
+    ko: "다른 사용자가 이 레코드를 변경했습니다. 페이지를 새로고침한 후 다시 시도하세요.",
   },
   "action.error.demoMode": {
     en: "No database is configured, so this change was not saved. Every figure shown is still computed from the bundled sample data by the real calculation engines.",
@@ -71,6 +73,7 @@ export const ERROR_MESSAGES: Readonly<Record<string, MessageEntry>> = {
   },
   "action.error.CALCULATION_ERROR": {
     en: "The calculation could not be completed with the values supplied.",
+    ko: "입력한 값으로는 계산을 완료할 수 없습니다.",
   },
   "action.error.LLM_ERROR": {
     en: "The language model is unavailable, so no narrative was generated. The numeric result is unaffected.",
@@ -82,12 +85,15 @@ export const ERROR_MESSAGES: Readonly<Record<string, MessageEntry>> = {
   },
   "action.error.RATE_LIMITED": {
     en: "Too many requests. Wait a moment and try again.",
+    ko: "요청이 너무 많습니다. 잠시 후 다시 시도하세요.",
   },
   "action.error.internal": {
     en: "Something went wrong. The change was not saved.",
+    ko: "문제가 발생했습니다. 변경 내용이 저장되지 않았습니다.",
   },
   "action.error.INTERNAL_ERROR": {
     en: "Something went wrong. The change was not saved.",
+    ko: "문제가 발생했습니다. 변경 내용이 저장되지 않았습니다.",
   },
 };
 
@@ -116,6 +122,7 @@ export const SUCCESS_MESSAGES: Readonly<Record<string, MessageEntry>> = {
   "action.success.createActivityEntry": { en: "Activity entry saved." },
   "action.success.updateActivityEntry": { en: "Activity entry updated." },
   "action.success.recordMeterReading": { en: "Meter reading recorded." },
+  "action.success.commitDataImportJob": { en: "Import job committed." },
 
   "action.success.createEmissionFactor": { en: "Emission factor created." },
   "action.success.supersedeEmissionFactor": { en: "Emission factor superseded." },
@@ -168,6 +175,9 @@ export const SUCCESS_MESSAGES: Readonly<Record<string, MessageEntry>> = {
   "action.success.createDataSource": { en: "Data source created." },
 
   "action.success.signOut": { en: "Signed out." },
+  "action.success.rotateFieldEncryption": { en: "Field encryption key rotated." },
+  "action.success.archiveAuditTrail": { en: "Audit trail archived." },
+  "action.success.setLocale": { en: "Locale updated." },
 };
 
 /** Every key the table knows, both namespaces merged. */

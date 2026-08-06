@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "postinstall": "prisma generate",
     "db:seed": "tsx prisma/seed.ts",
-    "docs:setup-guide": "tsx scripts/generate-setup-guide.ts"
+    "docs:setup-guide": "tsx scripts/generate-setup-guide.ts",
+    "embeddings:backfill": "tsx scripts/backfill-emission-factor-embeddings.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

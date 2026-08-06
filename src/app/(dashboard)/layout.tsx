@@ -13,6 +13,7 @@ import { connection } from "next/server";
 import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
 import { DemoModeBanner } from "@/components/layout/demo-mode-banner";
+import { LocaleProvider } from "@/components/shared/locale-provider";
 import {
   SessionProvider,
   type ClientSession,
@@ -26,6 +27,7 @@ import {
   listFindings,
   listVerificationEngagements,
 } from "@/lib/data/repositories/verification";
+import { resolveLocale } from "@/lib/i18n/locale";
 
 /** Open findings drive the header's notification badge. */
 async function countOpenFindings(organizationId: string): Promise<number> {
@@ -48,9 +50,10 @@ export default async function DashboardLayout({
 }) {
   await connection();
 
-  const [session, organization] = await Promise.all([
+  const [session, organization, locale] = await Promise.all([
     getSession(),
     resolveActiveOrganization(),
+    resolveLocale(),
   ]);
   const openFindings = await countOpenFindings(organization.id);
 
@@ -78,34 +81,36 @@ export default async function DashboardLayout({
   const dataMode = getDataMode();
 
   return (
-    <SessionProvider
-      value={{
-        session: clientSession,
-        organizations: organization.available,
-        dataMode,
-      }}
-    >
-      <div className="flex h-screen overflow-hidden">
-        <Sidebar />
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <Header
-            signOut={signOutAction}
-            llmLabel={llm.label}
-            llmConfigured={isLlmConfigured()}
-            openFindings={openFindings}
-          />
-          <main className="flex-1 space-y-4 overflow-y-auto bg-muted/30 p-6">
-            <DemoModeBanner
-              demoMode={dataMode === "demo"}
-              databaseConfigured={isDbConfigured()}
-              supabaseConfigured={isSupabaseConfigured()}
+    <LocaleProvider initialLocale={locale}>
+      <SessionProvider
+        value={{
+          session: clientSession,
+          organizations: organization.available,
+          dataMode,
+        }}
+      >
+        <div className="flex h-screen overflow-hidden">
+          <Sidebar />
+          <div className="flex flex-1 flex-col overflow-hidden">
+            <Header
+              signOut={signOutAction}
+              llmLabel={llm.label}
               llmConfigured={isLlmConfigured()}
-              reason={getFallbackReason()}
+              openFindings={openFindings}
             />
-            {children}
-          </main>
+            <main className="flex-1 space-y-4 overflow-y-auto bg-muted/30 p-6">
+              <DemoModeBanner
+                demoMode={dataMode === "demo"}
+                databaseConfigured={isDbConfigured()}
+                supabaseConfigured={isSupabaseConfigured()}
+                llmConfigured={isLlmConfigured()}
+                reason={getFallbackReason()}
+              />
+              {children}
+            </main>
+          </div>
         </div>
-      </div>
-    </SessionProvider>
+      </SessionProvider>
+    </LocaleProvider>
   );
 }

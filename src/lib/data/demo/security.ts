@@ -32,7 +32,15 @@ export const DEMO_RESOURCES = [
 ] as const;
 export type DemoResource = (typeof DEMO_RESOURCES)[number];
 
-export const DEMO_ACTIONS = ["read", "create", "update", "delete", "approve", "export"] as const;
+export const DEMO_ACTIONS = [
+  "read",
+  "create",
+  "update",
+  "delete",
+  "approve",
+  "export",
+  "archive",
+] as const;
 export type DemoAction = (typeof DEMO_ACTIONS)[number];
 
 export type DemoPermission = {
@@ -319,6 +327,8 @@ export type DemoApiKey = {
   /** Placeholder digest: no real key hashes to this, so it cannot authenticate. */
   readonly keyHash: string;
   readonly scopes: readonly string[];
+  /** Per-key requests-per-minute ceiling; `null` defers to `API_RATE_LIMIT_PER_MINUTE`. */
+  readonly rateLimitPerMinute: number | null;
   readonly lastUsedAt: Date | null;
   readonly expiresAt: Date | null;
   readonly isActive: boolean;
@@ -333,6 +343,7 @@ export const DEMO_API_KEYS: readonly DemoApiKey[] = [
     prefix: "cios_demo_rpt",
     keyHash: "demo-placeholder-hash-reporting",
     scopes: ["calculation:read", "disclosure:read", "activity_data:read"],
+    rateLimitPerMinute: null,
     lastUsedAt: new Date(Date.UTC(2024, 11, 20, 4, 22)),
     expiresAt: new Date(Date.UTC(2025, 11, 31)),
     isActive: true,
@@ -345,6 +356,7 @@ export const DEMO_API_KEYS: readonly DemoApiKey[] = [
     prefix: "cios_demo_ing",
     keyHash: "demo-placeholder-hash-ingest",
     scopes: ["activity_data:read", "activity_data:create"],
+    rateLimitPerMinute: 240,
     lastUsedAt: new Date(Date.UTC(2024, 11, 20, 18, 3)),
     expiresAt: null,
     isActive: true,
@@ -357,6 +369,7 @@ export const DEMO_API_KEYS: readonly DemoApiKey[] = [
     prefix: "cios_demo_old",
     keyHash: "demo-placeholder-hash-revoked",
     scopes: ["activity_data:read"],
+    rateLimitPerMinute: null,
     lastUsedAt: new Date(Date.UTC(2024, 5, 30, 11, 0)),
     expiresAt: new Date(Date.UTC(2024, 6, 1)),
     isActive: false,

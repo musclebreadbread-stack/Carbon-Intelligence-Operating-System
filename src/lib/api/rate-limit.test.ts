@@ -182,26 +182,37 @@ describe("RateLimiter", () => {
 
 describe("rateLimitForKey", () => {
   it("uses the documented default when nothing is configured", () => {
-    expect(rateLimitForKey([], {})).toBe(DEFAULT_RATE_LIMIT);
+    expect(rateLimitForKey([], undefined, {})).toBe(DEFAULT_RATE_LIMIT);
   });
 
   it("honours API_RATE_LIMIT_PER_MINUTE", () => {
-    expect(rateLimitForKey([], { API_RATE_LIMIT_PER_MINUTE: "600" })).toBe(600);
+    expect(rateLimitForKey([], undefined, { API_RATE_LIMIT_PER_MINUTE: "600" })).toBe(600);
   });
 
   it("ignores a non-numeric or non-positive override", () => {
-    expect(rateLimitForKey([], { API_RATE_LIMIT_PER_MINUTE: "abc" })).toBe(
+    expect(rateLimitForKey([], undefined, { API_RATE_LIMIT_PER_MINUTE: "abc" })).toBe(
       DEFAULT_RATE_LIMIT,
     );
-    expect(rateLimitForKey([], { API_RATE_LIMIT_PER_MINUTE: "-5" })).toBe(
+    expect(rateLimitForKey([], undefined, { API_RATE_LIMIT_PER_MINUTE: "-5" })).toBe(
       DEFAULT_RATE_LIMIT,
     );
   });
 
-  it("exempts a key carrying the rate:unlimited scope", () => {
-    expect(rateLimitForKey(["rate:unlimited"], { API_RATE_LIMIT_PER_MINUTE: "1" })).toBe(
-      Number.MAX_SAFE_INTEGER,
-    );
+  it("exempts a key carrying the rate:unlimited scope, even with a per-key limit set", () => {
+    expect(
+      rateLimitForKey(["rate:unlimited"], 10, { API_RATE_LIMIT_PER_MINUTE: "1" }),
+    ).toBe(Number.MAX_SAFE_INTEGER);
+  });
+
+  it("prefers a finite, positive per-key limit over the global default", () => {
+    expect(rateLimitForKey([], 240, { API_RATE_LIMIT_PER_MINUTE: "600" })).toBe(240);
+  });
+
+  it("falls back to the global default when the per-key limit is null, absent, or invalid", () => {
+    expect(rateLimitForKey([], null, { API_RATE_LIMIT_PER_MINUTE: "600" })).toBe(600);
+    expect(rateLimitForKey([], undefined, { API_RATE_LIMIT_PER_MINUTE: "600" })).toBe(600);
+    expect(rateLimitForKey([], 0, { API_RATE_LIMIT_PER_MINUTE: "600" })).toBe(600);
+    expect(rateLimitForKey([], -5, { API_RATE_LIMIT_PER_MINUTE: "600" })).toBe(600);
   });
 });
 
