@@ -769,6 +769,46 @@ export function buildSections(): readonly GuideSection[] {
               "구현 완료. archiveAuditTrailAction과 /api/cron/audit-archive가 보존기간(AUDIT_RETENTION_DAYS, 기본 365일)을 초과한 AuditTrail 행을 ArchivedAuditTrail로 이관합니다. 실제 스케줄 트리거만 아직 연결되어 있지 않습니다.",
               "11절대로 CRON_SECRET을 설정한 뒤, Vercel Cron(vercel.json의 crons 항목) 또는 외부 스케줄러가 /api/cron/audit-archive를 주기 호출하도록 구성하십시오.",
             ],
+            [
+              "테넌트 간 데이터 격리(조직 멤버십)",
+              "구현 완료. OrganizationMembership 모델이 도입되어 조직 전환(활성 조직 스위처)이 배포 전체 조직 목록이 아니라 사용자의 실제 멤버십으로 검증됩니다. 감사 로그, 배출계수 시맨틱 검색, DataSource 조회에도 조직 필터가 추가되었습니다.",
+              "추가 조치가 필요하지 않습니다. 구성원 초대·역할 변경·접근 철회는 보안 화면의 '구성원' 탭에서 수행하십시오. 다만 PostgreSQL Row-Level Security(RLS)는 아직 적용되지 않아 애플리케이션 계층 검증에만 의존합니다 — 3절대로 데이터베이스를 프로비저닝한 뒤 RLS 정책 추가를 검토하십시오.",
+            ],
+            [
+              "SSO/SAML/OIDC 및 다요소인증(MFA)",
+              "미구현. 현재 인증은 Supabase Auth(이메일·비밀번호) 또는 데모 세션만 지원합니다.",
+              "사내 SSO가 필요하면 Okta·Azure AD·Google Workspace 등 ID 공급자를 선정하고 Supabase Auth의 SAML/OIDC 커넥터를 설정하십시오. MFA는 별도 개발이 필요합니다.",
+            ],
+            [
+              "배출량 계산 재실행 시 이중 합산",
+              "구현 완료(버그 수정). 동일 조직·연도를 재계산하면 이전 실행이 SUPERSEDED로 전이되고, 집계는 활성(COMPLETED) 실행만 반영합니다.",
+              "추가 조치가 필요하지 않습니다.",
+            ],
+            [
+              "증빙 파일의 실제 오브젝트 스토리지 저장",
+              "부분 구현. src/lib/storage의 팩토리 패턴이 증빙 파일을 실제 바이트 기준으로 해시하지만, 저장소 자체는 프로세스 메모리(MemoryObjectStorageClient)뿐이라 프로세스 재시작 시 소실됩니다.",
+              "2절에서 만든 Supabase Storage 버킷(또는 S3)에 연결하는 구현체를 추가 개발해 getObjectStorageClient() 팩토리가 선택하도록 연결하십시오.",
+            ],
+            [
+              "API 레이트리밋의 다중 인스턴스 지원",
+              "미구현. 현재 레이트리미터는 프로세스 메모리 기반이라 서버 인스턴스마다 한도가 개별 적용됩니다. getRateLimiter() 팩토리 접점은 준비되어 있습니다.",
+              "7절에서 준비한 Redis/Upstash에 연결하는 구현체를 추가하고 getRateLimiter()가 이를 반환하도록 교체하십시오.",
+            ],
+            [
+              "배출량 계산의 비동기 처리",
+              "미구현. POST /api/v1/calculations는 요청 안에서 전체 계산을 동기 실행합니다(이전에는 202를 반환했으나 실제 동작과 맞지 않아 200으로 수정했습니다). 대량 데이터셋에서는 요청 타임아웃 위험이 있습니다.",
+              "대량 조직에서 타임아웃이 발생하면 Queue/Worker(Vercel Queue, BullMQ 등) 기반 비동기 처리와 상태 폴링 엔드포인트 도입을 검토하십시오.",
+            ],
+            [
+              "금액·배출량 수치의 Decimal 정밀도",
+              "미구현. 배출량·통화 수치가 Prisma Float로 저장됩니다. 부동소수점 반올림 오차가 있을 수 있으나, 이번에 확인·수정된 문제는 정밀도가 아니라 재실행 시 이중 집계였습니다.",
+              "회계·감사상 소수점 정밀도가 계약상 요구되면 Decimal 컬럼 전환을 별도 프로젝트로 계획하십시오(도메인 계산 레이어 전체에 영향을 주는 규모입니다).",
+            ],
+            [
+              "미사용 스키마 정리(Session.token, EncryptionKey)",
+              "Session.token(평문 컬럼)과 EncryptionKey 모델은 코드 어디에서도 사용되지 않는 죽은 스키마입니다. 실제 인증은 Supabase가, 필드 암호화는 FIELD_ENCRYPTION_KEY 환경변수가 처리합니다.",
+              "보안 감사 시 혼동을 피하려면 다음 스키마 변경 배치에 두 항목을 제거하는 마이그레이션을 포함하십시오.",
+            ],
           ],
         },
       ],
