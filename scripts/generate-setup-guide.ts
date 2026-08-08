@@ -194,7 +194,7 @@ export const ENV_TABLE: readonly {
 ];
 
 /**
- * The twelve sections of the guide.
+ * The thirteen sections of the guide.
  *
  * Exported so `scripts/generate-setup-guide.test.ts` can assert the structure
  * without rendering a document.
@@ -821,6 +821,58 @@ export function buildSections(): readonly GuideSection[] {
       verification: [
         "각 행의 '사용자가 해야 할 일'을 사내 백로그에 등록하고 담당자와 기한을 지정했습니다.",
         "운영 개시 전에 최소한 '실제 데이터베이스 대상 실행 검증'과 '상용 배출계수 데이터' 항목의 판단이 완료되었습니다.",
+      ],
+    },
+
+    {
+      number: 13,
+      title: "상용화(커머셜라이제이션) 진행 — 사용자가 직접 해야 할 일",
+      summary:
+        "린(Lean) 3개월 출시 계획(M1~M3) 중 Claude Code가 대신할 수 없는 항목입니다. 요금제·게이팅·랜딩페이지·무료체험 신청·약관 뼈대는 코드로 이미 구현·검증되었고, 남은 것은 가격 확정, 결제 가맹점 가입, 법률 자문, 영업 활동입니다.",
+      cost:
+        "Toss Payments 가맹점 수수료(신용카드 기준 약 2.5~3.5%, 업종·계약조건에 따라 상이). 법률 자문 비용은 별도 견적. 그 외 항목은 무료입니다.",
+      blocks: [
+        {
+          kind: "text",
+          text: "이번 개발 세션에서 완료된 것: Organization.plan(TRIAL/STARTER/GROWTH/ENTERPRISE) 요금제 스키마, 요금제별 모듈 접근 제어(8개 프리미엄 라우트 잠금), 새 랜딩페이지(/)와 무료체험 신청 폼·저장 로직, 이용약관·개인정보처리방침 뼈대(/legal/terms, /legal/privacy). lint·typecheck·test(1,660개)·build 전부 통과했고 origin/feat/cios-core-implementation-gaps 브랜치에 커밋·푸시되어 있습니다.",
+        },
+        { kind: "text", text: "1개월차 마무리" },
+        {
+          kind: "steps",
+          items: [
+            "GitHub에서 feat/cios-core-implementation-gaps → main으로 Pull Request를 생성하고 병합합니다. origin/feat/cios-core-implementation은 이번 작업과 무관한 커밋이 섞여 갈라져 있으므로 사용하지 마십시오.",
+            "가격표를 확정합니다. 현재 랜딩페이지의 스타터 29만원 · 그로스 89만원 · 엔터프라이즈 맞춤견적은 가설 값입니다. 타겟 고객(파일럿 후보)과의 대화 결과를 src/lib/i18n/dictionaries/ko.ts·en.ts의 marketing.pricing.* 키에 반영하도록 Claude Code에 요청하십시오.",
+            "배포 환경(Vercel 등)에 SALES_NOTIFICATION_EMAIL을 등록해 무료체험 신청 알림을 받으십시오. 실제 이메일 발송까지 받으려면 RESEND_API_KEY·NOTIFICATION_EMAIL_FROM도 함께 설정해야 합니다(이 문서 앞부분의 환경변수 표 참고).",
+            "법률 자문을 시작합니다. /legal/terms, /legal/privacy 두 페이지는 조항 구조만 만들어져 있고 본문은 전부 '[법률 검토 필요]' 표시입니다. 변호사·법무 자문을 통해 실제 이용약관·개인정보처리방침 조항(요금 환불 정책, 개인정보 수집 항목, 제3자 제공 여부 등)을 확정하십시오.",
+          ],
+        },
+        { kind: "text", text: "2개월차 — 결제 리허설 · 파일럿 준비" },
+        {
+          kind: "steps",
+          items: [
+            "https://www.tosspayments.com 에서 가맹점 심사를 신청합니다. 사업자등록증 등 서류 심사에 통상 수일이 소요됩니다.",
+            "심사 통과 후 결제링크(Payment Link) 기능으로 소액 결제를 최소 1회 리허설합니다. v1은 자동 정기결제가 아니라 결제링크 발송 → 결제 확인 → 수동으로 조직의 plan을 활성화하는 방식입니다.",
+            "확정된 약관 문구를 legal 페이지에 반영하도록 Claude Code에 전달합니다(전체 조항 텍스트를 붙여넣으면 됩니다).",
+            "파일럿 후보 3~5곳을 컨택합니다. 국내 중견·중소 제조업 중 Scope 1·2·3 규제 대응이 급한 곳을 우선하고, 랜딩페이지의 무료체험 신청 폼으로 유도하십시오.",
+          ],
+        },
+        { kind: "text", text: "3개월차 — 파일럿 운영 · 정식 출시" },
+        {
+          kind: "steps",
+          items: [
+            "무료체험 신청이 들어오면(TrialRequest 테이블 또는 알림 메일로 확인) 보안 화면의 '구성원' 탭 초대 흐름으로 조직을 만들고 담당자를 관리자로 초대합니다. 자동 가입은 v1 범위가 아닙니다.",
+            "결제가 확인되면 조직의 plan을 STARTER/GROWTH/ENTERPRISE로 전환합니다. 2개월차에 만들 scripts/activate-plan.ts(CLI)로 처리하고, 별도 관리자 웹 화면은 v1에서 만들지 않습니다.",
+            "파일럿 피드백을 근거로 가격 정책을 재검증합니다. 1개월차에 확정한 가격표는 가설이므로 실제 대화 결과에 따라 조정하십시오.",
+            "정식 출시를 공지합니다.",
+          ],
+        },
+      ],
+      verification: [
+        "feat/cios-core-implementation-gaps의 변경사항이 main에 병합되어 있습니다.",
+        "배포 환경에 SALES_NOTIFICATION_EMAIL이 설정되어 있고, 테스트로 무료체험 신청을 제출하면 알림을 수신합니다.",
+        "/legal/terms, /legal/privacy 어디에도 '[법률 검토 필요]' 표시가 남아있지 않습니다.",
+        "Toss Payments 결제링크로 소액 결제 테스트가 실제로 성공했습니다.",
+        "파일럿 후보 최소 1곳과 접촉해 무료체험 신청 또는 다음 단계 약속을 받았습니다.",
       ],
     },
   ];

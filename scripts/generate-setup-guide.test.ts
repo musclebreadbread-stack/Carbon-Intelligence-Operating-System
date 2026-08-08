@@ -2,7 +2,7 @@
  * Structural tests for the Korean hand-off document.
  *
  * The document is the user's deliverable, so the things that make it useful are
- * asserted rather than eyeballed: twelve sections, no empty body, Korean text,
+ * asserted rather than eyeballed: thirteen sections, no empty body, Korean text,
  * every section stating its cost and a "완료 확인 방법", the concrete commands the
  * user must run, and an environment-variable table that matches `.env.example`
  * exactly. The last test packs a real document so a broken renderer cannot ship.
@@ -54,10 +54,10 @@ function sectionText(section: GuideSection): string {
 }
 
 describe("buildSections", () => {
-  it("returns exactly the twelve required sections, numbered in order", () => {
-    expect(sections).toHaveLength(12);
+  it("returns exactly the thirteen required sections, numbered in order", () => {
+    expect(sections).toHaveLength(13);
     expect(sections.map((section) => section.number)).toEqual([
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
     ]);
   });
 
@@ -218,6 +218,19 @@ describe("required content", () => {
       "rateLimit",
       "pgvector",
       "misstatement",
+    ]) {
+      expect(text).toContain(topic);
+    }
+  });
+
+  it("covers the commercialization plan's user-owned M1/M2/M3 items (section 13)", () => {
+    const text = sectionText(byNumber.get(13)!);
+    for (const topic of [
+      "feat/cios-core-implementation-gaps",
+      "tosspayments.com",
+      "SALES_NOTIFICATION_EMAIL",
+      "법률 검토 필요",
+      "activate-plan.ts",
     ]) {
       expect(text).toContain(topic);
     }
