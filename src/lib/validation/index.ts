@@ -11,6 +11,7 @@
 export * from "./common";
 export * from "./organization";
 export * from "./organization-membership";
+export * from "./trial-request";
 export * from "./master-data";
 export * from "./activity-data";
 export * from "./emission-factor";

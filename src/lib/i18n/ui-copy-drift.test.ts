@@ -136,7 +136,6 @@ describe("UI copy drift detection", () => {
     // The landing page (src/app/page.tsx) may not use i18n directly if it
     // imports constants, so we allow a small set of known exceptions.
     const EXCEPTIONS = new Set([
-      "src/app/page.tsx", // Landing page uses direct module descriptions
       "src/app/(auth)/forgot-password/page.tsx", // Pre-existing; uses SupabaseNotice for i18n
       "src/app/(auth)/register/page.tsx", // Pre-existing; uses SupabaseNotice for i18n
       "src/app/(auth)/reset-password/page.tsx", // Pre-existing; uses SupabaseNotice for i18n

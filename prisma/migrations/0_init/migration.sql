@@ -23,6 +23,9 @@ CREATE TYPE "MembershipRole" AS ENUM ('OWNER', 'ADMIN', 'MEMBER', 'VIEWER');
 CREATE TYPE "MembershipStatus" AS ENUM ('ACTIVE', 'INVITED', 'SUSPENDED', 'REVOKED');
 
 -- CreateEnum
+CREATE TYPE "PlanTier" AS ENUM ('TRIAL', 'STARTER', 'GROWTH', 'ENTERPRISE');
+
+-- CreateEnum
 CREATE TYPE "CalculationApproach" AS ENUM ('SPEND_BASED', 'ACTIVITY_BASED', 'HYBRID', 'DIRECT_MEASUREMENT', 'SUPPLIER_SPECIFIC', 'AVERAGE_DATA');
 
 -- CreateEnum
@@ -87,6 +90,9 @@ CREATE TYPE "AIModelType" AS ENUM ('REGRESSION', 'CLASSIFICATION', 'CLUSTERING',
 
 -- CreateEnum
 CREATE TYPE "TargetBoundary" AS ENUM ('SCOPE_1_2', 'SCOPE_1_2_3', 'SCOPE_3_ONLY', 'FLAG', 'FULL_VALUE_CHAIN');
+
+-- CreateEnum
+CREATE TYPE "TrialRequestStatus" AS ENUM ('PENDING', 'CONTACTED', 'CONVERTED', 'DECLINED');
 
 -- CreateTable
 CREATE TABLE "User" (
@@ -292,6 +298,9 @@ CREATE TABLE "Organization" (
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "plan" "PlanTier" NOT NULL DEFAULT 'TRIAL',
+    "trialEndsAt" TIMESTAMP(3),
+    "planExpiresAt" TIMESTAMP(3),
 
     CONSTRAINT "Organization_pkey" PRIMARY KEY ("id")
 );
@@ -2762,6 +2771,22 @@ CREATE TABLE "Approval" (
     CONSTRAINT "Approval_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "TrialRequest" (
+    "id" TEXT NOT NULL,
+    "companyName" TEXT NOT NULL,
+    "contactName" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "phone" TEXT,
+    "facilityCount" INTEGER,
+    "message" TEXT,
+    "status" "TrialRequestStatus" NOT NULL DEFAULT 'PENDING',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "TrialRequest_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
@@ -3676,6 +3701,12 @@ CREATE INDEX "Approval_executionId_idx" ON "Approval"("executionId");
 
 -- CreateIndex
 CREATE INDEX "Approval_status_idx" ON "Approval"("status");
+
+-- CreateIndex
+CREATE INDEX "TrialRequest_status_idx" ON "TrialRequest"("status");
+
+-- CreateIndex
+CREATE INDEX "TrialRequest_createdAt_idx" ON "TrialRequest"("createdAt");
 
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

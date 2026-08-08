@@ -24,6 +24,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { ExplanationPanel } from "@/components/shared/explanation-panel";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { PageHeader } from "@/components/shared/page-header";
+import { PlanGateLocked } from "@/components/shared/plan-gate";
 import { ActionForm } from "@/components/shared/form/action-form";
 import { resolveAnomalyAction, runAnalysisAction } from "@/lib/actions/ai";
 import { activeOrganizationId } from "@/lib/auth/active-organization";
@@ -32,8 +33,10 @@ import {
   explanationInputFromOutcome,
 } from "@/lib/ai/explain/build-explanation";
 import { describeLlmMode, getLlmClient, isLlmConfigured } from "@/lib/ai/llm/factory";
+import { hasModuleAccess } from "@/lib/core/plans";
 import { AI_ANALYSIS_TYPES } from "@/lib/validation/agent";
 import { listReportingYears } from "@/lib/data/repositories/activity-data";
+import { getOrganization } from "@/lib/data/repositories/organization";
 import {
   getAnomalyFeed,
   getDataGaps,
@@ -66,6 +69,11 @@ export default async function AiEnginePage() {
   const dict = await getDictionary();
 
   const organizationId = await activeOrganizationId();
+  const organization = await getOrganization(organizationId);
+  if (!hasModuleAccess(organization?.plan ?? "TRIAL", "ai-engine")) {
+    return <PlanGateLocked module="ai-engine" />;
+  }
+
   const years = await listReportingYears(organizationId);
   const currentYear = years[0] ?? new Date().getUTCFullYear();
 

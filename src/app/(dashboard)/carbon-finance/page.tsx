@@ -23,6 +23,7 @@ import { DataTable, type ColumnDef } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { PageHeader } from "@/components/shared/page-header";
+import { PlanGateLocked } from "@/components/shared/plan-gate";
 import { ActionForm } from "@/components/shared/form/action-form";
 import {
   createCarbonCreditAction,
@@ -31,8 +32,10 @@ import {
 } from "@/lib/actions/credits";
 import { activeOrganizationId } from "@/lib/auth/active-organization";
 import { CREDIT_STATUSES } from "@/lib/core/enums";
+import { hasModuleAccess } from "@/lib/core/plans";
 import { listReportingYears } from "@/lib/data/repositories/activity-data";
 import { getCarbonFinanceView } from "@/lib/data/repositories/credits";
+import { getOrganization } from "@/lib/data/repositories/organization";
 import {
   formatCurrency,
   formatDate,
@@ -120,6 +123,11 @@ export default async function CarbonFinancePage() {
   const dict = await getDictionary();
 
   const organizationId = await activeOrganizationId();
+  const organization = await getOrganization(organizationId);
+  if (!hasModuleAccess(organization?.plan ?? "TRIAL", "carbon-finance")) {
+    return <PlanGateLocked module="carbon-finance" />;
+  }
+
   const years = await listReportingYears(organizationId);
   const reportingYear = years[0] ?? new Date().getUTCFullYear();
 

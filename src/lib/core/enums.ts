@@ -319,3 +319,9 @@ export type MembershipRole = (typeof MEMBERSHIP_ROLES)[number];
 
 export const MEMBERSHIP_STATUSES = ["ACTIVE", "INVITED", "SUSPENDED", "REVOKED"] as const;
 export type MembershipStatus = (typeof MEMBERSHIP_STATUSES)[number];
+
+export const PLAN_TIERS = ["TRIAL", "STARTER", "GROWTH", "ENTERPRISE"] as const;
+export type PlanTier = (typeof PLAN_TIERS)[number];
+
+export const TRIAL_REQUEST_STATUSES = ["PENDING", "CONTACTED", "CONVERTED", "DECLINED"] as const;
+export type TrialRequestStatus = (typeof TRIAL_REQUEST_STATUSES)[number];

@@ -75,6 +75,13 @@ enum MembershipStatus {
   REVOKED
 }
 
+enum PlanTier {
+  TRIAL
+  STARTER
+  GROWTH
+  ENTERPRISE
+}
+
 enum CalculationApproach {
   SPEND_BASED
   ACTIVITY_BASED
@@ -570,6 +577,13 @@ model Organization {
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  // Commercial plan (v1: manually activated, see scripts/activate-plan.ts —
+  // no automated billing yet). trialEndsAt/planExpiresAt are advisory dates
+  // read by the plan-gate UI; nothing auto-downgrades on expiry in v1.
+  plan          PlanTier  @default(TRIAL)
+  trialEndsAt   DateTime?
+  planExpiresAt DateTime?
 
   // Hierarchy children
   businessUnits BusinessUnit[]
@@ -3610,4 +3624,37 @@ model Approval {
   @@index([stepId])
   @@index([executionId])
   @@index([status])
+}
+
+// ============================================================================
+// COMMERCIAL — TRIAL REQUESTS
+// ============================================================================
+
+enum TrialRequestStatus {
+  PENDING
+  CONTACTED
+  CONVERTED
+  DECLINED
+}
+
+/**
+ * A lead from the public landing page's "free trial" form. No relation to
+ * `Organization`/`User` on purpose — v1 onboarding is manual (the operator
+ * reads this row, then creates the org and invites the admin through the
+ * existing organization-membership flow; see scripts/activate-plan.ts).
+ */
+model TrialRequest {
+  id            String             @id @default(cuid())
+  companyName   String
+  contactName   String
+  email         String
+  phone         String?
+  facilityCount Int?
+  message       String?
+  status        TrialRequestStatus @default(PENDING)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
 }

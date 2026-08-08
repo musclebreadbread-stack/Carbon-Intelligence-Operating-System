@@ -7,7 +7,7 @@
  * organisation page, the roll-up views and the calculation actions.
  */
 
-import type { GHGScope, OrganizationTier } from "@/lib/core/enums";
+import type { GHGScope, OrganizationTier, PlanTier } from "@/lib/core/enums";
 import type { FacilityConsolidationLike } from "@/lib/domain/emissions/aggregate";
 import type { EmissionSourceLike } from "@/lib/domain/mrv/plan";
 import { prisma } from "@/lib/prisma";
@@ -39,6 +39,7 @@ export type OrganizationSummary = {
   readonly baseCurrency: string;
   readonly reportingYear: number | null;
   readonly isActive: boolean;
+  readonly plan: PlanTier;
 };
 
 export type FacilitySummary = {
@@ -82,6 +83,9 @@ function demoOrganization(): OrganizationSummary {
     baseCurrency: DEMO_ORGANIZATION.baseCurrency,
     reportingYear: DEMO_ORGANIZATION.reportingYear,
     isActive: DEMO_ORGANIZATION.isActive,
+    // Demo mode is for evaluating the whole product, so it shows every
+    // module — the same reasoning as an active TRIAL (see src/lib/core/plans.ts).
+    plan: "ENTERPRISE",
   };
 }
 
@@ -105,6 +109,7 @@ export async function listOrganizations(): Promise<readonly OrganizationSummary[
         baseCurrency: row.baseCurrency,
         reportingYear: row.reportingYear,
         isActive: row.isActive,
+        plan: row.plan,
       }));
     },
     () => [demoOrganization()],
@@ -130,6 +135,7 @@ export async function getOrganization(
         baseCurrency: row.baseCurrency,
         reportingYear: row.reportingYear,
         isActive: row.isActive,
+        plan: row.plan,
       };
     },
     () => (organizationId === DEMO_ORGANIZATION_ID ? demoOrganization() : null),

@@ -22,14 +22,17 @@ import { PathwayChart, type PathwayPoint } from "@/components/charts/pathway";
 import { EmptyState } from "@/components/shared/empty-state";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { PageHeader } from "@/components/shared/page-header";
+import { PlanGateLocked } from "@/components/shared/plan-gate";
 import {
   previewScenarioAction,
   simulateScenarioAction,
 } from "@/lib/actions/scenario";
 import { activeOrganizationId } from "@/lib/auth/active-organization";
 import { SCENARIO_TYPES } from "@/lib/core/enums";
+import { hasModuleAccess } from "@/lib/core/plans";
 import { listReportingYears } from "@/lib/data/repositories/activity-data";
 import { getInventory } from "@/lib/data/repositories/calculation";
+import { getOrganization } from "@/lib/data/repositories/organization";
 import {
   DEMO_SCENARIO_COMPARISON_LIST,
   getBudgetConsumption,
@@ -85,6 +88,11 @@ export default async function AiSimulatorPage() {
   const dict = await getDictionary();
 
   const organizationId = await activeOrganizationId();
+  const organization = await getOrganization(organizationId);
+  if (!hasModuleAccess(organization?.plan ?? "TRIAL", "ai-simulator")) {
+    return <PlanGateLocked module="ai-simulator" />;
+  }
+
   const years = await listReportingYears(organizationId);
   const currentYear = years[0] ?? new Date().getUTCFullYear();
 

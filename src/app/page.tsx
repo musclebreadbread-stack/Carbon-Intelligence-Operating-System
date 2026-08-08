@@ -1,29 +1,21 @@
 /**
- * Landing page.
+ * Marketing landing page.
  *
- * Previously an unconditional `redirect("/dashboard")`, which meant a visitor with
- * no session bounced straight into the middleware's redirect back to `/login`. Now
- * it states what the system is, reports the deployment's actual configuration
- * status, and offers the right entry point: the dashboard when a session exists,
- * sign-in when Supabase is configured, and the demo dashboard when it is not.
+ * Public, unauthenticated, Korean-first — the entry point for a prospect
+ * (제조업 ESG/환경안전 담당자) rather than a returning user. The old
+ * developer-status landing page moved to `/status`; a session holder is
+ * still routed to `/dashboard`, and `/status` still exists for anyone who
+ * wants to see what this deployment has configured.
+ *
+ * `PlanGateLocked` (src/components/shared/plan-gate.tsx) links back to
+ * `/#pricing` on this page, so the pricing section's `id` must stay "pricing".
  */
 
+import Link from "next/link";
 import { connection } from "next/server";
-import {
-  BarChart3,
-  Bot,
-  Brain,
-  Coins,
-  Database,
-  FileCheck,
-  FileText,
-  Flame,
-  Leaf,
-  ShieldCheck,
-} from "lucide-react";
+import { BarChart3, Database, FileText, Leaf } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { LinkButton } from "@/components/shared/link-button";
 import {
   Card,
   CardContent,
@@ -31,200 +23,197 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { describeLlmMode, isLlmConfigured } from "@/lib/ai/llm/factory";
-import { getSession, isSupabaseConfigured } from "@/lib/auth/session";
-import { getDataMode, isDbConfigured } from "@/lib/data/db";
+import { LinkButton } from "@/components/shared/link-button";
+import { getSession } from "@/lib/auth/session";
 import { getDictionary } from "@/lib/i18n/server";
-import { SETUP_GUIDE_PATH } from "@/lib/i18n/messages";
+
+import { submitTrialRequestAction } from "@/lib/actions/trial-request";
+import { TrialRequestForm } from "./_components/trial-request-form";
 
 export const metadata = {
-  title: "CIOS — Carbon Intelligence Operating System",
+  title: "CIOS — 제조업을 위한 탄소회계 플랫폼",
   description:
-    "AI-native enterprise carbon management: GHG Protocol inventory, science-based targets, ESG disclosure and decarbonisation planning.",
+    "GHG Protocol 기준 Scope 1·2·3 배출량 계산부터 CDP·K-ETS 공시까지, 국내 중견·중소 제조업을 위한 한국어 탄소회계 플랫폼.",
 };
 
-const MODULES = [
+const FEATURES = [
   {
     icon: Database,
-    titleKey: "landing.module.inventory.title",
-    bodyKey: "landing.module.inventory.body",
-  },
-  {
-    icon: Flame,
-    titleKey: "landing.module.engines.title",
-    bodyKey: "landing.module.engines.body",
-  },
-  {
-    icon: Brain,
-    titleKey: "landing.module.ai.title",
-    bodyKey: "landing.module.ai.body",
+    titleKey: "marketing.features.activityData.title",
+    bodyKey: "marketing.features.activityData.body",
   },
   {
     icon: BarChart3,
-    titleKey: "landing.module.targets.title",
-    bodyKey: "landing.module.targets.body",
-  },
-  {
-    icon: Coins,
-    titleKey: "landing.module.finance.title",
-    bodyKey: "landing.module.finance.body",
+    titleKey: "marketing.features.calculation.title",
+    bodyKey: "marketing.features.calculation.body",
   },
   {
     icon: FileText,
-    titleKey: "landing.module.disclosure.title",
-    bodyKey: "landing.module.disclosure.body",
-  },
-  {
-    icon: FileCheck,
-    titleKey: "landing.module.mrv.title",
-    bodyKey: "landing.module.mrv.body",
-  },
-  {
-    icon: Bot,
-    titleKey: "landing.module.agents.title",
-    bodyKey: "landing.module.agents.body",
+    titleKey: "marketing.features.disclosure.title",
+    bodyKey: "marketing.features.disclosure.body",
   },
 ] as const;
 
-export default async function Home() {
+export default async function MarketingLandingPage() {
   await connection();
 
   const dict = await getDictionary();
   const session = await getSession();
-  const supabaseConfigured = isSupabaseConfigured();
-  const dataMode = getDataMode();
-  const llm = describeLlmMode();
+
+  const plans = [
+    {
+      key: "starter",
+      name: dict["marketing.pricing.starter.name"],
+      price: dict["marketing.pricing.starter.price"],
+      description: dict["marketing.pricing.starter.description"],
+      highlighted: false,
+    },
+    {
+      key: "growth",
+      name: dict["marketing.pricing.growth.name"],
+      price: dict["marketing.pricing.growth.price"],
+      description: dict["marketing.pricing.growth.description"],
+      highlighted: true,
+    },
+    {
+      key: "enterprise",
+      name: dict["marketing.pricing.enterprise.name"],
+      price: dict["marketing.pricing.enterprise.price"],
+      description: dict["marketing.pricing.enterprise.description"],
+      highlighted: false,
+    },
+  ] as const;
 
   return (
-    <div className="flex min-h-screen flex-col bg-muted/30">
-      <header className="flex items-center justify-between border-b bg-background px-6 py-3">
+    <div className="flex min-h-screen flex-col">
+      <header className="flex items-center justify-between border-b px-6 py-3">
         <div className="flex items-center gap-2">
           <Leaf className="size-5 text-emerald-600" />
           <span className="text-sm font-semibold">CIOS</span>
-          <Badge variant="outline" className="ml-1">
-            {dataMode === "demo" ? dict["demo.banner"] : dict["dashboard.badge.live"]}
-          </Badge>
         </div>
         <div className="flex items-center gap-2">
           {session ? (
             <LinkButton size="sm" href="/dashboard">
               {dict["landing.openDashboard"]}
             </LinkButton>
-          ) : supabaseConfigured ? (
+          ) : (
             <>
-              <LinkButton size="sm" variant="ghost" href="/register">
-                {dict["auth.createAccount"]}
-              </LinkButton>
-              <LinkButton size="sm" href="/login">
+              <LinkButton size="sm" variant="ghost" href="/login">
                 {dict["auth.login"]}
               </LinkButton>
+              <LinkButton size="sm" href="#pricing">
+                {dict["marketing.hero.ctaSecondary"]}
+              </LinkButton>
             </>
-          ) : (
-            <LinkButton size="sm" href="/dashboard">
-              {dict["landing.exploreDemo"]}
-            </LinkButton>
           )}
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-5xl flex-1 space-y-8 px-6 py-12">
-        <section className="space-y-4">
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            {dict["landing.title"]}
+      <main className="flex-1">
+        <section className="mx-auto max-w-4xl space-y-5 px-6 py-20 text-center">
+          <Badge variant="outline" className="mx-auto">
+            {dict["marketing.hero.badge"]}
+          </Badge>
+          <h1 className="text-3xl font-bold tracking-tight sm:text-5xl">
+            {dict["marketing.hero.title"]}
           </h1>
-          <p className="max-w-3xl text-sm text-muted-foreground sm:text-base">
-            {dict["landing.heroBody"]}
+          <p className="mx-auto max-w-2xl text-sm text-muted-foreground sm:text-base">
+            {dict["marketing.hero.subtitle"]}
           </p>
-          <div className="flex flex-wrap gap-2">
-            {session ? (
-              <LinkButton href="/dashboard">{dict["landing.openDashboard"]}</LinkButton>
-            ) : (
-              <LinkButton href="/dashboard">
-                {supabaseConfigured ? dict["landing.openDashboard"] : dict["landing.exploreSampleData"]}
-              </LinkButton>
-            )}
-            <LinkButton variant="outline" href="/emission-engine">
-              {dict["landing.seeEngine"]}
+          <div className="flex flex-wrap justify-center gap-3 pt-2">
+            <LinkButton size="lg" href="#trial">
+              {dict["marketing.hero.ctaPrimary"]}
             </LinkButton>
-            <LinkButton variant="ghost" href="/api-gateway">
-              {dict["landing.restApi"]}
+            <LinkButton size="lg" variant="outline" href="#pricing">
+              {dict["marketing.hero.ctaSecondary"]}
             </LinkButton>
           </div>
         </section>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <ShieldCheck className="size-4 text-muted-foreground" />
-              {dict["landing.deployment.title"]}
-            </CardTitle>
-            <CardDescription>
-              {dict["landing.deployment.description"]}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-lg border p-3">
-                <p className="text-xs text-muted-foreground">{dict["apiGateway.label.database"]}</p>
-                <Badge variant={isDbConfigured() ? "secondary" : "outline"}>
-                  {isDbConfigured() ? dict["apiGateway.label.configured"] : dict["apiGateway.label.notConfigured"]}
-                </Badge>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  {isDbConfigured()
-                    ? dict["landing.deployment.dbConfiguredDesc"]
-                    : dict["landing.deployment.dbNotConfiguredDesc"]}
-                </p>
-              </div>
-              <div className="rounded-lg border p-3">
-                <p className="text-xs text-muted-foreground">{dict["landing.deployment.authLabel"]}</p>
-                <Badge variant={supabaseConfigured ? "secondary" : "outline"}>
-                  {supabaseConfigured ? dict["apiGateway.label.supabase"] : dict["landing.deployment.demoSessionBadge"]}
-                </Badge>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  {supabaseConfigured
-                    ? dict["landing.deployment.authConfiguredDesc"]
-                    : "Supabase가 구성되지 않아 데모 관리자 세션으로 동작합니다."}
-                </p>
-              </div>
-              <div className="rounded-lg border p-3">
-                <p className="text-xs text-muted-foreground">{dict["landing.deployment.narrativeLabel"]}</p>
-                <Badge variant={isLlmConfigured() ? "secondary" : "outline"}>
-                  {llm.mode}
-                </Badge>
-                <p className="mt-1 text-[11px] text-muted-foreground">{llm.label}</p>
-              </div>
-            </div>
-            {dataMode === "demo" && (
-              <p className="text-xs text-muted-foreground">
-                직접 설정해야 하는 항목(데이터베이스, Supabase, OpenAI, Mapbox 등)은{" "}
-                <code>{SETUP_GUIDE_PATH}</code> 문서에 단계별로 정리되어 있습니다.
-              </p>
-            )}
-          </CardContent>
-        </Card>
+        <section className="mx-auto max-w-5xl space-y-6 px-6 py-16">
+          <h2 className="text-center text-xl font-semibold">{dict["marketing.features.title"]}</h2>
+          <div className="grid gap-4 sm:grid-cols-3">
+            {FEATURES.map((feature) => {
+              const Icon = feature.icon;
+              return (
+                <Card key={feature.titleKey}>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-sm">
+                      <Icon className="size-4 text-emerald-600" />
+                      {dict[feature.titleKey]}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xs text-muted-foreground">{dict[feature.bodyKey]}</p>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </section>
 
-        <section className="grid gap-4 sm:grid-cols-2">
-          {MODULES.map((module) => {
-            const Icon = module.icon;
-            return (
-              <Card key={module.titleKey}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-sm">
-                    <Icon className="size-4 text-emerald-600" />
-                    {dict[module.titleKey]}
+        <section id="pricing" className="mx-auto max-w-5xl space-y-6 px-6 py-16">
+          <div className="space-y-2 text-center">
+            <h2 className="text-xl font-semibold">{dict["marketing.pricing.title"]}</h2>
+            <p className="text-sm text-muted-foreground">{dict["marketing.pricing.subtitle"]}</p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            {plans.map((plan) => (
+              <Card
+                key={plan.key}
+                className={plan.highlighted ? "border-emerald-500 shadow-md" : undefined}
+              >
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between text-base">
+                    {plan.name}
+                    {plan.key === "growth" && (
+                      <Badge>{dict["marketing.pricing.growth.badge"]}</Badge>
+                    )}
                   </CardTitle>
+                  <CardDescription>{plan.description}</CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <p className="text-xs text-muted-foreground">{dict[module.bodyKey]}</p>
+                <CardContent className="space-y-3">
+                  <p className="text-2xl font-bold">
+                    {plan.price}
+                    {plan.key !== "enterprise" && (
+                      <span className="text-sm font-normal text-muted-foreground">
+                        {" "}
+                        / {dict["marketing.pricing.period"]}
+                      </span>
+                    )}
+                  </p>
+                  <LinkButton
+                    href="#trial"
+                    variant={plan.highlighted ? "default" : "outline"}
+                    className="w-full"
+                  >
+                    {dict["marketing.hero.ctaPrimary"]}
+                  </LinkButton>
                 </CardContent>
               </Card>
-            );
-          })}
+            ))}
+          </div>
+        </section>
+
+        <section id="trial" className="mx-auto max-w-lg space-y-4 px-6 py-16">
+          <div className="space-y-2 text-center">
+            <h2 className="text-xl font-semibold">{dict["marketing.form.title"]}</h2>
+            <p className="text-sm text-muted-foreground">{dict["marketing.form.subtitle"]}</p>
+          </div>
+          <TrialRequestForm submitTrialRequest={submitTrialRequestAction} />
         </section>
       </main>
 
-      <footer className="border-t bg-background px-6 py-4 text-center text-xs text-muted-foreground">
-        {dict["landing.footer"]}
+      <footer className="space-y-2 border-t px-6 py-6 text-center text-xs text-muted-foreground">
+        <p>{dict["marketing.footer"]}</p>
+        <p className="flex justify-center gap-3">
+          <Link href="/legal/terms" className="hover:underline">
+            {dict["legal.terms.title"]}
+          </Link>
+          <Link href="/legal/privacy" className="hover:underline">
+            {dict["legal.privacy.title"]}
+          </Link>
+        </p>
       </footer>
     </div>
   );

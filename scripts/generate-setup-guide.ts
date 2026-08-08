@@ -185,6 +185,12 @@ export const ENV_TABLE: readonly {
     requirement: "선택",
     effect: "위 항목과 동일합니다. RESEND_API_KEY와 함께 설정해야 이메일이 발송됩니다.",
   },
+  {
+    name: "SALES_NOTIFICATION_EMAIL",
+    requirement: "선택",
+    effect:
+      "랜딩페이지 무료체험 신청 폼의 알림 수신 주소입니다. 미설정 시 신청 내역은 TrialRequest 테이블에만 저장되고 알림 이메일은 발송되지 않습니다.",
+  },
 ];
 
 /**

@@ -21,15 +21,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/shared/empty-state";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { PageHeader } from "@/components/shared/page-header";
+import { PlanGateLocked } from "@/components/shared/plan-gate";
 import {
   assessMaterialityAction,
   recordFindingAction,
   scoreVerificationReadinessAction,
 } from "@/lib/actions/verification";
 import { activeOrganizationId } from "@/lib/auth/active-organization";
+import { hasModuleAccess } from "@/lib/core/plans";
 import { listReportingYears } from "@/lib/data/repositories/activity-data";
 import { listAuditTrail } from "@/lib/data/repositories/audit";
 import { getInventory } from "@/lib/data/repositories/calculation";
+import { getOrganization } from "@/lib/data/repositories/organization";
 import { listUsers } from "@/lib/data/repositories/security";
 import {
   getEvidencePackage,
@@ -76,6 +79,11 @@ export default async function VerificationPage() {
   const dict = await getDictionary();
 
   const organizationId = await activeOrganizationId();
+  const organization = await getOrganization(organizationId);
+  if (!hasModuleAccess(organization?.plan ?? "TRIAL", "verification")) {
+    return <PlanGateLocked module="verification" />;
+  }
+
   const years = await listReportingYears(organizationId);
   const reportingYear = years[0] ?? new Date().getUTCFullYear();
 

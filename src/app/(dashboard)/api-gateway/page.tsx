@@ -21,8 +21,11 @@ import {
 import { EmptyState } from "@/components/shared/empty-state";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { PageHeader } from "@/components/shared/page-header";
+import { PlanGateLocked } from "@/components/shared/plan-gate";
 import { activeOrganizationId } from "@/lib/auth/active-organization";
 import { describeLlmMode } from "@/lib/ai/llm/factory";
+import { hasModuleAccess } from "@/lib/core/plans";
+import { getOrganization } from "@/lib/data/repositories/organization";
 import { listApiKeys } from "@/lib/data/repositories/security";
 import { DEFAULT_RATE_LIMIT, DEFAULT_WINDOW_MS, rateLimitForKey } from "@/lib/api/rate-limit";
 import { formatDate, formatDateTime, formatNumber } from "@/lib/format";
@@ -52,6 +55,10 @@ export default async function ApiGatewayPage() {
   const dict = await getDictionary();
 
   const organizationId = await activeOrganizationId();
+  const organization = await getOrganization(organizationId);
+  if (!hasModuleAccess(organization?.plan ?? "TRIAL", "api-gateway")) {
+    return <PlanGateLocked module="api-gateway" />;
+  }
 
   const [endpoints, health, apiKeys] = await Promise.all([
     listEndpoints(),

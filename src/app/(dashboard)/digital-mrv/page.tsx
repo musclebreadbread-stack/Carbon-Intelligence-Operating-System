@@ -22,12 +22,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/shared/empty-state";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { PageHeader } from "@/components/shared/page-header";
+import { PlanGateLocked } from "@/components/shared/plan-gate";
 import { ActionForm } from "@/components/shared/form/action-form";
 import { recordMeterReadingAction } from "@/lib/actions/activity-data";
 import { activeOrganizationId } from "@/lib/auth/active-organization";
+import { hasModuleAccess } from "@/lib/core/plans";
 import { listReportingYears } from "@/lib/data/repositories/activity-data";
 import { getMrvCoverage, listMeasurements } from "@/lib/data/repositories/mrv";
-import { listFacilities } from "@/lib/data/repositories/organization";
+import { getOrganization, listFacilities } from "@/lib/data/repositories/organization";
 import {
   formatDate,
   formatDateTime,
@@ -44,6 +46,11 @@ export default async function DigitalMrvPage() {
   const dict = await getDictionary();
 
   const organizationId = await activeOrganizationId();
+  const organization = await getOrganization(organizationId);
+  if (!hasModuleAccess(organization?.plan ?? "TRIAL", "digital-mrv")) {
+    return <PlanGateLocked module="digital-mrv" />;
+  }
+
   const years = await listReportingYears(organizationId);
   const reportingYear = years[0] ?? new Date().getUTCFullYear();
 

@@ -21,10 +21,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/shared/empty-state";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { PageHeader } from "@/components/shared/page-header";
+import { PlanGateLocked } from "@/components/shared/plan-gate";
 import { ActionForm } from "@/components/shared/form/action-form";
 import { createAgentAction, executeAgentTaskAction } from "@/lib/actions/agent";
 import { activeOrganizationId } from "@/lib/auth/active-organization";
 import { AGENT_STATUSES } from "@/lib/core/enums";
+import { hasModuleAccess } from "@/lib/core/plans";
+import { getOrganization } from "@/lib/data/repositories/organization";
 import {
   getLlmStatus,
   listAgentExecutions,
@@ -56,6 +59,11 @@ export default async function AiAgentsPage() {
   const dict = await getDictionary();
 
   const organizationId = await activeOrganizationId();
+  const organization = await getOrganization(organizationId);
+  if (!hasModuleAccess(organization?.plan ?? "TRIAL", "ai-agents")) {
+    return <PlanGateLocked module="ai-agents" />;
+  }
+
 
   const [agents, tasks, executions, assignments, servers, connections] = await Promise.all([
     listAgents(organizationId),

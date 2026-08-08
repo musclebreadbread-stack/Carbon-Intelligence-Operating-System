@@ -24,8 +24,11 @@ import { DataTable, type ColumnDef } from "@/components/shared/data-table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { PageHeader } from "@/components/shared/page-header";
+import { PlanGateLocked } from "@/components/shared/plan-gate";
 import { activeOrganizationId } from "@/lib/auth/active-organization";
+import { hasModuleAccess } from "@/lib/core/plans";
 import { listReportingYears } from "@/lib/data/repositories/activity-data";
+import { getOrganization } from "@/lib/data/repositories/organization";
 import {
   getMaccView,
   getRoadmapPlan,
@@ -145,6 +148,11 @@ export default async function AiRoadmapPage() {
   const dict = await getDictionary();
 
   const organizationId = await activeOrganizationId();
+  const organization = await getOrganization(organizationId);
+  if (!hasModuleAccess(organization?.plan ?? "TRIAL", "ai-roadmap")) {
+    return <PlanGateLocked module="ai-roadmap" />;
+  }
+
   const years = await listReportingYears(organizationId);
   const currentYear = years[0] ?? new Date().getUTCFullYear();
 
